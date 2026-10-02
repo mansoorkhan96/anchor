@@ -1,0 +1,348 @@
+import Foundation
+import Darwin
+
+struct DownloadSnapshot: Sendable {
+    var segments: [Segment]
+    var received: Int64
+    var totalBytes: Int64?
+    var supportsRanges: Bool
+    var validator: String?
+    var connections: Int
+    /// Bytes written since the previous snapshot, for speed sampling.
+    var delta: Int64
+}
+
+enum DownloadEvent: Sendable {
+    case started
+    case completed(fileName: String)
+    case failed(String)
+}
+
+/// One segmented HTTP(S) download. Each connection gets its own URLSession so requests are spread across
+/// separate TCP connections instead of being multiplexed onto a single HTTP/2 connection.
+final class HTTPDownload: NSObject, URLSessionDataDelegate, @unchecked Sendable {
+    static let maxRetries = 6
+
+    let id: UUID
+    private let lock = NSLock()
+    private let onEvent: @Sendable (DownloadEvent) -> Void
+    private let maxConnections: Int
+    private let delegateQueue: OperationQueue
+
+    private var url: URL
+    private var headers: [String: String]
+    private var directory: URL
+    private var fileName: String
+    private var segments: [Segment]
+    private var totalBytes: Int64?
+    private var supportsRanges: Bool
+    private var validator: String?
+
+    private var sessions: [URLSession] = []
+    private var freeSlots: [Int] = []
+    private var tasks: [ObjectIdentifier: (task: URLSessionDataTask, segment: Int, slot: Int)] = [:]
+    private var taskErrors: [ObjectIdentifier: Error] = [:]
+    private var retries: [Int: Int] = [:]
+    private var cooling: Set<Int> = []
+    private var fd: Int32 = -1
+    private var stopped = false
+    private var sampled: Int64 = 0
+
+    init(item: DownloadItem, maxConnections: Int, onEvent: @escaping @Sendable (DownloadEvent) -> Void) {
+        id = item.id
+        url = item.url
+        headers = item.headers
+        directory = item.directory
+        fileName = item.fileName
+        segments = item.segments
+        totalBytes = item.totalBytes
+        supportsRanges = item.supportsRanges
+        validator = item.validator
+        self.maxConnections = max(1, maxConnections)
+        self.onEvent = onEvent
+        delegateQueue = OperationQueue()
+        delegateQueue.maxConcurrentOperationCount = 1
+        delegateQueue.qualityOfService = .userInitiated
+        super.init()
+    }
+
+    private var partialURL: URL { directory.appending(path: fileName + ".drift-part") }
+    private var busy: Set<Int> { Set(tasks.values.map(\.segment)).union(cooling) }
+
+    // MARK: Lifecycle
+
+    func start() {
+        Task.detached(priority: .userInitiated) { [self] in
+            do {
+                try await prepare()
+                lock.withLock {
+                    guard !stopped else { return }
+                    makeSessions()
+                    fillSlots()
+                }
+                onEvent(.started)
+            } catch {
+                fail(error)
+            }
+        }
+    }
+
+    func pause() {
+        let toCancel: [URLSession] = lock.withLock {
+            stopped = true
+            tasks.values.forEach { $0.task.cancel() }
+            tasks.removeAll()
+            closeFile()
+            defer { sessions.removeAll() }
+            return sessions
+        }
+        toCancel.forEach { $0.invalidateAndCancel() }
+    }
+
+    func snapshot() -> DownloadSnapshot {
+        lock.withLock {
+            let received = SegmentPlanner.received(segments)
+            defer { sampled = received }
+            return DownloadSnapshot(segments: segments, received: received, totalBytes: totalBytes,
+                                    supportsRanges: supportsRanges, validator: validator,
+                                    connections: tasks.count, delta: max(0, received - sampled))
+        }
+    }
+
+    private func prepare() async throws {
+        var fresh = false
+        let needsProbe = lock.withLock { segments.isEmpty }
+
+        if needsProbe {
+            let probe = try await Probe.run(url, headers: headers)
+            lock.withLock {
+                totalBytes = probe.totalBytes
+                supportsRanges = probe.supportsRanges && probe.totalBytes != nil
+                validator = probe.validator
+                segments = Self.initialSegments(total: totalBytes, ranges: supportsRanges, connections: maxConnections)
+                sampled = 0
+            }
+            fresh = true
+        } else if lock.withLock({ !supportsRanges }) {
+            lock.withLock { segments = segments.map { Segment(start: $0.start, end: $0.end) } }
+            fresh = true
+        } else if let probe = try? await Probe.run(url, headers: headers) {
+            let changed = lock.withLock {
+                (validator != nil && probe.validator != nil && probe.validator != validator)
+                    || (probe.totalBytes != nil && probe.totalBytes != totalBytes)
+            }
+            if changed {
+                lock.withLock {
+                    totalBytes = probe.totalBytes
+                    validator = probe.validator
+                    segments = Self.initialSegments(total: totalBytes, ranges: supportsRanges, connections: maxConnections)
+                    sampled = 0
+                }
+                fresh = true
+            }
+        }
+
+        try lock.withLock {
+            if !FileManager.default.fileExists(atPath: partialURL.path) { fresh = true }
+            fd = open(partialURL.path, O_RDWR | O_CREAT, 0o644)
+            guard fd >= 0 else { throw DownloadError.disk("Can't write to \(directory.path): \(String(cString: strerror(errno)))") }
+            if fresh {
+                ftruncate(fd, 0)
+                segments = segments.map { Segment(start: $0.start, end: $0.end) }
+                sampled = 0
+                if let totalBytes, ftruncate(fd, off_t(totalBytes)) != 0 {
+                    throw DownloadError.disk("Not enough disk space for \(Format.bytes(totalBytes))")
+                }
+            }
+        }
+    }
+
+    static func initialSegments(total: Int64?, ranges: Bool, connections: Int) -> [Segment] {
+        guard let total, total > 0 else { return [Segment(start: 0, end: Int64.max - 1)] }
+        return ranges ? SegmentPlanner.plan(total: total, connections: connections) : [Segment(start: 0, end: total - 1)]
+    }
+
+    // MARK: Scheduling (call with lock held)
+
+    private func makeSessions() {
+        let count = supportsRanges ? maxConnections : 1
+        sessions = (0..<count).map { _ in
+            let config = URLSessionConfiguration.default
+            config.requestCachePolicy = .reloadIgnoringLocalCacheData
+            config.urlCache = nil
+            config.timeoutIntervalForRequest = 30
+            config.httpMaximumConnectionsPerHost = 1
+            config.httpCookieAcceptPolicy = .never
+            return URLSession(configuration: config, delegate: self, delegateQueue: delegateQueue)
+        }
+        freeSlots = Array(sessions.indices)
+    }
+
+    private func fillSlots() {
+        guard !stopped else { return }
+        while !freeSlots.isEmpty {
+            var index = SegmentPlanner.nextPending(segments, busy: busy)
+            if index == nil, supportsRanges {
+                index = SegmentPlanner.splitLargest(&segments, busy: Set(tasks.values.map(\.segment)))
+            }
+            guard let index else { break }
+            launch(index)
+        }
+        if tasks.isEmpty, cooling.isEmpty, segments.allSatisfy(\.isComplete) {
+            finish()
+        }
+    }
+
+    private func launch(_ index: Int) {
+        let slot = freeSlots.removeLast()
+        var request = URLRequest(url: url)
+        for (key, value) in headers { request.setValue(value, forHTTPHeaderField: key) }
+        request.setValue("identity", forHTTPHeaderField: "Accept-Encoding")
+        if supportsRanges {
+            let segment = segments[index]
+            request.setValue("bytes=\(segment.nextOffset)-\(segment.end)", forHTTPHeaderField: "Range")
+        }
+        let task = sessions[slot].dataTask(with: request)
+        tasks[ObjectIdentifier(task)] = (task, index, slot)
+        task.resume()
+    }
+
+    private func finish() {
+        stopped = true
+        closeFile()
+        let received = SegmentPlanner.received(segments)
+        if totalBytes == nil {
+            totalBytes = received
+            segments = [Segment(start: 0, end: max(0, received - 1), received: received)]
+            truncate(partialURL.path, off_t(received))
+        }
+        let finalName = FileNaming.unique(fileName, in: directory)
+        do {
+            try FileManager.default.moveItem(at: partialURL, to: directory.appending(path: finalName))
+            fileName = finalName
+            let finished = sessions
+            sessions.removeAll()
+            finished.forEach { $0.finishTasksAndInvalidate() }
+            onEvent(.completed(fileName: finalName))
+        } catch {
+            onEvent(.failed(error.localizedDescription))
+        }
+    }
+
+    private func fail(_ error: Error) {
+        let toCancel: [URLSession] = lock.withLock {
+            guard !stopped else { return [] }
+            stopped = true
+            tasks.values.forEach { $0.task.cancel() }
+            tasks.removeAll()
+            closeFile()
+            defer { sessions.removeAll() }
+            return sessions
+        }
+        toCancel.forEach { $0.invalidateAndCancel() }
+        onEvent(.failed((error as? LocalizedError)?.errorDescription ?? error.localizedDescription))
+    }
+
+    private func closeFile() {
+        if fd >= 0 {
+            fsync(fd)
+            close(fd)
+            fd = -1
+        }
+    }
+
+    // MARK: URLSessionDataDelegate
+
+    func urlSession(_ session: URLSession, dataTask: URLSessionDataTask, didReceive response: URLResponse,
+                    completionHandler: @escaping (URLSession.ResponseDisposition) -> Void) {
+        let key = ObjectIdentifier(dataTask)
+        let disposition: URLSession.ResponseDisposition = lock.withLock {
+            guard let http = response as? HTTPURLResponse, let entry = tasks[key] else { return .cancel }
+            if !(200..<300).contains(http.statusCode) {
+                taskErrors[key] = DownloadError.badResponse(http.statusCode)
+                return .cancel
+            }
+            if supportsRanges, http.statusCode != 206, segments[entry.segment].nextOffset != 0 || segments.count > 1 {
+                taskErrors[key] = DownloadError.badResponse(http.statusCode)
+                return .cancel
+            }
+            return .allow
+        }
+        completionHandler(disposition)
+    }
+
+    func urlSession(_ session: URLSession, dataTask: URLSessionDataTask, didReceive data: Data) {
+        let key = ObjectIdentifier(dataTask)
+        var diskError: Error?
+        let written: Int = lock.withLock {
+            guard !stopped, fd >= 0, let entry = tasks[key] else { return 0 }
+            let segment = segments[entry.segment]
+            let count = Int(min(Int64(data.count), segment.remaining))
+            guard count > 0 else {
+                dataTask.cancel()
+                return 0
+            }
+            var offset = 0
+            data.withUnsafeBytes { raw in
+                guard let base = raw.baseAddress else { return }
+                while offset < count {
+                    let n = pwrite(fd, base + offset, count - offset, off_t(segment.nextOffset) + off_t(offset))
+                    if n <= 0 {
+                        diskError = DownloadError.disk("Write failed: \(String(cString: strerror(errno)))")
+                        return
+                    }
+                    offset += n
+                }
+            }
+            segments[entry.segment].received += Int64(offset)
+            retries[entry.segment] = 0
+            if segments[entry.segment].isComplete { dataTask.cancel() }
+            return offset
+        }
+        if let diskError { fail(diskError); return }
+        RateLimiter.shared.throttle(written)
+    }
+
+    func urlSession(_ session: URLSession, task: URLSessionTask, didCompleteWithError error: Error?) {
+        let key = ObjectIdentifier(task)
+        var fatal: Error?
+        lock.withLock {
+            guard let entry = tasks.removeValue(forKey: key) else { return }
+            freeSlots.append(entry.slot)
+            let taskError = taskErrors.removeValue(forKey: key)
+            guard !stopped else { return }
+
+            let index = entry.segment
+            let streamEnded = error == nil && taskError == nil && totalBytes == nil
+            if segments[index].isComplete || streamEnded {
+                if streamEnded { segments[index].end = segments[index].start + segments[index].received - 1 }
+                fillSlots()
+                return
+            }
+
+            let attempt = (retries[index] ?? 0) + 1
+            retries[index] = attempt
+            let reason = taskError ?? error ?? DownloadError.badResponse(0)
+            if attempt > Self.maxRetries || (taskError as? DownloadError).map(Self.isPermanent) == true {
+                fatal = reason
+                return
+            }
+            if !supportsRanges { segments[index].received = 0 }
+            cooling.insert(index)
+            let delay = min(pow(2, Double(attempt - 1)), 20)
+            DispatchQueue.global().asyncAfter(deadline: .now() + delay) { [self] in
+                lock.withLock {
+                    cooling.remove(index)
+                    fillSlots()
+                }
+            }
+            fillSlots()
+        }
+        if let fatal { fail(fatal) }
+    }
+
+    private static func isPermanent(_ error: DownloadError) -> Bool {
+        if case .badResponse(let code) = error { return [401, 403, 404, 410].contains(code) }
+        return false
+    }
+}

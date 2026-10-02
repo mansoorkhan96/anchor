@@ -1,0 +1,80 @@
+name: Drift
+options:
+  bundleIdPrefix: dev.mansoor
+  deploymentTarget:
+    macOS: "26.0"
+  createIntermediateGroups: true
+settings:
+  base:
+    SWIFT_VERSION: "6.0"
+    MARKETING_VERSION: "1.0.0"
+    CURRENT_PROJECT_VERSION: "1"
+    CODE_SIGN_IDENTITY: "-"
+    CODE_SIGN_STYLE: Manual
+    DEVELOPMENT_TEAM: ""
+    ENABLE_HARDENED_RUNTIME: NO
+    ARCHS: arm64
+    SWIFT_STRICT_CONCURRENCY: complete
+targets:
+  Drift:
+    type: application
+    platform: macOS
+    sources:
+      - path: Drift
+      - path: BrowserExtension
+        type: folder
+        buildPhase: resources
+    info:
+      path: Drift/Resources/Info.plist
+      properties:
+        CFBundleDisplayName: Drift
+        CFBundleShortVersionString: $(MARKETING_VERSION)
+        CFBundleVersion: $(CURRENT_PROJECT_VERSION)
+        LSApplicationCategoryType: public.app-category.utilities
+        LSMinimumSystemVersion: "26.0"
+        NSHumanReadableCopyright: ""
+        CFBundleURLTypes:
+          - CFBundleURLName: Magnet link
+            CFBundleURLSchemes: [magnet]
+          - CFBundleURLName: Drift
+            CFBundleURLSchemes: [drift]
+        CFBundleDocumentTypes:
+          - CFBundleTypeName: BitTorrent file
+            CFBundleTypeRole: Viewer
+            LSHandlerRank: Alternate
+            LSItemContentTypes: [org.bittorrent.torrent]
+        UTImportedTypeDeclarations:
+          - UTTypeIdentifier: org.bittorrent.torrent
+            UTTypeDescription: BitTorrent file
+            UTTypeConformsTo: [public.data]
+            UTTypeTagSpecification:
+              public.filename-extension: [torrent]
+              public.mime-type: [application/x-bittorrent]
+    settings:
+      base:
+        PRODUCT_BUNDLE_IDENTIFIER: dev.mansoor.Drift
+        ASSETCATALOG_COMPILER_APPICON_NAME: AppIcon
+        GENERATE_INFOPLIST_FILE: NO
+    postBuildScripts:
+      - name: Embed aria2
+        script: "\"${PROJECT_DIR}/scripts/embed-aria2.sh\""
+        basedOnDependencyAnalysis: false
+  DriftTests:
+    type: bundle.unit-test
+    platform: macOS
+    sources: [DriftTests]
+    dependencies:
+      - target: Drift
+    settings:
+      base:
+        BUNDLE_LOADER: $(TEST_HOST)
+        TEST_HOST: $(BUILT_PRODUCTS_DIR)/Drift.app/Contents/MacOS/Drift
+        GENERATE_INFOPLIST_FILE: YES
+schemes:
+  Drift:
+    build:
+      targets:
+        Drift: all
+        DriftTests: [test]
+    test:
+      targets: [DriftTests]
