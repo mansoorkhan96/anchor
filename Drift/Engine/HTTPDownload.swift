@@ -44,6 +44,8 @@ final class HTTPDownload: NSObject, URLSessionDataDelegate, @unchecked Sendable 
     private var taskErrors: [ObjectIdentifier: Error] = [:]
     private var retries: [Int: Int] = [:]
     private var cooling: Set<Int> = []
+    /// Lowered when the server pushes back (429/503) so we stop opening more connections than it allows.
+    private var connectionCap: Int
     private var fd: Int32 = -1
     private var stopped = false
     private var sampled: Int64 = 0
@@ -59,6 +61,7 @@ final class HTTPDownload: NSObject, URLSessionDataDelegate, @unchecked Sendable 
         supportsRanges = item.supportsRanges
         validator = item.validator
         self.maxConnections = max(1, maxConnections)
+        connectionCap = max(1, maxConnections)
         self.onEvent = onEvent
         delegateQueue = OperationQueue()
         delegateQueue.maxConcurrentOperationCount = 1
@@ -180,7 +183,7 @@ final class HTTPDownload: NSObject, URLSessionDataDelegate, @unchecked Sendable 
 
     private func fillSlots() {
         guard !stopped else { return }
-        while !freeSlots.isEmpty {
+        while !freeSlots.isEmpty, tasks.count + cooling.count < connectionCap {
             var index = SegmentPlanner.nextPending(segments, busy: busy)
             if index == nil, supportsRanges {
                 index = SegmentPlanner.splitLargest(&segments, busy: Set(tasks.values.map(\.segment)))
@@ -216,7 +219,7 @@ final class HTTPDownload: NSObject, URLSessionDataDelegate, @unchecked Sendable 
             segments = [Segment(start: 0, end: max(0, received - 1), received: received)]
             truncate(partialURL.path, off_t(received))
         }
-        let finalName = FileNaming.unique(fileName, in: directory)
+        let finalName = FileNaming.unique(fileName, in: directory, ignoringPartials: true)
         do {
             try FileManager.default.moveItem(at: partialURL, to: directory.appending(path: finalName))
             fileName = finalName
@@ -323,6 +326,9 @@ final class HTTPDownload: NSObject, URLSessionDataDelegate, @unchecked Sendable 
             let attempt = (retries[index] ?? 0) + 1
             retries[index] = attempt
             let reason = taskError ?? error ?? DownloadError.badResponse(0)
+            if case .badResponse(let code)? = taskError as? DownloadError, code == 429 || code == 503 {
+                connectionCap = max(1, min(connectionCap - 1, tasks.count + 1))
+            }
             if attempt > Self.maxRetries || (taskError as? DownloadError).map(Self.isPermanent) == true {
                 fatal = reason
                 return

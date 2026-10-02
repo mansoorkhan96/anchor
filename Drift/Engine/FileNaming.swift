@@ -26,6 +26,14 @@ enum FileNaming {
         return url.host() ?? "download"
     }
 
+    /// The display name (`dn`) of a magnet link, with form-encoded `+` turned back into spaces.
+    static func magnetName(_ url: URL) -> String? {
+        guard let raw = URLComponents(url: url, resolvingAgainstBaseURL: false)?
+            .percentEncodedQueryItems?.first(where: { $0.name == "dn" })?.value else { return nil }
+        let name = raw.replacingOccurrences(of: "+", with: " ").removingPercentEncoding ?? raw
+        return name.isEmpty ? nil : sanitize(name)
+    }
+
     static func sanitize(_ name: String) -> String {
         let cleaned = name
             .replacingOccurrences(of: "/", with: "-")
@@ -35,21 +43,31 @@ enum FileNaming {
     }
 
     /// Returns `name` or `name (2).ext`, `name (3).ext`… so nothing in `directory` is overwritten.
-    static func unique(_ name: String, in directory: URL, taken: Set<String> = []) -> String {
+    /// `ignoringPartials` skips the `.drift-part` check, for renaming a finished download over its own partial.
+    static func unique(_ name: String, in directory: URL, taken: Set<String> = [], ignoringPartials: Bool = false) -> String {
         let fm = FileManager.default
         func free(_ candidate: String) -> Bool {
             !taken.contains(candidate)
                 && !fm.fileExists(atPath: directory.appending(path: candidate).path)
-                && !fm.fileExists(atPath: directory.appending(path: candidate + ".drift-part").path)
+                && (ignoringPartials || !fm.fileExists(atPath: directory.appending(path: candidate + ".drift-part").path))
         }
         if free(name) { return name }
-        let ns = name as NSString
-        let ext = ns.pathExtension
-        let stem = ext.isEmpty ? name : ns.deletingPathExtension
+        let (stem, ext) = splitExtension(name)
         for n in 2...9999 {
-            let candidate = ext.isEmpty ? "\(stem) (\(n))" : "\(stem) (\(n)).\(ext)"
+            let candidate = "\(stem) (\(n))\(ext)"
             if free(candidate) { return candidate }
         }
-        return UUID().uuidString + (ext.isEmpty ? "" : ".\(ext)")
+        return UUID().uuidString + ext
+    }
+
+    /// Splits off the extension, keeping compound ones like `.tar.gz` together. `ext` includes the dot.
+    static func splitExtension(_ name: String) -> (stem: String, ext: String) {
+        let lower = name.lowercased()
+        for compound in [".tar.gz", ".tar.xz", ".tar.bz2", ".tar.zst"] where lower.hasSuffix(compound) && lower.count > compound.count {
+            return (String(name.dropLast(compound.count)), String(name.suffix(compound.count)))
+        }
+        let ext = (name as NSString).pathExtension
+        guard !ext.isEmpty else { return (name, "") }
+        return ((name as NSString).deletingPathExtension, "." + ext)
     }
 }

@@ -6,6 +6,7 @@ final class AppRouter {
     static let shared = AppRouter()
 
     private var store: DownloadStore { .shared }
+    var openMainWindow: (() -> Void)?
 
     func handle(_ url: URL) {
         switch url.scheme?.lowercased() {
@@ -37,9 +38,7 @@ final class AppRouter {
     }
 
     func activate() {
+        openMainWindow?()
         NSApp.activate()
-        if let window = NSApp.windows.first(where: { $0.identifier?.rawValue == "main" || $0.title == "Drift" }) {
-            window.makeKeyAndOrderFront(nil)
-        }
     }
 }

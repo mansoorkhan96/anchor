@@ -149,6 +149,9 @@ struct AddDownloadSheet: View {
                     }
                     .disabled(isTorrent)
                 HStack(spacing: 8) {
+                    if let url, store.items.contains(where: { $0.url == url }) {
+                        Chip(text: "Already in your list", color: .driftPaused)
+                    }
                     if probing {
                         ProgressView().controlSize(.small)
                         Text("Checking link…").font(.caption).foregroundStyle(.secondary)
@@ -181,8 +184,7 @@ struct AddDownloadSheet: View {
         guard let url, let scheme = url.scheme?.lowercased() else { return }
 
         if scheme == "magnet" {
-            let dn = URLComponents(url: url, resolvingAgainstBaseURL: false)?.queryItems?.first { $0.name == "dn" }?.value
-            setName(dn ?? "Magnet link")
+            setName(FileNaming.magnetName(url) ?? "Magnet link")
             return
         }
         guard scheme == "http" || scheme == "https" else {

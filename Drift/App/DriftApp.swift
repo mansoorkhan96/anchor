@@ -47,12 +47,19 @@ struct DriftApp: App {
 
 private struct MenuBarLabel: View {
     let store: DownloadStore
+    @Environment(\.openWindow) private var openWindow
 
     var body: some View {
-        if store.activeCount > 0 {
-            Text("\(Image(systemName: "arrow.down.circle.fill")) \(Format.speed(store.totalSpeed))")
-        } else {
-            Image(systemName: "arrow.down.circle")
+        Group {
+            if store.activeCount > 0 {
+                Text("\(Image(systemName: "arrow.down.circle.fill")) \(Format.speed(store.totalSpeed))")
+            } else {
+                Image(systemName: "arrow.down.circle")
+            }
+        }
+        .task {
+            // The menu bar label lives for the whole session, so it can reopen the main window for the router.
+            AppRouter.shared.openMainWindow = { openWindow(id: "main") }
         }
     }
 }
@@ -63,6 +70,9 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
             _ = DownloadStore.shared
             BrowserBridge.shared.start()
             ClipboardWatcher.shared.start()
+            #if DEBUG
+            DebugSnapshot.install()
+            #endif
         }
     }
 

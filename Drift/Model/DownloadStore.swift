@@ -156,11 +156,8 @@ final class DownloadStore {
 
     private func addTorrent(source: URL, file: URL?, directory: URL?, startNow: Bool) {
         let name: String
-        if source.scheme == "magnet",
-           let dn = URLComponents(url: source, resolvingAgainstBaseURL: false)?.queryItems?.first(where: { $0.name == "dn" })?.value {
-            name = dn
-        } else if source.scheme == "magnet" {
-            name = "Magnet link"
+        if source.scheme == "magnet" {
+            name = FileNaming.magnetName(source) ?? "Magnet link"
         } else {
             name = (source.lastPathComponent as NSString).deletingPathExtension
         }
@@ -450,6 +447,7 @@ final class DownloadStore {
         if let next = status.followedBy {
             liveGIDs.insert(next)
             mutate(id) { $0.torrentGID = next }
+            adoptSavedMetadata(for: id)
             return
         }
         mutate(id, dirty: false) {
@@ -467,6 +465,23 @@ final class DownloadStore {
         default: break
         }
         dirty = true
+    }
+
+    /// aria2 writes `<infohash>.torrent` next to the download once a magnet's metadata arrives. Move it into
+    /// Application Support so the download folder stays clean and a restart can resume without re-fetching it.
+    private func adoptSavedMetadata(for id: UUID) {
+        guard let item = item(id), item.torrentFile == nil,
+              let hash = URLComponents(url: item.url, resolvingAgainstBaseURL: false)?.queryItems?
+                .first(where: { $0.name == "xt" })?.value?.split(separator: ":").last?.lowercased() else { return }
+        let saved = item.directory.appending(path: "\(hash).torrent")
+        Task {
+            for _ in 0..<10 where !FileManager.default.fileExists(atPath: saved.path) {
+                try? await Task.sleep(for: .milliseconds(500))
+            }
+            let target = AppPaths.torrents.appending(path: "\(UUID().uuidString).torrent")
+            guard (try? FileManager.default.moveItem(at: saved, to: target)) != nil else { return }
+            mutate(id) { $0.torrentFile = target }
+        }
     }
 
     // MARK: Persistence

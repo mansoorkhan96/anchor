@@ -160,6 +160,7 @@ struct DownloadRow: View {
 }
 
 struct FileTile: View {
+    @Environment(\.colorScheme) private var colorScheme
     let fileName: String
     let tint: Color
     var isTorrent = false
@@ -175,9 +176,9 @@ struct FileTile: View {
         Text(label)
             .font(.system(size: size * 0.25, weight: .bold))
             .tracking(0.4)
-            .foregroundStyle(tint)
+            .foregroundStyle(colorScheme == .light ? tint.mix(with: .black, by: 0.4) : tint)
             .frame(width: size, height: size)
-            .background(tint.opacity(0.14), in: .rect(cornerRadius: size * 0.25))
+            .background(tint.opacity(colorScheme == .light ? 0.2 : 0.14), in: .rect(cornerRadius: size * 0.25))
     }
 }
 

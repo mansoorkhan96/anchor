@@ -138,7 +138,7 @@ struct DownloadListView: View {
 
 // MARK: - Throughput
 
-private struct ThroughputCard: View {
+struct ThroughputCard: View {
     @Environment(DownloadStore.self) private var store
 
     var body: some View {

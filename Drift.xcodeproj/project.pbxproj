@@ -14,6 +14,7 @@
 		2BB7278F0A4287D54828B694 /* BrowserBridge.swift in Sources */ = {isa = PBXBuildFile; fileRef = A7AE282971614E3AA76CED2D /* BrowserBridge.swift */; };
 		3AFB631E68FC2FA8FA7ED2D5 /* Aria2.swift in Sources */ = {isa = PBXBuildFile; fileRef = 9888F14F62828F61E272BB06 /* Aria2.swift */; };
 		3F979552F5462569BD9AEDB6 /* AppPaths.swift in Sources */ = {isa = PBXBuildFile; fileRef = AAC01F602976E92B9D51F828 /* AppPaths.swift */; };
+		56268192EDB3D4839E59695F /* DebugSnapshot.swift in Sources */ = {isa = PBXBuildFile; fileRef = 500742F0D5ED50753FFBB4AE /* DebugSnapshot.swift */; };
 		5D111814D3870637BD6EF7A9 /* FileCategory.swift in Sources */ = {isa = PBXBuildFile; fileRef = 847D80793840446CEC52C5D3 /* FileCategory.swift */; };
 		6408F051A917ED30515EF783 /* SegmentPlanner.swift in Sources */ = {isa = PBXBuildFile; fileRef = 4CCDB5352B78FDF102FC53C3 /* SegmentPlanner.swift */; };
 		6F25A400F25E9DE0A202D030 /* BrowserExtension in Resources */ = {isa = PBXBuildFile; fileRef = 1926BBD3575AD4DC05AA01AF /* BrowserExtension */; };
@@ -54,6 +55,7 @@
 		46FF34950EC60FE0BF896F2A /* RateLimiter.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = RateLimiter.swift; sourceTree = "<group>"; };
 		4CCDB5352B78FDF102FC53C3 /* SegmentPlanner.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SegmentPlanner.swift; sourceTree = "<group>"; };
 		4DDFCFCACB8DE2E0A21E6CBB /* MenuBarView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = MenuBarView.swift; sourceTree = "<group>"; };
+		500742F0D5ED50753FFBB4AE /* DebugSnapshot.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = DebugSnapshot.swift; sourceTree = "<group>"; };
 		506CB9D922F640D2B265D5B0 /* HTTPDownload.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = HTTPDownload.swift; sourceTree = "<group>"; };
 		552F5AE6789DA294DDB91E8B /* Drift.app */ = {isa = PBXFileReference; explicitFileType = wrapper.application; includeInIndex = 0; path = Drift.app; sourceTree = BUILT_PRODUCTS_DIR; };
 		668D8D5951EB119A1624DDB2 /* DriftTests.xctest */ = {isa = PBXFileReference; explicitFileType = wrapper.cfbundle; includeInIndex = 0; path = DriftTests.xctest; sourceTree = BUILT_PRODUCTS_DIR; };
@@ -162,6 +164,7 @@
 			isa = PBXGroup;
 			children = (
 				76FBA2E4B76DF68225E9E00A /* AppRouter.swift */,
+				500742F0D5ED50753FFBB4AE /* DebugSnapshot.swift */,
 				80473000068BB96DF392A468 /* DriftApp.swift */,
 			);
 			path = App;
@@ -315,6 +318,7 @@
 				3AFB631E68FC2FA8FA7ED2D5 /* Aria2.swift in Sources */,
 				2BB7278F0A4287D54828B694 /* BrowserBridge.swift in Sources */,
 				83CDF23601F5B9E57739B518 /* ClipboardWatcher.swift in Sources */,
+				56268192EDB3D4839E59695F /* DebugSnapshot.swift in Sources */,
 				A0CA07AFF1CB03DA508338C3 /* DownloadItem.swift in Sources */,
 				D1CB1248290929C96699FF6E /* DownloadListView.swift in Sources */,
 				1127165D918D734766B9A24E /* DownloadRow.swift in Sources */,
