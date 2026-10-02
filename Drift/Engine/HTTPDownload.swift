@@ -83,7 +83,7 @@ final class HTTPDownload: NSObject, URLSessionDataDelegate, @unchecked Sendable 
                     makeSessions()
                     fillSlots()
                 }
-                onEvent(.started)
+                if lock.withLock({ !stopped }) { onEvent(.started) }
             } catch {
                 fail(error)
             }
@@ -146,6 +146,7 @@ final class HTTPDownload: NSObject, URLSessionDataDelegate, @unchecked Sendable 
         }
 
         try lock.withLock {
+            guard !stopped else { return }
             if !FileManager.default.fileExists(atPath: partialURL.path) { fresh = true }
             fd = open(partialURL.path, O_RDWR | O_CREAT, 0o644)
             guard fd >= 0 else { throw DownloadError.disk("Can't write to \(directory.path): \(String(cString: strerror(errno)))") }
