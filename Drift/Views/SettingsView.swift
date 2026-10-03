@@ -3,7 +3,7 @@ import UniformTypeIdentifiers
 import ServiceManagement
 
 private enum SettingsSection: String, CaseIterable, Identifiable {
-    case general, speed, browser, clipboard, notifications, about
+    case general, speed, browser, about
 
     var id: String { rawValue }
 
@@ -12,19 +12,15 @@ private enum SettingsSection: String, CaseIterable, Identifiable {
         case .general: "General"
         case .speed: "Speed"
         case .browser: "Browser"
-        case .clipboard: "Clipboard"
-        case .notifications: "Notifications"
         case .about: "About"
         }
     }
 
     var subtitle: String {
         switch self {
-        case .general: "Where downloads go and how Drift starts."
+        case .general: "Where downloads go and how Drift behaves."
         case .speed: "How hard Drift pushes your connection."
         case .browser: "Send downloads from Chrome, Arc, Brave and Edge to Drift."
-        case .clipboard: "Catch download links as you copy them."
-        case .notifications: "Know when downloads finish."
         case .about: ""
         }
     }
@@ -34,8 +30,6 @@ private enum SettingsSection: String, CaseIterable, Identifiable {
         case .general: "gearshape.fill"
         case .speed: "gauge.with.dots.needle.67percent"
         case .browser: "globe"
-        case .clipboard: "doc.on.clipboard.fill"
-        case .notifications: "bell.badge.fill"
         case .about: "info"
         }
     }
@@ -45,8 +39,6 @@ private enum SettingsSection: String, CaseIterable, Identifiable {
         case .general: .adaptive(light: 0x5E5E63, dark: 0x6E6E73)
         case .speed: .adaptive(light: 0x2F7AE0, dark: 0x3D85F5)
         case .browser: .adaptive(light: 0x2F6BC0, dark: 0x4A82D6)
-        case .clipboard: .adaptive(light: 0xC98A1A, dark: 0xD69A2E)
-        case .notifications: .adaptive(light: 0xD9578A, dark: 0xE06A98)
         case .about: .adaptive(light: 0x737378, dark: 0x7C7C81)
         }
     }
@@ -86,8 +78,6 @@ struct SettingsView: View {
                     case .general: GeneralPage()
                     case .speed: SpeedPage()
                     case .browser: BrowserPage()
-                    case .clipboard: ClipboardPage()
-                    case .notifications: NotificationsPage()
                     case .about: AboutPage()
                     }
                 }
@@ -204,8 +194,14 @@ private struct GeneralPage: View {
                 }
             }
             SettingsCard {
-                SettingsRow(title: "Open Drift at login", detail: "Stays in the menu bar so browser downloads always work") {
+                SettingsRow(title: "Open Drift at login", detail: "Stays in the menu bar so browser downloads always work", divider: true) {
                     DriftSwitch(isOn: $launchAtLogin, label: "Open Drift at login")
+                }
+                SettingsRow(title: "Notify when downloads finish", detail: "Also tells you when a download fails", divider: true) {
+                    DriftSwitch(isOn: $settings.notifications, label: "Notify when downloads finish")
+                }
+                SettingsRow(title: "Offer to download copied links", detail: "Links to files and magnet links") {
+                    DriftSwitch(isOn: $settings.clipboardMonitoring, label: "Offer to download copied links")
                 }
             }
             SettingsCard {
@@ -217,12 +213,8 @@ private struct GeneralPage: View {
                 SettingsRow(title: "Show Drift in the menu bar", detail: "Live speed and recent downloads, one click away", divider: true) {
                     DriftSwitch(isOn: $settings.showMenuBarIcon, label: "Show Drift in the menu bar")
                 }
-                SettingsRow(title: "Recent downloads in menu bar", detail: "How many show in the menu bar list", divider: true) {
+                SettingsRow(title: "Recent downloads in menu bar", detail: "How many show in the menu bar list") {
                     NumberStepper(value: $settings.menuBarCount, range: 3...15)
-                }
-                SettingsRow(title: "Menu bar order", detail: "Newest first, or unfinished downloads on top") {
-                    DriftSegmented(options: MenuBarOrder.allCases, selection: $settings.menuBarOrder, title: \.title,
-                                   minWidth: 0, symbol: { $0 == .newest ? "clock" : "arrow.down.circle" })
                 }
             }
         }
@@ -515,32 +507,6 @@ private struct DefaultAppCard: View {
                 if isDefault { break }
             }
             working = false
-        }
-    }
-}
-
-private struct ClipboardPage: View {
-    @Environment(DownloadStore.self) private var store
-
-    var body: some View {
-        @Bindable var settings = store.settings
-        SettingsCard {
-            SettingsRow(title: "Offer to download copied links", detail: "Links to files and magnet links") {
-                DriftSwitch(isOn: $settings.clipboardMonitoring, label: "Offer to download copied links")
-            }
-        }
-    }
-}
-
-private struct NotificationsPage: View {
-    @Environment(DownloadStore.self) private var store
-
-    var body: some View {
-        @Bindable var settings = store.settings
-        SettingsCard {
-            SettingsRow(title: "Notify when downloads finish", detail: "Also tells you when a download fails") {
-                DriftSwitch(isOn: $settings.notifications, label: "Notify when downloads finish")
-            }
         }
     }
 }
