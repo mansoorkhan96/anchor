@@ -158,7 +158,7 @@ final class DownloadStore {
             if let probe { item.totalBytes = probe.totalBytes }
             self.items.insert(item, at: 0)
             self.markDirty()
-            if startNow { self.start(item.id) } else { self.schedule() }
+            if startNow { self.startOrQueue(item.id) } else { self.schedule() }
         }
 
         let existing = folder.appending(path: name)
@@ -217,7 +217,7 @@ final class DownloadStore {
         item.torrentFile = file
         items.insert(item, at: 0)
         markDirty()
-        if startNow { start(item.id) } else { schedule() }
+        if startNow { startOrQueue(item.id) } else { schedule() }
     }
 
     private func uniqueName(_ name: String, in folder: URL, ignoringFinished: Bool = false) -> String {
@@ -292,7 +292,19 @@ final class DownloadStore {
 
     func resume(_ id: UUID) {
         guard let item = item(id), !item.state.isActive, !item.state.isFinished else { return }
-        start(id)
+        startOrQueue(id)
+    }
+
+    /// Starts now if there's a free slot under "Simultaneous downloads", otherwise joins the back of the queue.
+    private func startOrQueue(_ id: UUID) {
+        if activeCount < settings.maxConcurrent {
+            start(id)
+        } else {
+            mutate(id) {
+                $0.state = .queued
+                $0.queuedAt = Date()
+            }
+        }
     }
 
     func toggle(_ id: UUID) {
@@ -385,7 +397,7 @@ final class DownloadStore {
 
     func retry(_ id: UUID) {
         guard let item = item(id), item.state.isFailed else { return }
-        start(id)
+        startOrQueue(id)
     }
 
     func reveal(_ id: UUID) {
@@ -455,7 +467,8 @@ final class DownloadStore {
         schedule()
     }
 
-    private func schedule() {
+    /// Starts queued downloads while there are free slots.
+    func schedule() {
         var active = activeCount
         let waiting = items.filter { $0.state == .queued }
             .sorted { ($0.queuedAt ?? $0.createdAt) < ($1.queuedAt ?? $1.createdAt) }

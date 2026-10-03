@@ -250,6 +250,7 @@ private struct SpeedPage: View {
                 }
                 SettingsRow(title: "Simultaneous downloads", detail: "The rest wait in the queue") {
                     NumberStepper(value: $settings.maxConcurrent, range: 1...10)
+                        .onChange(of: settings.maxConcurrent) { store.schedule() }
                 }
             }
         }
