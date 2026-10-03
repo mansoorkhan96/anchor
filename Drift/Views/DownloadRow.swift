@@ -40,11 +40,17 @@ struct DownloadRow: View {
             .contentShape(.rect)
             .onTapGesture(count: 2) { item.state.isFinished ? store.open(item.id) : store.toggle(item.id) }
 
-            Text(speedText)
-                .font(.system(size: 13, weight: .semibold).monospacedDigit())
-                .foregroundStyle(speedColor)
-                .frame(width: 92, alignment: .trailing)
-                .contentTransition(.numericText())
+            Group {
+                if item.state == .downloading {
+                    Text(Format.speed(item.speed))
+                        .font(.system(size: 13, weight: .semibold).monospacedDigit())
+                        .foregroundStyle(Color.driftText)
+                        .contentTransition(.numericText())
+                } else {
+                    StatusPill(state: item.state)
+                }
+            }
+            .frame(width: 104, alignment: .trailing)
 
             Text(item.eta.map(Format.duration) ?? "")
                 .font(.system(size: 12).monospacedDigit())
@@ -79,32 +85,13 @@ struct DownloadRow: View {
                 return item.totalBytes == nil ? "Torrent · fetching metadata · \(item.peers) peers" : "Torrent · \(size) · \(item.peers) peers"
             }
             return "\(size) · \(item.connections) connection\(item.connections == 1 ? "" : "s")"
-        case .queued: return "Queued" + (item.totalBytes.map { " · \(Format.bytes($0))" } ?? "")
-        case .paused: return "Paused · \(size)"
+        case .queued: return item.receivedBytes > 0 ? size : (item.totalBytes.map(Format.bytes) ?? "Waiting for a free slot")
+        case .paused: return size
         case .failed(let reason): return reason
         case .completed:
             let total = Format.bytes(item.totalBytes ?? item.receivedBytes)
             let when = (item.completedAt ?? item.createdAt).formatted(.relative(presentation: .named))
             return "\(total) · \(item.url.host() ?? "torrent") · \(when)"
-        }
-    }
-
-    private var speedText: String {
-        switch item.state {
-        case .downloading: Format.speed(item.speed)
-        case .connecting, .queued: "Waiting"
-        case .paused: "Paused"
-        case .failed: "Failed"
-        case .completed: ""
-        }
-    }
-
-    private var speedColor: Color {
-        switch item.state {
-        case .downloading: .driftText
-        case .paused: .driftPausedInk
-        case .failed: .driftDanger
-        default: .driftMuted
         }
     }
 

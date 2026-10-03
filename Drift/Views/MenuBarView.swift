@@ -178,9 +178,13 @@ private struct RecentRow: View {
                         .lineLimit(1)
                         .truncationMode(.middle)
                     Spacer(minLength: 4)
-                    Text(status)
-                        .font(.system(size: 11.5, weight: .medium).monospacedDigit())
-                        .foregroundStyle(statusColor)
+                    if item.state == .downloading {
+                        Text(Format.speed(item.speed))
+                            .font(.system(size: 11.5, weight: .medium).monospacedDigit())
+                            .foregroundStyle(Color.driftMuted2)
+                    } else {
+                        StatusPill(state: item.state, compact: true)
+                    }
                 }
                 if !item.state.isFinished {
                     ProgressLine(fraction: item.progress, color: barColor, height: 4)
@@ -219,27 +223,6 @@ private struct RecentRow: View {
         case .paused: .driftPaused
         case .failed: .driftDanger
         default: item.kind == .torrent ? .driftTorrent : .driftAccent
-        }
-    }
-
-    private var status: String {
-        switch item.state {
-        case .downloading: Format.speed(item.speed)
-        case .connecting: "Connecting"
-        case .queued: "Queued"
-        case .paused: "Paused"
-        case .failed: "Failed"
-        case .completed: "Done"
-        }
-    }
-
-    private var statusColor: Color {
-        switch item.state {
-        case .downloading: .driftMuted2
-        case .paused: .driftPausedInk
-        case .failed: .driftDanger
-        case .completed: .driftSuccess
-        default: .driftMuted
         }
     }
 

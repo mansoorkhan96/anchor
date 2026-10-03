@@ -250,3 +250,39 @@ struct DriftSegmented<Value: Hashable>: View {
         .background(Color.driftLine, in: .rect(cornerRadius: 9))
     }
 }
+
+// MARK: - Status pill
+
+/// Colored status badge for a download (nil while actively downloading, where the speed is shown instead).
+struct StatusPill: View {
+    let state: DownloadState
+    var compact = false
+
+    var body: some View {
+        if let style {
+            HStack(spacing: compact ? 3 : 4) {
+                Image(systemName: style.symbol)
+                    .font(.system(size: compact ? 8 : 9, weight: .bold))
+                Text(style.text)
+                    .font(.system(size: compact ? 10.5 : 11.5, weight: .semibold))
+                    .lineLimit(1)
+            }
+            .foregroundStyle(style.ink)
+            .padding(.horizontal, compact ? 7 : 9)
+            .padding(.vertical, compact ? 2 : 4)
+            .background(style.wash, in: .capsule)
+            .accessibilityElement(children: .combine)
+        }
+    }
+
+    private var style: (text: String, symbol: String, ink: Color, wash: Color)? {
+        switch state {
+        case .downloading: nil
+        case .connecting: ("Connecting", "arrow.triangle.2.circlepath", .driftAccentInk, .driftAccentWash)
+        case .queued: ("Queued", "clock", .driftMuted2, .driftField)
+        case .paused: ("Paused", "pause.fill", .driftPausedInk, Color.driftPaused.opacity(0.18))
+        case .failed: ("Failed", "exclamationmark.triangle.fill", .driftDanger, .driftDangerWash)
+        case .completed: ("Done", "checkmark", .driftSuccess, .driftSuccessWash)
+        }
+    }
+}
