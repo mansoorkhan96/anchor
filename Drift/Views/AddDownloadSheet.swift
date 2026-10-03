@@ -105,7 +105,7 @@ struct AddDownloadSheet: View {
             }
 
             if let files = prepared?.files {
-                TorrentFileList(files: files, maxHeight: 220,
+                TorrentFileList(files: files, maxHeight: 220, rootFolder: prepared?.name,
                                 onInclude: { index, included in
                                     guard var p = prepared, let i = p.files.firstIndex(where: { $0.index == index }) else { return }
                                     if !included, p.files.filter(\.included).count <= 1 { return }
