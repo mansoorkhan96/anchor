@@ -31,84 +31,139 @@ struct AddDownloadSheet: View {
     }
 
     var body: some View {
-        VStack(alignment: .leading, spacing: 18) {
-            VStack(alignment: .leading, spacing: 4) {
-                Text("New download")
-                    .font(.title3.weight(.semibold))
-                Text(subtitle)
-                    .font(.caption)
+        VStack(alignment: .leading, spacing: 20) {
+            HStack(spacing: 12) {
+                Image(systemName: "arrow.down")
+                    .font(.system(size: 15, weight: .bold))
+                    .foregroundStyle(Color.driftAccent)
+                    .frame(width: 36, height: 36)
+                    .background(Color.driftAccent.opacity(0.12), in: .rect(cornerRadius: 10))
+                VStack(alignment: .leading, spacing: 2) {
+                    Text("New Download")
+                        .font(.system(size: 17, weight: .semibold))
+                    Text(subtitle)
+                        .font(.system(size: 12))
+                        .foregroundStyle(.secondary)
+                }
+            }
+
+            field("Link") {
+                HStack(spacing: 8) {
+                    Image(systemName: "link")
+                        .font(.system(size: 12, weight: .semibold))
+                        .foregroundStyle(.secondary)
+                    TextField("https://… or magnet:?…", text: $address)
+                        .textFieldStyle(.plain)
+                        .font(.system(size: 13))
+                        .focused($addressFocused)
+                        .onSubmit { if canAdd { add(startNow: true) } }
+                    if address.isEmpty {
+                        Button("Paste") {
+                            address = NSPasteboard.general.string(forType: .string)?
+                                .trimmingCharacters(in: .whitespacesAndNewlines) ?? ""
+                        }
+                        .buttonStyle(.plain)
+                        .font(.system(size: 12, weight: .semibold))
+                        .foregroundStyle(Color.driftAccent)
+                    } else {
+                        Button {
+                            address = ""
+                            addressFocused = true
+                        } label: {
+                            Image(systemName: "xmark.circle.fill").foregroundStyle(.tertiary)
+                        }
+                        .buttonStyle(.plain)
+                        .accessibilityLabel("Clear link")
+                    }
+                }
+                .fieldChrome(focused: addressFocused)
+            }
+
+            if url == nil {
+                Text("File details appear here once you paste a link.")
+                    .font(.system(size: 12))
                     .foregroundStyle(.secondary)
+                    .frame(maxWidth: .infinity, minHeight: 76)
+                    .overlay(
+                        RoundedRectangle(cornerRadius: 12)
+                            .strokeBorder(Color.driftStroke, style: StrokeStyle(lineWidth: 1, dash: [5, 4]))
+                    )
+            } else {
+                fileCard
             }
-
-            VStack(alignment: .leading, spacing: 6) {
-                Text("Address").font(.caption.weight(.semibold)).foregroundStyle(.secondary)
-                TextField("https://… or magnet:?…", text: $address)
-                    .textFieldStyle(.plain)
-                    .font(.system(size: 13))
-                    .padding(.horizontal, 12)
-                    .frame(height: 38)
-                    .background(.quaternary.opacity(0.5), in: .rect(cornerRadius: 10))
-                    .overlay(RoundedRectangle(cornerRadius: 10).strokeBorder(addressFocused ? Color.driftAccent : .primary.opacity(0.1)))
-                    .focused($addressFocused)
-                    .onSubmit { if canAdd { add(startNow: true) } }
-            }
-
-            fileCard
 
             HStack(alignment: .top, spacing: 12) {
-                VStack(alignment: .leading, spacing: 6) {
-                    Text("Save to").font(.caption.weight(.semibold)).foregroundStyle(.secondary)
+                field("Save to") {
                     Button(action: chooseFolder) {
                         HStack(spacing: 8) {
-                            Image(systemName: "folder").foregroundStyle(Color.driftAccent)
-                            Text(folderLabel).lineLimit(1).truncationMode(.head)
-                            Spacer()
-                            Image(systemName: "chevron.down").font(.caption2).foregroundStyle(.secondary)
+                            Image(systemName: "folder.fill")
+                                .font(.system(size: 12))
+                                .foregroundStyle(Color.driftAccent)
+                            Text(folderLabel)
+                                .font(.system(size: 13))
+                                .lineLimit(1)
+                                .truncationMode(.head)
+                            Spacer(minLength: 4)
+                            Text("Change")
+                                .font(.system(size: 12, weight: .medium))
+                                .foregroundStyle(.secondary)
                         }
-                        .padding(.horizontal, 12)
-                        .frame(height: 36)
-                        .background(.quaternary.opacity(0.5), in: .rect(cornerRadius: 10))
+                        .fieldChrome()
                         .contentShape(.rect)
                     }
                     .buttonStyle(.plain)
                 }
-                .frame(maxWidth: .infinity)
 
                 if !isTorrent {
-                    VStack(alignment: .leading, spacing: 6) {
-                        Text("Category").font(.caption.weight(.semibold)).foregroundStyle(.secondary)
-                        Picker("Category", selection: $category) {
-                            ForEach(FileCategory.allCases) { Text($0.title).tag($0) }
+                    field("Category") {
+                        Menu {
+                            ForEach(FileCategory.allCases) { option in
+                                Button(option.title) { category = option }
+                            }
+                        } label: {
+                            HStack(spacing: 8) {
+                                Circle().fill(category.color).frame(width: 8, height: 8)
+                                Text(category.title).font(.system(size: 13))
+                                Spacer(minLength: 4)
+                                Image(systemName: "chevron.up.chevron.down")
+                                    .font(.system(size: 10, weight: .semibold))
+                                    .foregroundStyle(.secondary)
+                            }
+                            .fieldChrome()
+                            .contentShape(.rect)
                         }
-                        .labelsHidden()
-                        .frame(maxWidth: .infinity, minHeight: 36, alignment: .leading)
+                        .menuStyle(.button)
+                        .buttonStyle(.plain)
+                        .menuIndicator(.hidden)
                     }
-                    .frame(maxWidth: .infinity)
+                    .frame(width: 170)
                 }
             }
 
-            if !isTorrent {
-                Toggle("Open when finished", isOn: $openWhenDone)
-                    .toggleStyle(.checkbox)
-            }
-
-            Spacer(minLength: 0)
-
             HStack(spacing: 10) {
+                if !isTorrent {
+                    Toggle("Open when finished", isOn: $openWhenDone)
+                        .toggleStyle(.switch)
+                        .controlSize(.mini)
+                        .font(.system(size: 12))
+                        .tint(.driftAccent)
+                }
                 Spacer()
-                Button("Cancel", role: .cancel) { dismiss() }
+                Button("Cancel") { dismiss() }
+                    .buttonStyle(.driftPlain)
                     .keyboardShortcut(.cancelAction)
                 Button("Add to Queue") { add(startNow: false) }
+                    .buttonStyle(.driftSecondary)
                     .disabled(!canAdd)
                 Button("Download") { add(startNow: true) }
-                    .buttonStyle(.glassProminent)
+                    .buttonStyle(.driftPrimary)
                     .keyboardShortcut(.defaultAction)
                     .disabled(!canAdd)
             }
-            .controlSize(.large)
         }
         .padding(24)
-        .frame(width: 560, height: 470)
+        .frame(width: 580)
+        .fixedSize(horizontal: false, vertical: true)
         .tint(.driftAccent)
         .task {
             address = request.url
@@ -123,6 +178,16 @@ struct AddDownloadSheet: View {
             addressFocused = address.isEmpty
         }
         .task(id: address) { await runProbe() }
+    }
+
+    private func field<Content: View>(_ title: String, @ViewBuilder content: () -> Content) -> some View {
+        VStack(alignment: .leading, spacing: 6) {
+            Text(title)
+                .font(.system(size: 12, weight: .medium))
+                .foregroundStyle(.secondary)
+            content()
+        }
+        .frame(maxWidth: .infinity, alignment: .leading)
     }
 
     private var subtitle: String {
@@ -140,34 +205,34 @@ struct AddDownloadSheet: View {
     @ViewBuilder private var fileCard: some View {
         HStack(spacing: 14) {
             FileTile(fileName: fileName, tint: isTorrent ? .driftTorrent : category.color, isTorrent: isTorrent, size: 44)
-            VStack(alignment: .leading, spacing: 6) {
+            VStack(alignment: .leading, spacing: 8) {
                 TextField("File name", text: $fileName)
                     .textFieldStyle(.plain)
-                    .font(.system(size: 14, weight: .medium))
+                    .font(.system(size: 14, weight: .semibold))
                     .onChange(of: fileName) { _, new in
                         if new != autoName { nameEdited = true }
                         category = FileCategory.detect(fileName: new)
                     }
                     .disabled(isTorrent)
-                HStack(spacing: 8) {
+                HStack(spacing: 6) {
                     if let url, store.items.contains(where: { $0.url == url }) {
                         Chip(text: "Already in your list", color: .driftPaused)
                     }
                     if probing {
-                        ProgressView().controlSize(.small)
-                        Text("Checking link…").font(.caption).foregroundStyle(.secondary)
+                        ProgressView().controlSize(.mini)
+                        Text("Checking link…").font(.system(size: 11)).foregroundStyle(.secondary)
                     } else if let probeError {
-                        Chip(text: probeError, color: .red)
+                        Chip(text: probeError, color: .driftDanger)
                     } else if isMagnet {
                         Chip(text: "Magnet link", color: .driftTorrent)
                     } else if isTorrent {
                         Chip(text: "Torrent", color: .driftTorrent)
                     } else if let probe {
-                        Chip(text: probe.totalBytes.map(Format.bytes) ?? "Unknown size", color: .primary)
+                        Chip(text: probe.totalBytes.map(Format.bytes) ?? "Unknown size")
                         Chip(text: probe.supportsRanges ? "Resumable" : "Not resumable",
                              color: probe.supportsRanges ? .driftSuccess : .driftPaused)
                         if probe.supportsRanges {
-                            Chip(text: "\(store.settings.connections) connections", color: .primary)
+                            Chip(text: "\(store.settings.connections) connections")
                         }
                     }
                 }
@@ -175,8 +240,8 @@ struct AddDownloadSheet: View {
             }
         }
         .padding(14)
-        .background(.quaternary.opacity(0.35), in: .rect(cornerRadius: 12))
-        .overlay(RoundedRectangle(cornerRadius: 12).strokeBorder(.primary.opacity(0.06)))
+        .background(Color.primary.opacity(0.03), in: .rect(cornerRadius: 12))
+        .overlay(RoundedRectangle(cornerRadius: 12).strokeBorder(Color.driftStroke))
     }
 
     private func runProbe() async {
@@ -234,17 +299,16 @@ struct AddDownloadSheet: View {
 }
 
 private struct Chip: View {
-    @Environment(\.colorScheme) private var colorScheme
     let text: String
-    let color: Color
+    var color: Color?
 
     var body: some View {
         Text(text)
-            .font(.caption)
+            .font(.system(size: 11, weight: .medium))
             .lineLimit(1)
-            .foregroundStyle(color == .primary ? Color.primary : colorScheme == .light ? color.mix(with: .black, by: 0.35) : color)
+            .foregroundStyle(color ?? .primary)
             .padding(.horizontal, 8)
             .padding(.vertical, 3)
-            .background((color == .primary ? Color.primary.opacity(0.08) : color.opacity(0.14)), in: .rect(cornerRadius: 6))
+            .background(color.map { $0.opacity(0.13) } ?? Color.driftFill, in: .rect(cornerRadius: 6))
     }
 }

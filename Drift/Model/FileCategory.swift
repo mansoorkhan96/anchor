@@ -29,12 +29,12 @@ enum FileCategory: String, Codable, CaseIterable, Identifiable, Sendable {
 
     var color: Color {
         switch self {
-        case .video: Color(hex: 0x8C9EFF)
-        case .music: Color(hex: 0xF28CB1)
-        case .archives: Color(hex: 0xF2B35B)
-        case .documents: Color(hex: 0x6FD3A0)
-        case .apps: Color(hex: 0x5CCDEB)
-        case .other: Color(hex: 0xA6AAB3)
+        case .video: .adaptive(light: 0x9333EA, dark: 0xC084FC)
+        case .music: .adaptive(light: 0xDB2777, dark: 0xF472B6)
+        case .archives: .adaptive(light: 0xC2410C, dark: 0xFB923C)
+        case .documents: .adaptive(light: 0x15803D, dark: 0x4ADE80)
+        case .apps: .adaptive(light: 0x2563EB, dark: 0x60A5FA)
+        case .other: .adaptive(light: 0x5B6170, dark: 0xA1A6B3)
         }
     }
 
@@ -66,9 +66,4 @@ extension Color {
             blue: Double(hex & 0xFF) / 255
         )
     }
-
-    static let driftAccent = Color(hex: 0x5CCDEB)
-    static let driftTorrent = Color(hex: 0xC9A4FF)
-    static let driftPaused = Color(hex: 0xF2B35B)
-    static let driftSuccess = Color(hex: 0x6FD3A0)
 }

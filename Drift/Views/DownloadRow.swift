@@ -11,7 +11,7 @@ struct DownloadRow: View {
     private var barColor: Color {
         switch item.state {
         case .paused: .driftPaused
-        case .failed: .red
+        case .failed: .driftDanger
         default: item.kind == .torrent ? .driftTorrent : .driftAccent
         }
     }
@@ -23,13 +23,13 @@ struct DownloadRow: View {
             VStack(alignment: .leading, spacing: 7) {
                 HStack(alignment: .firstTextBaseline, spacing: 10) {
                     Text(item.fileName)
-                        .font(.system(size: 13.5, weight: .medium))
-                        .foregroundStyle(item.state.isActive ? .primary : .secondary)
+                        .font(.system(size: 13.5, weight: .semibold))
+                        .foregroundStyle(.primary)
                         .lineLimit(1)
                         .truncationMode(.middle)
                     Text(meta)
                         .font(.caption.monospacedDigit())
-                        .foregroundStyle(item.state.isFailed ? Color.red : .secondary)
+                        .foregroundStyle(item.state.isFailed ? Color.driftDanger : .secondary)
                         .lineLimit(1)
                 }
                 if !item.state.isFinished {
@@ -40,7 +40,7 @@ struct DownloadRow: View {
             .frame(maxWidth: .infinity, alignment: .leading)
 
             Text(speedText)
-                .font(.system(size: 12.5).monospacedDigit())
+                .font(.system(size: 12.5, weight: .medium).monospacedDigit())
                 .foregroundStyle(item.state.isActive ? .primary : speedColor)
                 .frame(width: 92, alignment: .trailing)
                 .contentTransition(.numericText())
@@ -52,9 +52,7 @@ struct DownloadRow: View {
 
             actionButton
 
-            Toggle("Select \(item.fileName)", isOn: $isSelected)
-                .toggleStyle(.checkbox)
-                .labelsHidden()
+            SelectionCheckbox(isOn: $isSelected, label: "Select \(item.fileName)")
         }
         .padding(.horizontal, 14)
         .padding(.vertical, 12)
@@ -62,18 +60,21 @@ struct DownloadRow: View {
         .overlay(RoundedRectangle(cornerRadius: 12).strokeBorder(border))
         .contentShape(.rect(cornerRadius: 12))
         .onHover { hovering = $0 }
-        .onTapGesture(count: 2) { item.state.isFinished ? store.open(item.id) : store.toggle(item.id) }
+        // Simultaneous so single clicks on the buttons inside never wait for a possible double click.
+        .simultaneousGesture(TapGesture(count: 2).onEnded {
+            item.state.isFinished ? store.open(item.id) : store.toggle(item.id)
+        })
         .contextMenu { menu }
     }
 
     private var background: Color {
-        if isSelected { return Color.driftAccent.opacity(0.12) }
-        if item.state.isActive || hovering { return Color.primary.opacity(hovering ? 0.06 : 0.045) }
-        return .clear
+        if isSelected { return Color.driftAccent.opacity(0.10) }
+        if hovering { return Color.primary.opacity(0.05) }
+        return item.state.isActive ? Color.primary.opacity(0.03) : .clear
     }
 
     private var border: Color {
-        isSelected ? Color.driftAccent.opacity(0.45) : Color.primary.opacity(item.state.isActive ? 0.07 : 0.05)
+        isSelected ? Color.driftAccent.opacity(0.55) : Color.driftStroke.opacity(item.state.isActive ? 1 : 0.7)
     }
 
     private var meta: String {
@@ -108,33 +109,22 @@ struct DownloadRow: View {
     private var speedColor: Color {
         switch item.state {
         case .paused: .driftPaused
-        case .failed: .red
+        case .failed: .driftDanger
         default: .secondary
         }
     }
 
     @ViewBuilder private var actionButton: some View {
-        let (symbol, label): (String, String) = switch item.state {
-        case .downloading, .connecting, .queued: ("pause.fill", "Pause")
-        case .paused: ("play.fill", "Resume")
-        case .failed: ("arrow.clockwise", "Retry")
-        case .completed: ("magnifyingglass", "Show in Finder")
+        switch item.state {
+        case .downloading, .connecting, .queued:
+            IconButton(symbol: "pause.fill", label: "Pause") { store.toggle(item.id) }
+        case .paused:
+            IconButton(symbol: "play.fill", label: "Resume", tint: .driftAccent) { store.toggle(item.id) }
+        case .failed:
+            IconButton(symbol: "arrow.clockwise", label: "Retry", tint: .driftDanger) { store.retry(item.id) }
+        case .completed:
+            IconButton(symbol: "magnifyingglass", label: "Show in Finder") { store.reveal(item.id) }
         }
-        Button {
-            switch item.state {
-            case .completed: store.reveal(item.id)
-            case .failed: store.retry(item.id)
-            default: store.toggle(item.id)
-            }
-        } label: {
-            Image(systemName: symbol)
-                .font(.system(size: 10, weight: .bold))
-                .frame(width: 28, height: 28)
-                .background(Color.primary.opacity(0.08), in: .circle)
-        }
-        .buttonStyle(.plain)
-        .help(label)
-        .accessibilityLabel(label)
     }
 
     @ViewBuilder private var menu: some View {
@@ -176,9 +166,9 @@ struct FileTile: View {
         Text(label)
             .font(.system(size: size * 0.25, weight: .bold))
             .tracking(0.4)
-            .foregroundStyle(colorScheme == .light ? tint.mix(with: .black, by: 0.4) : tint)
+            .foregroundStyle(tint)
             .frame(width: size, height: size)
-            .background(tint.opacity(colorScheme == .light ? 0.2 : 0.14), in: .rect(cornerRadius: size * 0.25))
+            .background(tint.opacity(colorScheme == .light ? 0.12 : 0.18), in: .rect(cornerRadius: size * 0.25))
     }
 }
 
@@ -189,7 +179,7 @@ struct SegmentBar: View {
 
     var body: some View {
         Canvas { context, size in
-            let track = Color.primary.opacity(0.09)
+            let track = Color.primary.opacity(0.08)
             let segments = item.segments.sorted { $0.start < $1.start }
             let total = Double(item.totalBytes ?? 0)
 

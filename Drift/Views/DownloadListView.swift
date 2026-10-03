@@ -65,26 +65,30 @@ struct DownloadListView: View {
                     }
                     .pickerStyle(.inline)
                 } label: {
-                    Label("Sort", systemImage: "arrow.up.arrow.down")
+                    Label("Sort", systemImage: "line.3.horizontal.decrease")
                 }
+                .menuIndicator(.hidden)
                 .help("Sort downloads")
 
                 Button {
-                    store.activeCount + store.queuedCount > 0 ? store.pauseAll() : store.resumeAll()
+                    anyRunning ? store.pauseAll() : store.resumeAll()
                 } label: {
-                    Label(store.activeCount + store.queuedCount > 0 ? "Pause All" : "Resume All",
-                          systemImage: store.activeCount + store.queuedCount > 0 ? "pause.fill" : "play.fill")
+                    Label(anyRunning ? "Pause All" : "Resume All", systemImage: anyRunning ? "pause" : "play")
                 }
-                .help(store.activeCount + store.queuedCount > 0 ? "Pause all downloads" : "Resume all downloads")
+                .help(anyRunning ? "Pause all downloads" : "Resume all downloads")
             }
             ToolbarSpacer(.fixed)
             ToolbarItem {
                 Button {
                     store.addRequest = AddRequest()
                 } label: {
-                    Label("Add", systemImage: "plus")
+                    Label("New Download", systemImage: "plus")
+                        .labelStyle(.titleAndIcon)
+                        .font(.system(size: 13, weight: .semibold))
+                        .padding(.horizontal, 4)
                 }
                 .buttonStyle(.glassProminent)
+                .tint(.driftAccent)
                 .help("New download (⌘N)")
             }
         }
@@ -107,6 +111,8 @@ struct DownloadListView: View {
             Text("Unfinished downloads are stopped. Removing from the list keeps finished files on disk.")
         }
     }
+
+    private var anyRunning: Bool { store.activeCount + store.queuedCount > 0 }
 
     private var subtitle: String {
         var parts: [String] = []
@@ -181,14 +187,14 @@ struct ThroughputCard: View {
         }
         .padding(.horizontal, 22)
         .padding(.vertical, 18)
-        .background(.quaternary.opacity(0.35), in: .rect(cornerRadius: 14))
-        .overlay(RoundedRectangle(cornerRadius: 14).strokeBorder(.white.opacity(0.06)))
+        .background(Color.primary.opacity(0.03), in: .rect(cornerRadius: 14))
+        .overlay(RoundedRectangle(cornerRadius: 14).strokeBorder(Color.driftStroke.opacity(0.8)))
     }
 
     private func stat(_ title: String, _ value: String) -> some View {
         VStack(alignment: .leading, spacing: 4) {
             Text(title).font(.caption).foregroundStyle(.secondary)
-            Text(value).font(.system(.callout, design: .monospaced))
+            Text(value).font(.system(size: 15, weight: .medium).monospacedDigit())
                 .contentTransition(.numericText())
         }
     }
@@ -205,39 +211,22 @@ private struct SelectionBar: View {
     let delete: () -> Void
 
     var body: some View {
-        HStack(spacing: 6) {
+        HStack(spacing: 4) {
             Text("\(count) selected")
-                .font(.callout.weight(.medium))
+                .font(.system(size: 13, weight: .semibold))
                 .monospacedDigit()
-                .padding(.leading, 14)
-                .padding(.trailing, 6)
+                .padding(.leading, 12)
             if !allSelected {
                 Button("Select All", action: selectAll)
-                    .buttonStyle(.borderless)
+                    .buttonStyle(.plain)
+                    .font(.system(size: 13, weight: .medium))
+                    .foregroundStyle(Color.driftAccent)
+                    .padding(.horizontal, 8)
             }
-            Divider().frame(height: 18).padding(.horizontal, 4)
-            Button(action: move) {
-                Image(systemName: "folder")
-                    .frame(width: 30, height: 30)
-            }
-            .buttonStyle(.borderless)
-            .help("Move to folder…")
-            .accessibilityLabel("Move to folder")
-            Button(role: .destructive, action: delete) {
-                Image(systemName: "trash")
-                    .frame(width: 30, height: 30)
-            }
-            .buttonStyle(.borderless)
-            .foregroundStyle(.red)
-            .help("Delete")
-            .accessibilityLabel("Delete")
-            Button(action: clear) {
-                Image(systemName: "xmark")
-                    .frame(width: 30, height: 30)
-            }
-            .buttonStyle(.borderless)
-            .help("Clear selection")
-            .accessibilityLabel("Clear selection")
+            Divider().frame(height: 18).padding(.horizontal, 6)
+            IconButton(symbol: "folder", label: "Move to folder…", filled: false, action: move)
+            IconButton(symbol: "trash", label: "Delete", tint: .driftDanger, filled: false, action: delete)
+            IconButton(symbol: "xmark", label: "Clear selection", tint: .secondary, filled: false, action: clear)
         }
         .padding(6)
         .glassEffect(.regular, in: .capsule)
@@ -265,12 +254,12 @@ private struct ClipboardBanner: View {
             }
             Spacer()
             Button("Dismiss") { store.clipboardSuggestion = nil }
-                .buttonStyle(.borderless)
+                .buttonStyle(.driftPlain)
             Button("Add") {
                 store.addRequest = AddRequest(url: url.absoluteString)
                 store.clipboardSuggestion = nil
             }
-            .buttonStyle(.glassProminent)
+            .buttonStyle(.driftPrimary)
         }
         .padding(.horizontal, 16)
         .padding(.vertical, 12)
