@@ -17,6 +17,14 @@ enum SortOrder: String, CaseIterable, Identifiable {
     }
 }
 
+/// Order of the recent-downloads list in the menu bar.
+enum MenuBarOrder: String, CaseIterable, Identifiable {
+    case newest, unfinishedFirst
+
+    var id: String { rawValue }
+    var title: String { self == .newest ? "Newest" : "Unfinished first" }
+}
+
 /// User preferences, persisted to UserDefaults.
 @MainActor @Observable
 final class AppSettings {
@@ -36,12 +44,15 @@ final class AppSettings {
     var confirmBrowserDownloads: Bool { didSet { defaults.set(confirmBrowserDownloads, forKey: "confirmBrowserDownloads") } }
     var notifications: Bool { didSet { defaults.set(notifications, forKey: "notifications") } }
     var sortOrder: SortOrder { didSet { defaults.set(sortOrder.rawValue, forKey: "sortOrder") } }
+    var menuBarOrder: MenuBarOrder { didSet { defaults.set(menuBarOrder.rawValue, forKey: "menuBarOrder") } }
+    var menuBarCount: Int { didSet { defaults.set(menuBarCount, forKey: "menuBarCount") } }
 
     private init() {
         defaults.register(defaults: [
             "maxConcurrent": 3, "connections": 16, "speedLimitKB": 0, "categorySubfolders": false,
             "clipboardMonitoring": true, "browserIntegration": true, "confirmBrowserDownloads": true,
             "notifications": true, "sortOrder": SortOrder.newest.rawValue,
+            "menuBarOrder": MenuBarOrder.unfinishedFirst.rawValue, "menuBarCount": 5,
         ])
         downloadFolder = defaults.string(forKey: "downloadFolder").map { URL(filePath: $0) } ?? URL.downloadsDirectory
         maxConcurrent = defaults.integer(forKey: "maxConcurrent")
@@ -55,6 +66,8 @@ final class AppSettings {
         confirmBrowserDownloads = defaults.bool(forKey: "confirmBrowserDownloads")
         notifications = defaults.bool(forKey: "notifications")
         sortOrder = SortOrder(rawValue: defaults.string(forKey: "sortOrder") ?? "") ?? .newest
+        menuBarOrder = MenuBarOrder(rawValue: defaults.string(forKey: "menuBarOrder") ?? "") ?? .unfinishedFirst
+        menuBarCount = defaults.integer(forKey: "menuBarCount")
     }
 
     /// Bytes per second actually applied to downloads; 0 means unlimited.

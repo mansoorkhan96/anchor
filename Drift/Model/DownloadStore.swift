@@ -88,6 +88,18 @@ final class DownloadStore {
 
     func count(_ filter: SidebarFilter) -> Int { items.count { filter.matches($0) } }
 
+    /// The menu bar's recent list: newest first, optionally with unfinished downloads ahead of finished ones.
+    func recentItems(order: MenuBarOrder, limit: Int) -> [DownloadItem] {
+        Self.recent(items, order: order, limit: limit)
+    }
+
+    nonisolated static func recent(_ items: [DownloadItem], order: MenuBarOrder, limit: Int) -> [DownloadItem] {
+        let newest = items.sorted { $0.createdAt > $1.createdAt }
+        let ordered = order == .newest ? newest
+            : newest.filter { !$0.state.isFinished } + newest.filter(\.state.isFinished)
+        return Array(ordered.prefix(max(1, limit)))
+    }
+
     var activeCount: Int { items.count { $0.state.isActive } }
     var queuedCount: Int { items.count { $0.state == .queued } }
 

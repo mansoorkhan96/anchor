@@ -109,6 +109,23 @@ import Testing
         #expect(HTTPRequest(Data("POST /add HTTP/1.1\r\nContent-Length: 10\r\n\r\nhi".utf8)) == nil)
     }
 
+    @Test func ordersMenuBarRecents() {
+        let dir = URL(filePath: "/tmp")
+        func item(_ name: String, _ t: Double, done: Bool) -> DownloadItem {
+            var i = DownloadItem(url: URL(string: "https://a/\(name)")!, fileName: name, directory: dir, category: .other)
+            i.createdAt = Date(timeIntervalSince1970: t)
+            i.state = done ? .completed : .paused
+            return i
+        }
+        let items = [item("old-open", 10, done: false), item("new-done", 30, done: true),
+                     item("mid-open", 20, done: false), item("oldest-done", 5, done: true)]
+        #expect(DownloadStore.recent(items, order: .newest, limit: 10).map(\.fileName)
+                == ["new-done", "mid-open", "old-open", "oldest-done"])
+        #expect(DownloadStore.recent(items, order: .unfinishedFirst, limit: 10).map(\.fileName)
+                == ["mid-open", "old-open", "new-done", "oldest-done"])
+        #expect(DownloadStore.recent(items, order: .unfinishedFirst, limit: 3).count == 3)
+    }
+
     @Test func sortsBySizeAndDate() {
         let dir = URL(filePath: "/tmp")
         var a = DownloadItem(url: URL(string: "https://a/1")!, fileName: "a", directory: dir, category: .other)
