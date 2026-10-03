@@ -72,6 +72,21 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
             _ = DownloadStore.shared
             BrowserBridge.shared.start()
             ClipboardWatcher.shared.start()
+            // Switching to another app (⌘-Tab, Dock, clicking a window) closes the menu bar popover.
+            NSWorkspace.shared.notificationCenter.addObserver(
+                forName: NSWorkspace.didActivateApplicationNotification, object: nil, queue: .main
+            ) { note in
+                let app = note.userInfo?[NSWorkspace.applicationUserInfoKey] as? NSRunningApplication
+                guard app?.processIdentifier != ProcessInfo.processInfo.processIdentifier else { return }
+                MainActor.assumeIsolated { AppRouter.shared.closeMenuBarPanel() }
+            }
+            // Escape closes the menu bar popover.
+            NSEvent.addLocalMonitorForEvents(matching: .keyDown) { event in
+                guard event.keyCode == 53, let window = event.window,
+                      String(describing: type(of: window)).contains("MenuBarExtra") else { return event }
+                AppRouter.shared.closeMenuBarPanel()
+                return nil
+            }
             #if DEBUG
             DebugSnapshot.install()
             #endif
