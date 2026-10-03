@@ -53,7 +53,9 @@ struct DownloadListView: View {
                                  selectAll: { selection = Set(items.map(\.id)) },
                                  clear: { selection.removeAll() },
                                  move: moveSelection,
-                                 delete: { confirmDelete = true })
+                                 delete: { confirmDelete = true },
+                                 toggle: toggleSelection,
+                                 anyRunning: selectionRunning)
                         .padding(.bottom, 18)
                         .transition(.move(edge: .bottom).combined(with: .opacity))
                 }
@@ -129,6 +131,19 @@ struct DownloadListView: View {
             get: { selection.contains(id) },
             set: { if $0 { selection.insert(id) } else { selection.remove(id) } }
         )
+    }
+
+    private var selectionRunning: Bool {
+        store.items.contains { selection.contains($0.id) && ($0.state.isActive || $0.state == .queued) }
+    }
+
+    /// Pauses the selection if anything in it is running, otherwise resumes it.
+    private func toggleSelection() {
+        let running = selectionRunning
+        for id in selection {
+            guard let item = store.item(id), !item.state.isFinished else { continue }
+            if running { store.pause(id) } else if item.state.isFailed { store.retry(id) } else { store.resume(id) }
+        }
     }
 
     private func moveSelection() {
@@ -381,32 +396,71 @@ private struct SelectionBar: View {
     let clear: () -> Void
     let move: () -> Void
     let delete: () -> Void
+    var toggle: (() -> Void)? = nil
+    var anyRunning = false
 
     var body: some View {
         HStack(spacing: 6) {
-            Text("\(count) selected")
-                .font(.system(size: 13, weight: .semibold))
-                .monospacedDigit()
-                .foregroundStyle(Color.driftText)
-                .padding(.leading, 10)
+            HStack(spacing: 8) {
+                RoundedRectangle(cornerRadius: 4)
+                    .fill(Color.driftAccent)
+                    .frame(width: 16, height: 16)
+                    .overlay(Image(systemName: "checkmark").font(.system(size: 8.5, weight: .heavy)).foregroundStyle(.white))
+                Text("\(count) selected")
+                    .font(.system(size: 12.5, weight: .semibold).monospacedDigit())
+                    .foregroundStyle(Color.driftText)
+            }
+            .padding(.leading, 6)
             if !allSelected {
                 Button("Select all", action: selectAll)
                     .buttonStyle(.plain)
-                    .font(.system(size: 13, weight: .medium))
+                    .font(.system(size: 12.5, weight: .medium))
                     .foregroundStyle(Color.driftAccentInk)
-                    .padding(.horizontal, 8)
+                    .padding(.horizontal, 6)
             }
-            Rectangle().fill(Color.driftLine).frame(width: 1, height: 18).padding(.horizontal, 4)
-            IconButton(symbol: "folder", label: "Move to folder…", tint: .driftMuted2, fill: .driftField, size: 34, action: move)
-            IconButton(symbol: "trash", label: "Delete", tint: .driftDanger, fill: .driftDangerWash, size: 34, action: delete)
-            IconButton(symbol: "xmark", label: "Clear selection", tint: .driftMuted, fill: .clear, size: 34, action: clear)
+            Rectangle().fill(Color.driftLine).frame(width: 1, height: 16).padding(.horizontal, 4)
+            if let toggle {
+                BarButton(title: anyRunning ? "Pause" : "Resume", symbol: anyRunning ? "pause.fill" : "play.fill",
+                          ink: anyRunning ? .driftText : .driftAccentStrong, wash: anyRunning ? .driftField : .driftAccentWash,
+                          action: toggle)
+            }
+            BarButton(title: "Move", symbol: "folder", ink: .driftText, wash: .driftField, action: move)
+            BarButton(title: "Delete", symbol: "trash", ink: .driftDanger, wash: .driftDangerWash, action: delete)
+            IconButton(symbol: "xmark", label: "Clear selection", tint: .driftMuted, fill: .clear, size: 26,
+                       glyphScale: 0.38, action: clear)
         }
-        .padding(6)
-        .padding(.leading, 6)
-        .background(Color.driftWindow, in: .capsule)
-        .overlay(Capsule().strokeBorder(Color.driftLine))
-        .shadow(color: .black.opacity(0.12), radius: 16, y: 10)
-        .shadow(color: .black.opacity(0.05), radius: 3, y: 1)
+        .padding(.horizontal, 8)
+        .frame(height: 42)
+        .background(Color.driftWindow, in: .rect(cornerRadius: 12))
+        .overlay(RoundedRectangle(cornerRadius: 12).strokeBorder(Color.driftLine))
+        .shadow(color: .black.opacity(0.10), radius: 14, y: 8)
+        .shadow(color: .black.opacity(0.04), radius: 2, y: 1)
+    }
+}
+
+/// Compact labeled button for the selection bar.
+private struct BarButton: View {
+    let title: String
+    let symbol: String
+    let ink: Color
+    let wash: Color
+    let action: () -> Void
+    @State private var hovering = false
+
+    var body: some View {
+        Button(action: action) {
+            HStack(spacing: 5) {
+                Image(systemName: symbol).font(.system(size: 10.5, weight: .semibold))
+                Text(title).font(.system(size: 12, weight: .semibold))
+            }
+            .foregroundStyle(ink)
+            .padding(.horizontal, 9)
+            .frame(height: 26)
+            .background(wash.opacity(hovering ? 1 : 0.85), in: .rect(cornerRadius: 7))
+            .contentShape(.rect(cornerRadius: 7))
+        }
+        .buttonStyle(.plain)
+        .onHover { hovering = $0 }
     }
 }
 
