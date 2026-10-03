@@ -10,6 +10,8 @@ struct DownloadListView: View {
     @State private var search = ""
     @State private var selection: Set<UUID> = []
     @State private var confirmDelete = false
+    @State private var focused: UUID?
+    @State private var panelHeight: CGFloat = 300
 
     private var visible: [DownloadItem] { store.items(for: filter, search: search) }
 
@@ -17,6 +19,7 @@ struct DownloadListView: View {
         @Bindable var settings = store.settings
         let items = visible
 
+        VStack(spacing: 0) {
         ScrollView {
             VStack(spacing: 14) {
                 if let link = store.clipboardSuggestion {
@@ -30,7 +33,10 @@ struct DownloadListView: View {
                 } else {
                     LazyVStack(spacing: 8) {
                         ForEach(items) { item in
-                            DownloadRow(item: item, isSelected: selectionBinding(item.id))
+                            DownloadRow(item: item, isSelected: selectionBinding(item.id),
+                                        isFocused: focused == item.id) {
+                                withAnimation(.snappy(duration: 0.22)) { focused = focused == item.id ? nil : item.id }
+                            }
                         }
                     }
                 }
@@ -56,6 +62,13 @@ struct DownloadListView: View {
             }
             .animation(.snappy(duration: 0.22), value: selection.isEmpty)
         }
+            if let id = focused, let item = store.item(id) {
+                DetailsPanel(item: item, height: $panelHeight) {
+                    withAnimation(.snappy(duration: 0.22)) { focused = nil }
+                }
+                .transition(.move(edge: .bottom))
+            }
+        }
         .safeAreaInset(edge: .top, spacing: 0) {
             HeaderBar(title: filter.title, subtitle: subtitle, search: $search,
                       sidebarHidden: sidebarHidden, toggleSidebar: toggleSidebar)
@@ -63,6 +76,7 @@ struct DownloadListView: View {
         .onChange(of: filter) { selection.removeAll() }
         .onChange(of: store.items.map(\.id)) { _, ids in
             selection.formIntersection(ids)
+            if let id = focused, !ids.contains(id) { focused = nil }
         }
         .confirmationDialog("Delete \(selection.count) download\(selection.count == 1 ? "" : "s")?",
                             isPresented: $confirmDelete) {

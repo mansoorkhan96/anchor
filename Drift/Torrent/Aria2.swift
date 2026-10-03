@@ -12,6 +12,14 @@ struct TorrentStatus: Sendable {
     var followedBy: String?
 }
 
+/// A torrent added to aria2 in a paused state so its files can be reviewed before downloading.
+struct PreparedTorrent: Sendable, Equatable {
+    var gid: String
+    var name: String
+    var files: [TorrentFile]
+    var directory: URL
+}
+
 enum Aria2Error: LocalizedError {
     case missingBinary
     case notReady
@@ -84,12 +92,95 @@ actor Aria2 {
         return gid
     }
 
-    func addTorrent(_ file: URL, directory: URL) async throws -> String {
+    func addTorrent(_ file: URL, directory: URL, select: [Int]? = nil, checkIntegrity: Bool = false) async throws -> String {
         try await ensureRunning()
         let data = try Data(contentsOf: file).base64EncodedString()
-        let result = try await call("aria2.addTorrent", [data, [String](), ["dir": directory.path]])
+        var options = ["dir": directory.path]
+        if let select, !select.isEmpty { options["select-file"] = select.map(String.init).joined(separator: ",") }
+        if checkIntegrity { options["check-integrity"] = "true" }
+        let result = try await call("aria2.addTorrent", [data, [String](), options])
         guard let gid = result as? String else { throw Aria2Error.rpc("No id returned") }
         return gid
+    }
+
+    /// Fetches a magnet's metadata and leaves the real download paused, returning its file list.
+    func prepareMagnet(_ uri: String, directory: URL) async throws -> PreparedTorrent {
+        try await ensureRunning()
+        let result = try await call("aria2.addUri", [[uri], ["dir": directory.path, "pause-metadata": "true"]])
+        guard let meta = result as? String else { throw Aria2Error.rpc("No id returned") }
+        do {
+            for _ in 0..<180 {
+                try Task.checkCancellation()
+                let status = try await call("aria2.tellStatus", [meta, ["status", "followedBy", "errorMessage"]]) as? [String: Any]
+                if let next = (status?["followedBy"] as? [String])?.first {
+                    return try await prepared(next, directory: directory)
+                }
+                if status?["status"] as? String == "error" {
+                    throw Aria2Error.rpc(status?["errorMessage"] as? String ?? "Couldn't fetch the torrent")
+                }
+                try await Task.sleep(for: .milliseconds(500))
+            }
+            throw Aria2Error.rpc("Couldn't fetch the file list: no peers responded")
+        } catch {
+            await remove(meta)
+            throw error
+        }
+    }
+
+    /// Adds a .torrent paused and returns its file list.
+    func prepareTorrent(_ file: URL, directory: URL) async throws -> PreparedTorrent {
+        try await ensureRunning()
+        let data = try Data(contentsOf: file).base64EncodedString()
+        let result = try await call("aria2.addTorrent", [data, [String](), ["dir": directory.path, "pause": "true"]])
+        guard let gid = result as? String else { throw Aria2Error.rpc("No id returned") }
+        return try await prepared(gid, directory: directory)
+    }
+
+    private func prepared(_ gid: String, directory: URL) async throws -> PreparedTorrent {
+        let status = try await call("aria2.tellStatus", [gid, ["bittorrent"]]) as? [String: Any]
+        let info = (status?["bittorrent"] as? [String: Any])?["info"] as? [String: Any]
+        let files = try await files(gid, directory: directory)
+        return PreparedTorrent(gid: gid, name: info?["name"] as? String ?? files.first?.name ?? "Torrent",
+                               files: files, directory: directory)
+    }
+
+    /// The torrent's files, with paths relative to the download folder.
+    func files(_ gid: String, directory: URL) async throws -> [TorrentFile] {
+        guard let list = try await call("aria2.getFiles", [gid]) as? [[String: Any]] else { return [] }
+        let prefix = directory.path.hasSuffix("/") ? directory.path : directory.path + "/"
+        return list.compactMap { entry in
+            guard let index = Int(entry["index"] as? String ?? "") else { return nil }
+            let path = entry["path"] as? String ?? ""
+            return TorrentFile(index: index,
+                               path: path.hasPrefix(prefix) ? String(path.dropFirst(prefix.count)) : path,
+                               length: Int64(entry["length"] as? String ?? "") ?? 0,
+                               completed: Int64(entry["completedLength"] as? String ?? "") ?? 0,
+                               included: (entry["selected"] as? String) != "false")
+        }
+    }
+
+    /// Moves a paused (prepared) torrent to another folder.
+    func setDirectory(_ gid: String, to directory: URL) async {
+        _ = try? await call("aria2.changeOption", [gid, ["dir": directory.path]])
+    }
+
+    /// Changes which files download. aria2 only applies this to paused downloads, so active ones are paused briefly.
+    func select(_ gid: String, files indexes: [Int]) async {
+        guard !indexes.isEmpty else { return }
+        let csv = indexes.map(String.init).joined(separator: ",")
+        let status = (try? await call("aria2.tellStatus", [gid, ["status"]]) as? [String: Any])?["status"] as? String
+        guard status == "active" || status == "waiting" else {
+            _ = try? await call("aria2.changeOption", [gid, ["select-file": csv]])
+            return
+        }
+        _ = try? await call("aria2.forcePause", [gid])
+        for _ in 0..<30 {
+            let now = (try? await call("aria2.tellStatus", [gid, ["status"]]) as? [String: Any])?["status"] as? String
+            if now == "paused" { break }
+            try? await Task.sleep(for: .milliseconds(100))
+        }
+        _ = try? await call("aria2.changeOption", [gid, ["select-file": csv]])
+        _ = try? await call("aria2.unpause", [gid])
     }
 
     func status(_ gid: String) async throws -> TorrentStatus {

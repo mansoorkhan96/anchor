@@ -252,11 +252,14 @@ final class DownloadStore {
     private func startTorrent(_ item: DownloadItem) async {
         do {
             let gid: String
+            let selection = item.files.map(TorrentSelection.phase)
             if let existing = item.torrentGID, liveGIDs.contains(existing) {
+                if let selection { await Aria2.shared.select(existing, files: selection) }
                 await Aria2.shared.resume(existing)
                 gid = existing
             } else if let file = item.torrentFile {
-                gid = try await Aria2.shared.addTorrent(file, directory: item.directory)
+                gid = try await Aria2.shared.addTorrent(file, directory: item.directory, select: selection,
+                                                        checkIntegrity: item.files?.contains { $0.completed > 0 } == true)
             } else {
                 gid = try await Aria2.shared.addMagnet(item.url.absoluteString, directory: item.directory)
             }
@@ -265,10 +268,84 @@ final class DownloadStore {
             mutate(item.id) {
                 $0.torrentGID = gid
                 $0.state = .downloading
+                if let selection { $0.appliedSelection = selection }
             }
         } catch {
             mutate(item.id) { $0.state = .failed(error.localizedDescription) }
         }
+    }
+
+    /// Adds a torrent that was prepared (and reviewed) in the New Download window.
+    func addPreparedTorrent(_ prepared: PreparedTorrent, source: URL, torrentFile: URL?, priority: Priority, startNow: Bool) {
+        var item = DownloadItem(url: source, fileName: FileNaming.sanitize(prepared.name), directory: prepared.directory,
+                                category: FileCategory.detect(fileName: prepared.name), kind: .torrent)
+        item.torrentGID = prepared.gid
+        item.torrentFile = torrentFile
+        item.files = prepared.files
+        item.priority = priority == .normal ? nil : priority
+        let included = prepared.files.filter(\.included)
+        item.totalBytes = included.reduce(0) { $0 + $1.length }
+        liveGIDs.insert(prepared.gid)
+        items.insert(item, at: 0)
+        markDirty()
+        if torrentFile == nil { adoptSavedMetadata(for: item.id) }
+        if startNow {
+            startOrQueue(item.id)
+        } else {
+            mutate(item.id) { $0.state = .queued; $0.queuedAt = Date() }
+            schedule()
+        }
+    }
+
+    // MARK: Torrent files and priority
+
+    /// Skip or include one file of a torrent.
+    func setFile(_ index: Int, of id: UUID, included: Bool) {
+        guard let files = item(id)?.files else { return }
+        // Keep at least one file, or aria2 would download everything.
+        if !included, files.filter(\.included).count <= 1 { return }
+        updateFiles(id) { files in
+            if let i = files.firstIndex(where: { $0.index == index }) { files[i].included = included }
+        }
+    }
+
+    func setAllFiles(of id: UUID, included: Bool) {
+        updateFiles(id) { files in
+            for i in files.indices { files[i].included = included }
+            if !included, !files.isEmpty { files[0].included = true }
+        }
+    }
+
+    func setFilePriority(_ index: Int, of id: UUID, to priority: Priority) {
+        updateFiles(id) { files in
+            if let i = files.firstIndex(where: { $0.index == index }) { files[i].priority = priority }
+        }
+    }
+
+    func setPriority(_ ids: Set<UUID>, to priority: Priority) {
+        for id in ids { mutate(id) { $0.priority = priority == .normal ? nil : priority } }
+        schedule()
+    }
+
+    private func updateFiles(_ id: UUID, _ change: (inout [TorrentFile]) -> Void) {
+        guard var files = item(id)?.files else { return }
+        change(&files)
+        let included = files.filter(\.included)
+        mutate(id) {
+            $0.files = files
+            $0.totalBytes = included.reduce(0) { $0 + $1.length }
+            $0.receivedBytes = included.reduce(0) { $0 + min($1.completed, $1.length) }
+        }
+        applySelection(id)
+    }
+
+    /// Sends the current phase's file selection to aria2 if it changed.
+    private func applySelection(_ id: UUID) {
+        guard let item = item(id), let files = item.files, let gid = item.torrentGID, liveGIDs.contains(gid) else { return }
+        let selection = TorrentSelection.phase(files)
+        guard selection != item.appliedSelection else { return }
+        mutate(id) { $0.appliedSelection = selection }
+        Task { await Aria2.shared.select(gid, files: selection) }
     }
 
     func pause(_ id: UUID) {
@@ -339,17 +416,25 @@ final class DownloadStore {
         for id in ids {
             guard let item = item(id) else { continue }
             engines.removeValue(forKey: id)?.pause()
-            if item.kind == .torrent, let gid = item.torrentGID {
-                Task { await Aria2.shared.remove(gid) }
-            }
-            if deleteFiles {
+            let trash = {
                 let fm = FileManager.default
                 let candidates = [item.destination, item.partialFile,
                                   item.directory.appending(path: item.fileName + ".aria2")]
                 for url in candidates where fm.fileExists(atPath: url.path) {
                     try? fm.trashItem(at: url, resultingItemURL: nil)
                 }
-            } else if !item.state.isFinished, item.kind == .http {
+            }
+            if item.kind == .torrent, let gid = item.torrentGID {
+                liveGIDs.remove(gid)
+                // Stop aria2 first: it rewrites its .aria2 progress file while shutting a torrent down.
+                Task {
+                    await Aria2.shared.remove(gid)
+                    if deleteFiles { trash() }
+                }
+            } else if deleteFiles {
+                trash()
+            }
+            if !deleteFiles, !item.state.isFinished, item.kind == .http {
                 try? FileManager.default.removeItem(at: item.partialFile)
             }
             if let file = item.torrentFile { try? FileManager.default.removeItem(at: file) }
@@ -471,7 +556,11 @@ final class DownloadStore {
     func schedule() {
         var active = activeCount
         let waiting = items.filter { $0.state == .queued }
-            .sorted { ($0.queuedAt ?? $0.createdAt) < ($1.queuedAt ?? $1.createdAt) }
+            .sorted {
+                let (p0, p1) = (($0.priority ?? .normal).rawValue, ($1.priority ?? .normal).rawValue)
+                if p0 != p1 { return p0 > p1 }
+                return ($0.queuedAt ?? $0.createdAt) < ($1.queuedAt ?? $1.createdAt)
+            }
         for item in waiting where active < settings.maxConcurrent {
             start(item.id)
             active += 1
@@ -515,14 +604,18 @@ final class DownloadStore {
 
     private func pollTorrents() {
         let running = items.filter { $0.kind == .torrent && $0.state.isActive }.compactMap { item in
-            item.torrentGID.map { (item.id, $0) }
+            item.torrentGID.map { (item.id, $0, item.directory) }
         }
         guard !running.isEmpty, !pollingTorrents else { return }
         pollingTorrents = true
         Task {
             defer { pollingTorrents = false }
-            for (id, gid) in running {
+            for (id, gid, directory) in running {
                 guard let status = try? await Aria2.shared.status(gid) else { continue }
+                if status.followedBy == nil, status.totalBytes > 0,
+                   let files = try? await Aria2.shared.files(gid, directory: directory) {
+                    mergeFiles(files, into: id)
+                }
                 applyTorrent(status, gid: gid, to: id)
             }
         }
@@ -535,21 +628,73 @@ final class DownloadStore {
             adoptSavedMetadata(for: id)
             return
         }
+        let hasFiles = item(id)?.files != nil
         mutate(id, dirty: false) {
             if let name = status.name { $0.fileName = name; $0.category = FileCategory.detect(fileName: name) }
-            if status.totalBytes > 0 { $0.totalBytes = status.totalBytes }
-            $0.receivedBytes = status.completedBytes
+            if !hasFiles {
+                if status.totalBytes > 0 { $0.totalBytes = status.totalBytes }
+                $0.receivedBytes = status.completedBytes
+            }
             $0.speed = status.speed
             $0.connections = status.connections
             $0.peers = status.connections
             $0.seeders = status.seeders
         }
         switch status.state {
-        case "complete": complete(id)
+        case "complete":
+            if let item = item(id), let files = item.files,
+               TorrentSelection.hasLaterPhase(files, selected: item.appliedSelection ?? TorrentSelection.phase(files)) {
+                startNextPhase(id, finishedGID: gid)
+            } else {
+                complete(id)
+            }
         case "error", "removed": mutate(id) { $0.state = .failed(status.errorMessage ?? "Torrent stopped") }
         default: break
         }
         dirty = true
+    }
+
+    /// Merges aria2's per-file progress with the user's include and priority choices.
+    private func mergeFiles(_ fresh: [TorrentFile], into id: UUID) {
+        guard let item = item(id) else { return }
+        let current = Dictionary(uniqueKeysWithValues: (item.files ?? []).map { ($0.index, $0) })
+        let merged = fresh.map { file in
+            var file = file
+            if let known = current[file.index] {
+                file.included = known.included
+                file.priority = known.priority
+            }
+            return file
+        }
+        let included = merged.filter(\.included)
+        mutate(id, dirty: false) {
+            $0.files = merged
+            $0.totalBytes = included.reduce(0) { $0 + $1.length }
+            $0.receivedBytes = included.reduce(0) { $0 + min($1.completed, $1.length) }
+        }
+        applySelection(id)
+    }
+
+    /// aria2 finished the current priority phase: re-add the torrent with the next files, keeping what's done.
+    private func startNextPhase(_ id: UUID, finishedGID: String) {
+        guard let item = item(id), let files = item.files, let torrentFile = item.torrentFile else {
+            complete(id)
+            return
+        }
+        let selection = TorrentSelection.phase(files)
+        mutate(id) { $0.appliedSelection = selection }
+        Task {
+            await Aria2.shared.remove(finishedGID)
+            liveGIDs.remove(finishedGID)
+            do {
+                let gid = try await Aria2.shared.addTorrent(torrentFile, directory: item.directory,
+                                                            select: selection, checkIntegrity: true)
+                liveGIDs.insert(gid)
+                mutate(id) { $0.torrentGID = gid }
+            } catch {
+                mutate(id) { $0.state = .failed(error.localizedDescription) }
+            }
+        }
     }
 
     /// aria2 writes `<infohash>.torrent` next to the download once a magnet's metadata arrives. Move it into

@@ -4,6 +4,8 @@ struct DownloadRow: View {
     @Environment(DownloadStore.self) private var store
     let item: DownloadItem
     @Binding var isSelected: Bool
+    var isFocused = false
+    var onFocus: () -> Void = {}
     @State private var hovering = false
 
     private var barColor: Color {
@@ -26,6 +28,17 @@ struct DownloadRow: View {
                             .foregroundStyle(Color.driftText)
                             .lineLimit(1)
                             .truncationMode(.middle)
+                        if let priority = item.priority, priority != .normal {
+                            HStack(spacing: 3) {
+                                Image(systemName: priority.symbol).font(.system(size: 8, weight: .bold))
+                                Text(priority.title).font(.system(size: 10.5, weight: .semibold))
+                            }
+                            .foregroundStyle(priority == .high ? Color.driftAccentInk : Color.driftMuted)
+                            .padding(.horizontal, 6)
+                            .padding(.vertical, 1.5)
+                            .background(priority == .high ? Color.driftAccentWash : Color.driftField, in: .capsule)
+                            .help("\(priority.title) priority")
+                        }
                         Text(meta)
                             .font(.system(size: 12).monospacedDigit())
                             .foregroundStyle(item.state.isFailed ? Color.driftDanger : Color.driftMuted)
@@ -39,6 +52,7 @@ struct DownloadRow: View {
             }
             .contentShape(.rect)
             .onTapGesture(count: 2) { item.state.isFinished ? store.open(item.id) : store.toggle(item.id) }
+            .onTapGesture { onFocus() }
 
             Group {
                 if item.state == .downloading {
@@ -65,14 +79,15 @@ struct DownloadRow: View {
         .padding(.trailing, 10)
         .padding(.vertical, 12)
         .background(background, in: .rect(cornerRadius: 14))
-        .overlay(RoundedRectangle(cornerRadius: 14).strokeBorder(isSelected ? Color.driftAccentRing : .clear, lineWidth: 1))
+        .overlay(RoundedRectangle(cornerRadius: 14)
+            .strokeBorder(isSelected ? Color.driftAccentRing : isFocused ? Color.driftText.opacity(0.18) : .clear, lineWidth: 1))
         .onHover { hovering = $0 }
         .contextMenu { menu }
     }
 
     private var background: Color {
         if isSelected { return .driftAccentWash }
-        if hovering { return .driftField }
+        if hovering || isFocused { return .driftField }
         return item.state.isFinished || item.state == .queued || item.state == .paused ? .driftCardQuiet : .driftCard
     }
 
@@ -127,6 +142,18 @@ struct DownloadRow: View {
             Button("Retry") { store.retry(item.id) }
             Button("Add to Queue") { store.queue([item.id]) }
         case .completed: EmptyView()
+        }
+        Menu("Priority") {
+            ForEach(Priority.allCases.reversed()) { option in
+                Button {
+                    store.setPriority([item.id], to: option)
+                } label: {
+                    if (item.priority ?? .normal) == option { Label(option.title, systemImage: "checkmark") } else { Text(option.title) }
+                }
+            }
+        }
+        if item.files != nil || item.kind == .http {
+            Button("Show Details") { onFocus() }
         }
         Divider()
         Button("Remove from List") { store.remove([item.id], deleteFiles: false) }

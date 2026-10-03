@@ -13,8 +13,7 @@ final class AppRouter {
         case "magnet":
             present(AddRequest(url: url.absoluteString))
         case "file" where url.pathExtension.lowercased() == "torrent":
-            store.addTorrentFile(url)
-            activate()
+            present(AddRequest(url: url.absoluteString))
         case "drift":
             // drift://add?url=<encoded>
             let link = URLComponents(url: url, resolvingAgainstBaseURL: false)?.queryItems?.first { $0.name == "url" }?.value

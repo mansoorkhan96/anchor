@@ -18,6 +18,13 @@ struct AddDownloadSheet: View {
     @State private var folder: URL?
     @State private var openWhenDone = false
     @State private var fromClipboard = false
+    // Torrents: added to aria2 paused so the file list can be reviewed first.
+    @State private var prepared: PreparedTorrent?
+    @State private var preparing = false
+    @State private var prepareError: String?
+    @State private var localTorrent: URL?
+    @State private var torrentPriority: Priority = .normal
+    @State private var added = false
     @FocusState private var addressFocused: Bool
 
     private var url: URL? {
@@ -97,6 +104,26 @@ struct AddDownloadSheet: View {
                 fileCard
             }
 
+            if let files = prepared?.files {
+                TorrentFileList(files: files, maxHeight: 220,
+                                onInclude: { index, included in
+                                    guard var p = prepared, let i = p.files.firstIndex(where: { $0.index == index }) else { return }
+                                    if !included, p.files.filter(\.included).count <= 1 { return }
+                                    p.files[i].included = included
+                                    prepared = p
+                                },
+                                onPriority: { index, priority in
+                                    guard var p = prepared, let i = p.files.firstIndex(where: { $0.index == index }) else { return }
+                                    p.files[i].priority = priority
+                                    prepared = p
+                                },
+                                onAll: { included in
+                                    guard var p = prepared else { return }
+                                    for i in p.files.indices { p.files[i].included = included || i == 0 }
+                                    prepared = p
+                                })
+            }
+
             HStack(alignment: .top, spacing: 12) {
                 field("Save to") {
                     Button(action: chooseFolder) {
@@ -120,7 +147,12 @@ struct AddDownloadSheet: View {
                     .buttonStyle(.plain)
                 }
 
-                if !isTorrent {
+                if isTorrent {
+                    field("Priority") {
+                        PriorityField(selection: $torrentPriority)
+                    }
+                    .frame(width: 210)
+                } else {
                     field("Category") {
                         Menu {
                             ForEach(FileCategory.allCases) { option in
@@ -162,11 +194,11 @@ struct AddDownloadSheet: View {
                     .keyboardShortcut(.cancelAction)
                 Button("Add to Queue") { add(startNow: false) }
                     .buttonStyle(.driftSecondary)
-                    .disabled(!canAdd)
+                    .disabled(!canAdd || preparing)
                 Button("Download") { add(startNow: true) }
                     .buttonStyle(.driftPrimary)
                     .keyboardShortcut(.defaultAction)
-                    .disabled(!canAdd)
+                    .disabled(!canAdd || preparing)
             }
         }
         .padding(24)
@@ -188,6 +220,13 @@ struct AddDownloadSheet: View {
             addressFocused = address.isEmpty
         }
         .task(id: address) { await runProbe() }
+        .onChange(of: folder) {
+            guard let gid = prepared?.gid else { return }
+            let target = targetFolder
+            prepared?.directory = target
+            Task { await Aria2.shared.setDirectory(gid, to: target) }
+        }
+        .onDisappear { if !added { releasePrepared() } }
     }
 
     private func field<Content: View>(_ title: String, @ViewBuilder content: () -> Content) -> some View {
@@ -235,6 +274,15 @@ struct AddDownloadSheet: View {
                         Text("Checking link…").font(.system(size: 11)).foregroundStyle(Color.driftMuted)
                     } else if let probeError {
                         Chip(text: probeError, ink: .driftDanger, wash: .driftDangerWash)
+                    } else if preparing {
+                        ProgressView().controlSize(.mini)
+                        Text("Fetching file list…").font(.system(size: 11)).foregroundStyle(Color.driftMuted)
+                    } else if let prepareError {
+                        Chip(text: prepareError, ink: .driftDanger, wash: .driftDangerWash)
+                    } else if let prepared {
+                        Chip(text: "Torrent", ink: .driftSuccess, wash: .driftSuccessWash)
+                        Chip(text: "\(prepared.files.count) file\(prepared.files.count == 1 ? "" : "s")", ink: .driftText.opacity(0.8))
+                        Chip(text: Format.bytes(prepared.files.filter(\.included).reduce(0) { $0 + $1.length }), ink: .driftText.opacity(0.8))
                     } else if isMagnet {
                         Chip(text: "Magnet link", ink: .driftSuccess, wash: .driftSuccessWash)
                     } else if isTorrent {
@@ -259,10 +307,11 @@ struct AddDownloadSheet: View {
     private func runProbe() async {
         probe = nil
         probeError = nil
+        releasePrepared()
         guard let url, let scheme = url.scheme?.lowercased() else { return }
 
-        if scheme == "magnet" {
-            setName(FileNaming.magnetName(url) ?? "Magnet link")
+        if isTorrent {
+            await prepareTorrent(url, scheme: scheme)
             return
         }
         guard scheme == "http" || scheme == "https" else {
@@ -286,6 +335,63 @@ struct AddDownloadSheet: View {
         }
     }
 
+    /// Adds the torrent to aria2 paused and loads its file list for review.
+    private func prepareTorrent(_ url: URL, scheme: String) async {
+        setName(scheme == "magnet" ? (FileNaming.magnetName(url) ?? "Magnet link")
+                                   : (url.lastPathComponent as NSString).deletingPathExtension)
+        try? await Task.sleep(for: .milliseconds(250))
+        guard !Task.isCancelled else { return }
+        preparing = true
+        defer { preparing = false }
+        do {
+            let result: PreparedTorrent
+            if scheme == "magnet" {
+                result = try await Aria2.shared.prepareMagnet(url.absoluteString, directory: targetFolder)
+            } else {
+                let local = AppPaths.torrents.appending(path: "\(UUID().uuidString).torrent")
+                if url.isFileURL {
+                    try FileManager.default.copyItem(at: url, to: local)
+                } else {
+                    var request = URLRequest(url: url)
+                    self.request.headers.forEach { request.setValue($1, forHTTPHeaderField: $0) }
+                    try await URLSession.shared.data(for: request).0.write(to: local)
+                }
+                localTorrent = local
+                result = try await Aria2.shared.prepareTorrent(local, directory: targetFolder)
+            }
+            guard !Task.isCancelled else {
+                await Aria2.shared.remove(result.gid)
+                return
+            }
+            prepared = result
+            nameEdited = false
+            setName(result.name)
+        } catch is CancellationError {
+        } catch {
+            if !Task.isCancelled { prepareError = (error as? LocalizedError)?.errorDescription ?? "Couldn't read the torrent" }
+        }
+    }
+
+    /// Drops a prepared torrent the user didn't add, plus the files fetched for it.
+    private func releasePrepared() {
+        prepareError = nil
+        if let gid = prepared?.gid {
+            Task { await Aria2.shared.remove(gid) }
+            if isMagnet, let hash = magnetHash {
+                try? FileManager.default.removeItem(at: (prepared?.directory ?? targetFolder).appending(path: "\(hash).torrent"))
+            }
+        }
+        if let localTorrent { try? FileManager.default.removeItem(at: localTorrent) }
+        prepared = nil
+        localTorrent = nil
+    }
+
+    private var magnetHash: String? {
+        guard let url else { return nil }
+        return URLComponents(url: url, resolvingAgainstBaseURL: false)?.queryItems?
+            .first { $0.name == "xt" }?.value?.split(separator: ":").last?.lowercased()
+    }
+
     private func setName(_ name: String) {
         guard !nameEdited else { return }
         autoName = name
@@ -303,6 +409,12 @@ struct AddDownloadSheet: View {
     }
 
     private func add(startNow: Bool) {
+        if let prepared, let url {
+            added = true
+            store.addPreparedTorrent(prepared, source: url, torrentFile: localTorrent, priority: torrentPriority, startNow: startNow)
+            close()
+            return
+        }
         let name = fileName.trimmingCharacters(in: .whitespaces)
         let ok = store.add(address, fileName: name.isEmpty ? nil : name, directory: targetFolder,
                            headers: request.headers, probe: probe, startNow: startNow, openWhenDone: openWhenDone)
@@ -311,5 +423,54 @@ struct AddDownloadSheet: View {
 
     private func close() {
         if let onClose { onClose() } else { dismiss() }
+    }
+}
+
+/// Priority picker sized like the other fields: three equal segments with icons in a 40pt rounded track.
+private struct PriorityField: View {
+    @Binding var selection: Priority
+    @Namespace private var pill
+
+    var body: some View {
+        HStack(spacing: 0) {
+            ForEach(Priority.allCases.reversed()) { option in
+                let on = option == selection
+                Button {
+                    withAnimation(.snappy(duration: 0.2)) { selection = option }
+                } label: {
+                    HStack(spacing: 5) {
+                        Image(systemName: option.symbol)
+                            .font(.system(size: 10, weight: .bold))
+                        Text(option.title)
+                            .font(.system(size: 12.5, weight: on ? .semibold : .medium))
+                    }
+                    .foregroundStyle(on ? ink(option) : Color.driftMuted)
+                    .frame(maxWidth: .infinity, maxHeight: .infinity)
+                    .background {
+                        if on {
+                            RoundedRectangle(cornerRadius: 8)
+                                .fill(Color.driftWindow)
+                                .shadow(color: .black.opacity(0.08), radius: 2, y: 1)
+                                .matchedGeometryEffect(id: "pill", in: pill)
+                        }
+                    }
+                    .contentShape(.rect)
+                }
+                .buttonStyle(.plain)
+                .help("\(option.title) priority")
+                .accessibilityAddTraits(on ? .isSelected : [])
+            }
+        }
+        .padding(3)
+        .frame(height: 40)
+        .background(Color.driftField, in: .rect(cornerRadius: 10))
+    }
+
+    private func ink(_ option: Priority) -> Color {
+        switch option {
+        case .high: .driftAccentInk
+        case .normal: .driftText
+        case .low: .driftMuted2
+        }
     }
 }

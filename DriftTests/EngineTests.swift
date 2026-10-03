@@ -140,3 +140,34 @@ import Testing
         #expect([a, b].sorted(by: .oldest).map(\.fileName) == ["b", "a"])
     }
 }
+
+@Suite struct TorrentSelectionTests {
+    private func file(_ index: Int, _ priority: Priority, done: Bool = false, included: Bool = true) -> TorrentFile {
+        TorrentFile(index: index, path: "f\(index)", length: 100, completed: done ? 100 : 0, included: included, priority: priority)
+    }
+
+    @Test func downloadsHighPriorityFilesFirst() {
+        let files = [file(1, .normal), file(2, .high), file(3, .low)]
+        #expect(TorrentSelection.phase(files) == [2])
+        #expect(TorrentSelection.hasLaterPhase(files, selected: [2]))
+    }
+
+    @Test func addsNextPriorityOnceTheFirstIsDone() {
+        let files = [file(1, .normal), file(2, .high, done: true), file(3, .low)]
+        #expect(TorrentSelection.phase(files) == [1, 2])
+        let later = [file(1, .normal, done: true), file(2, .high, done: true), file(3, .low)]
+        #expect(TorrentSelection.phase(later) == [1, 2, 3])
+        #expect(!TorrentSelection.hasLaterPhase(later, selected: [1, 2, 3]))
+    }
+
+    @Test func neverSelectsSkippedFiles() {
+        let files = [file(1, .normal), file(2, .normal, included: false), file(3, .normal)]
+        #expect(TorrentSelection.phase(files) == [1, 3])
+        #expect(!TorrentSelection.hasLaterPhase(files, selected: [1, 3]))
+    }
+
+    @Test func allNormalDownloadsEverythingAtOnce() {
+        let files = [file(1, .normal), file(2, .normal)]
+        #expect(TorrentSelection.phase(files) == [1, 2])
+    }
+}

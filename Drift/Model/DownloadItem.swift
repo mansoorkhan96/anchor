@@ -56,6 +56,12 @@ struct DownloadItem: Codable, Identifiable, Hashable, Sendable {
     var overwrite: Bool?
     /// When the download joined the waiting line; it starts after everything queued before it.
     var queuedAt: Date?
+    /// Higher priority downloads leave the queue first.
+    var priority: Priority?
+    /// Torrent contents, with per-file include and priority choices.
+    var files: [TorrentFile]?
+    /// The file indexes last sent to aria2.
+    var appliedSelection: [Int]?
 
     /// Extra request headers forwarded from the browser (cookies, referer, user agent).
     var headers: [String: String] = [:]
@@ -72,7 +78,7 @@ struct DownloadItem: Codable, Identifiable, Hashable, Sendable {
 
     enum CodingKeys: String, CodingKey {
         case id, kind, url, fileName, directory, category, totalBytes, receivedBytes, segments
-        case supportsRanges, validator, state, createdAt, completedAt, openWhenDone, headers, nameFromServer, overwrite, queuedAt
+        case supportsRanges, validator, state, createdAt, completedAt, openWhenDone, headers, nameFromServer, overwrite, queuedAt, priority, files, appliedSelection
         case torrentGID, torrentFile
     }
 
