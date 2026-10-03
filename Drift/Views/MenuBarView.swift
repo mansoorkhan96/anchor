@@ -1,31 +1,17 @@
 import SwiftUI
-import Charts
 
 struct MenuBarView: View {
     @Environment(DownloadStore.self) private var store
     @Environment(\.openWindow) private var openWindow
 
     private var anyRunning: Bool { store.activeCount + store.queuedCount > 0 }
-    private var downloading: Bool { store.activeCount > 0 || store.totalSpeed > 0 }
+    private var canResume: Bool { store.items.contains { $0.state == .paused || $0.state.isFailed } }
 
     var body: some View {
         @Bindable var settings = store.settings
         let recent = store.recentItems(order: settings.menuBarOrder, limit: settings.menuBarCount)
         VStack(alignment: .leading, spacing: 14) {
-            if downloading {
-                speedCard
-            } else {
-                HStack {
-                    Text("Drift")
-                        .font(.system(size: 15, weight: .bold))
-                        .foregroundStyle(Color.driftText)
-                    Spacer()
-                    Text(store.queuedCount > 0 ? "\(store.queuedCount) queued" : "Nothing downloading")
-                        .font(.system(size: 12))
-                        .foregroundStyle(Color.driftMuted)
-                }
-                .padding(.horizontal, 4)
-            }
+            header
 
             VStack(alignment: .leading, spacing: 10) {
                 HStack(spacing: 8) {
@@ -62,9 +48,6 @@ struct MenuBarView: View {
                     showMain()
                     store.addRequest = AddRequest(url: text)
                 }
-                MenuButton(title: anyRunning ? "Pause All" : "Resume All", symbol: anyRunning ? "pause" : "play") {
-                    anyRunning ? store.pauseAll() : store.resumeAll()
-                }
                 MenuButton(title: "Open Drift", symbol: "macwindow") { showMain() }
                 MenuButton(title: "Quit", symbol: "power", shortcut: "⌘Q", muted: true) { NSApp.terminate(nil) }
             }
@@ -76,44 +59,22 @@ struct MenuBarView: View {
         .background(Color.driftWindow)
     }
 
-    private var speedCard: some View {
-        let parts = Format.speedParts(store.totalSpeed)
-        let history = Array(store.speedHistory.suffix(40).enumerated())
-        return HStack(alignment: .bottom) {
-            VStack(alignment: .leading, spacing: 2) {
-                Text("Drift · \(store.activeCount) active")
-                    .font(.system(size: 11, weight: .semibold))
-                    .foregroundStyle(Color.driftAccentInk)
-                HStack(alignment: .firstTextBaseline, spacing: 5) {
-                    Text(parts.value)
-                        .font(.system(size: 30, weight: .heavy).monospacedDigit())
-                        .tracking(-0.8)
-                        .foregroundStyle(Color.driftText)
-                        .contentTransition(.numericText())
-                    Text(parts.unit)
-                        .font(.system(size: 13, weight: .medium))
-                        .foregroundStyle(Color.driftMuted)
-                }
-            }
+    /// "Drift" and a one-tap icon button that pauses everything, or resumes everything when paused.
+    private var header: some View {
+        HStack(alignment: .center) {
+            Text("Drift")
+                .font(.system(size: 15, weight: .bold))
+                .foregroundStyle(Color.driftText)
             Spacer()
-            Chart(history, id: \.offset) { point in
-                AreaMark(x: .value("t", point.offset), y: .value("v", point.element))
-                    .interpolationMethod(.catmullRom)
-                    .foregroundStyle(LinearGradient(colors: [Color.driftAccent.opacity(0.2), Color.driftAccent.opacity(0)],
-                                                    startPoint: .top, endPoint: .bottom))
-                LineMark(x: .value("t", point.offset), y: .value("v", point.element))
-                    .interpolationMethod(.catmullRom)
-                    .foregroundStyle(Color.driftAccent)
-                    .lineStyle(StrokeStyle(lineWidth: 2, lineCap: .round))
+            if anyRunning {
+                IconButton(symbol: "pause.fill", label: "Pause all downloads", fill: .driftField, size: 30, outlined: true,
+                           glyphScale: 0.33) { store.pauseAll() }
+            } else if canResume {
+                IconButton(symbol: "play.fill", label: "Resume all paused downloads", tint: .white,
+                           fill: .driftAccentStrong, size: 30, glyphScale: 0.33) { store.resumeAll() }
             }
-            .chartXAxis(.hidden)
-            .chartYAxis(.hidden)
-            .chartYScale(domain: 0...max(1, (store.speedHistory.suffix(40).max() ?? 1) * 1.15))
-            .frame(width: 120, height: 38)
         }
-        .padding(.horizontal, 14)
-        .padding(.vertical, 12)
-        .background(Color.driftCard, in: .rect(cornerRadius: 12))
+        .padding(.horizontal, 4)
     }
 
     private func showMain() {
