@@ -50,9 +50,7 @@ struct DownloadRow: View {
                 }
                 .frame(maxWidth: .infinity, alignment: .leading)
             }
-            .contentShape(.rect)
-            .onTapGesture(count: 2) { item.state.isFinished ? store.open(item.id) : store.toggle(item.id) }
-            .onTapGesture { onFocus() }
+
 
             Group {
                 if item.state == .downloading {
@@ -81,6 +79,16 @@ struct DownloadRow: View {
         .background(background, in: .rect(cornerRadius: 14))
         .overlay(RoundedRectangle(cornerRadius: 14)
             .strokeBorder(isSelected ? Color.driftAccentRing : isFocused ? Color.driftText.opacity(0.18) : .clear, lineWidth: 1))
+        // Anywhere on the row except its buttons: one click shows details, a double click opens or pauses/resumes.
+        // The click count comes from the mouse event, so single clicks fire immediately.
+        .contentShape(.rect(cornerRadius: 14))
+        .onTapGesture {
+            if (NSApp.currentEvent?.clickCount ?? 1) >= 2 {
+                item.state.isFinished ? store.open(item.id) : store.toggle(item.id)
+            } else {
+                onFocus()
+            }
+        }
         .onHover { hovering = $0 }
         .contextMenu { menu }
     }
