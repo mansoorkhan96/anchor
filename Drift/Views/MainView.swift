@@ -4,16 +4,24 @@ import UniformTypeIdentifiers
 struct MainView: View {
     @Environment(DownloadStore.self) private var store
     @State private var filter: SidebarFilter = .all
+    @State private var columns: NavigationSplitViewVisibility = .all
 
     var body: some View {
         @Bindable var store = store
-        NavigationSplitView {
+        NavigationSplitView(columnVisibility: $columns) {
             SidebarView(selection: $filter)
                 .navigationSplitViewColumnWidth(min: 210, ideal: 228, max: 280)
+                .toolbar(removing: .sidebarToggle)
         } detail: {
-            DownloadListView(filter: filter)
-                .background(Color.driftWindow)
+            DownloadListView(filter: filter, sidebarHidden: columns == .detailOnly) {
+                withAnimation { columns = .all }
+            }
+            .background(Color.driftWindow)
+            // Let the header rise into the title bar row so it lines up with the window buttons, as in the design.
+            .ignoresSafeArea(.container, edges: .top)
         }
+        .toolbar(removing: .title)
+        .toolbarBackgroundVisibility(.hidden, for: .windowToolbar)
         .tint(.driftAccent)
         .sheet(item: $store.addRequest) { request in
             AddDownloadSheet(request: request)

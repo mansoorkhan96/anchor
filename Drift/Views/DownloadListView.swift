@@ -4,6 +4,8 @@ import Charts
 struct DownloadListView: View {
     @Environment(DownloadStore.self) private var store
     let filter: SidebarFilter
+    var sidebarHidden = false
+    var toggleSidebar: () -> Void = {}
 
     @State private var search = ""
     @State private var selection: Set<UUID> = []
@@ -34,7 +36,7 @@ struct DownloadListView: View {
                 }
             }
             .padding(.horizontal, 20)
-            .padding(.top, 8)
+            .padding(.top, 4)
             .padding(.bottom, 84)
             .animation(.snappy(duration: 0.25), value: items.map(\.id))
             .animation(.snappy(duration: 0.25), value: store.clipboardSuggestion)
@@ -54,45 +56,9 @@ struct DownloadListView: View {
             }
             .animation(.snappy(duration: 0.22), value: selection.isEmpty)
         }
-        .navigationTitle(filter.title)
-        .navigationSubtitle(subtitle)
-        .searchable(text: $search, placement: .toolbar, prompt: "Search")
-        .toolbar {
-            ToolbarItemGroup {
-                Menu {
-                    Picker("Sort By", selection: $settings.sortOrder) {
-                        ForEach(SortOrder.allCases) { order in
-                            Text(order.title).tag(order)
-                        }
-                    }
-                    .pickerStyle(.inline)
-                } label: {
-                    Label("Sort", systemImage: "line.3.horizontal.decrease")
-                }
-                .menuIndicator(.hidden)
-                .help("Sort downloads")
-
-                Button {
-                    anyRunning ? store.pauseAll() : store.resumeAll()
-                } label: {
-                    Label(anyRunning ? "Pause All" : "Resume All", systemImage: anyRunning ? "pause" : "play")
-                }
-                .help(anyRunning ? "Pause all downloads" : "Resume all downloads")
-            }
-            ToolbarSpacer(.fixed)
-            ToolbarItem {
-                Button {
-                    store.addRequest = AddRequest()
-                } label: {
-                    Label("New Download", systemImage: "plus")
-                        .labelStyle(.titleAndIcon)
-                        .font(.system(size: 13, weight: .semibold))
-                        .padding(.horizontal, 4)
-                }
-                .buttonStyle(.glassProminent)
-                .tint(.driftAccentStrong)
-                .help("New download (⌘N)")
-            }
+        .safeAreaInset(edge: .top, spacing: 0) {
+            HeaderBar(title: filter.title, subtitle: subtitle, search: $search,
+                      sidebarHidden: sidebarHidden, toggleSidebar: toggleSidebar)
         }
         .onChange(of: filter) { selection.removeAll() }
         .onChange(of: store.items.map(\.id)) { _, ids in
@@ -141,6 +107,145 @@ struct DownloadListView: View {
         guard panel.runModal() == .OK, let folder = panel.url else { return }
         store.move(selection, to: folder)
         selection.removeAll()
+    }
+}
+
+// MARK: - Header
+
+/// In-window header, laid out like the original design: title and counts on the left;
+/// search, the pause + sort pair, and Add on the right.
+private struct HeaderBar: View {
+    @Environment(DownloadStore.self) private var store
+    let title: String
+    let subtitle: String
+    @Binding var search: String
+    let sidebarHidden: Bool
+    let toggleSidebar: () -> Void
+    @FocusState private var searchFocused: Bool
+
+    private var anyRunning: Bool { store.activeCount + store.queuedCount > 0 }
+
+    var body: some View {
+        @Bindable var settings = store.settings
+        HStack(spacing: 12) {
+            if sidebarHidden {
+                IconButton(symbol: "sidebar.left", label: "Show Sidebar", tint: .driftMuted2, fill: .clear, size: 30,
+                           action: toggleSidebar)
+            }
+            HStack(alignment: .firstTextBaseline, spacing: 12) {
+                Text(title)
+                    .font(.system(size: 20, weight: .semibold))
+                    .tracking(-0.2)
+                    .foregroundStyle(Color.driftText)
+                if !subtitle.isEmpty {
+                    Text(subtitle)
+                        .font(.system(size: 12).monospacedDigit())
+                        .foregroundStyle(Color.driftMuted)
+                }
+            }
+            Spacer(minLength: 12)
+
+            HStack(spacing: 8) {
+                Image(systemName: "magnifyingglass")
+                    .font(.system(size: 12, weight: .medium))
+                    .foregroundStyle(Color.driftMuted)
+                TextField("Search", text: $search)
+                    .textFieldStyle(.plain)
+                    .font(.system(size: 13))
+                    .focused($searchFocused)
+                if !search.isEmpty {
+                    Button { search = "" } label: {
+                        Image(systemName: "xmark.circle.fill").foregroundStyle(Color.driftMuted.opacity(0.7))
+                    }
+                    .buttonStyle(.plain)
+                    .accessibilityLabel("Clear search")
+                }
+            }
+            .padding(.horizontal, 12)
+            .frame(width: 220, height: 32)
+            .background(Color.driftField, in: .capsule)
+            .overlay(Capsule().strokeBorder(searchFocused ? Color.driftAccent : Color.driftLine))
+
+            HStack(spacing: 2) {
+                Button {
+                    anyRunning ? store.pauseAll() : store.resumeAll()
+                } label: {
+                    Image(systemName: anyRunning ? "pause.fill" : "play.fill")
+                        .font(.system(size: 12, weight: .semibold))
+                        .frame(width: 32, height: 28)
+                        .contentShape(.capsule)
+                }
+                .buttonStyle(.plain)
+                .help(anyRunning ? "Pause all downloads" : "Resume all downloads")
+                .accessibilityLabel(anyRunning ? "Pause All" : "Resume All")
+
+                Menu {
+                    Picker("Sort By", selection: $settings.sortOrder) {
+                        ForEach(SortOrder.allCases) { order in
+                            Text(order.title).tag(order)
+                        }
+                    }
+                    .pickerStyle(.inline)
+                } label: {
+                    SlidersIcon()
+                        .stroke(style: StrokeStyle(lineWidth: 1.5, lineCap: .round))
+                        .frame(width: 15, height: 15)
+                        .frame(width: 32, height: 28)
+                        .contentShape(.capsule)
+                }
+                .menuStyle(.button)
+                .buttonStyle(.plain)
+                .menuIndicator(.hidden)
+                .fixedSize()
+                .help("Sort downloads")
+                .accessibilityLabel("Sort")
+            }
+            .foregroundStyle(Color.driftText)
+            .padding(3)
+            .background(Color.driftField, in: .capsule)
+            .overlay(Capsule().strokeBorder(Color.driftLine))
+
+            Button {
+                store.addRequest = AddRequest()
+            } label: {
+                HStack(spacing: 6) {
+                    Image(systemName: "plus")
+                        .font(.system(size: 12, weight: .bold))
+                    Text("Add")
+                        .font(.system(size: 13, weight: .semibold))
+                }
+                .foregroundStyle(.white)
+                .padding(.leading, 10)
+                .padding(.trailing, 14)
+                .frame(height: 32)
+                .background(Color.driftAccentStrong, in: .capsule)
+                .contentShape(.capsule)
+            }
+            .buttonStyle(.plain)
+            .help("New download (⌘N)")
+        }
+        .padding(.leading, sidebarHidden ? 76 : 20)
+        .padding(.trailing, 20)
+        .padding(.top, 20)
+        .padding(.bottom, 16)
+        .background(Color.driftWindow)
+        .gesture(WindowDragGesture())
+    }
+}
+
+/// The sort icon from the design: two horizontal sliders with knobs.
+private struct SlidersIcon: Shape {
+    func path(in rect: CGRect) -> Path {
+        let s = min(rect.width, rect.height) / 16
+        func p(_ x: CGFloat, _ y: CGFloat) -> CGPoint { CGPoint(x: rect.minX + x * s, y: rect.minY + y * s) }
+        var path = Path()
+        path.move(to: p(2, 4.5)); path.addLine(to: p(9, 4.5))
+        path.move(to: p(12, 4.5)); path.addLine(to: p(14, 4.5))
+        path.move(to: p(2, 11.5)); path.addLine(to: p(4, 11.5))
+        path.move(to: p(7, 11.5)); path.addLine(to: p(14, 11.5))
+        path.addEllipse(in: CGRect(origin: p(9, 3), size: CGSize(width: 3 * s, height: 3 * s)))
+        path.addEllipse(in: CGRect(origin: p(4, 10), size: CGSize(width: 3 * s, height: 3 * s)))
+        return path
     }
 }
 
