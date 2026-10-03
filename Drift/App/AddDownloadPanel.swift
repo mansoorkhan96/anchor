@@ -1,32 +1,30 @@
 import AppKit
 import SwiftUI
 
-/// Shows "New Download" as a floating panel above every app, FDM style.
+/// Floating panels that appear above every app, FDM style.
 ///
 /// macOS won't let a background app activate itself (it bounces the Dock icon instead), but a
 /// non-activating panel can still come to the front and take keyboard focus while the browser stays active.
 @MainActor
-final class AddDownloadPanel {
-    static let shared = AddDownloadPanel()
+enum FloatingPanels {
+    private static var open: [NSPanel] = []
 
-    private var panels: [NSPanel] = []
-
-    func show(_ request: AddRequest) {
+    /// Shows `content` in a new floating panel. The content receives a `close` action; Escape calls `onEscape`.
+    static func present<Content: View>(onEscape: (() -> Void)? = nil,
+                                       @ViewBuilder content: (_ close: @escaping () -> Void) -> Content) {
         let panel = FloatingPanel()
-        let close = { [weak self, weak panel] in
+        let close = { [weak panel] in
             guard let panel else { return }
             panel.close()
-            self?.panels.removeAll { $0 === panel }
+            open.removeAll { $0 === panel }
         }
-        let root = AddDownloadSheet(request: request, onClose: close)
-            .environment(DownloadStore.shared)
-        let host = NSHostingController(rootView: root)
+        let host = NSHostingController(rootView: content(close).environment(DownloadStore.shared))
         host.sizingOptions = .preferredContentSize
         panel.contentViewController = host
-        panel.onCancel = close
+        panel.onCancel = { onEscape?() ?? close() }
 
-        // Stack extra panels slightly so several browser downloads stay visible.
-        let offset = CGFloat(panels.count) * 24
+        // Stack extra panels slightly so several stay visible.
+        let offset = CGFloat(open.count) * 24
         panel.layoutIfNeeded()
         if let screen = NSScreen.screens.first(where: { $0.frame.contains(NSEvent.mouseLocation) }) ?? NSScreen.main {
             let size = panel.frame.size
@@ -34,9 +32,20 @@ final class AddDownloadPanel {
             panel.setFrameOrigin(NSPoint(x: visible.midX - size.width / 2 + offset,
                                          y: visible.midY - size.height / 2 + visible.height * 0.12 - offset))
         }
-        panels.append(panel)
+        open.append(panel)
         panel.orderFrontRegardless()
         panel.makeKey()
+    }
+}
+
+@MainActor
+final class AddDownloadPanel {
+    static let shared = AddDownloadPanel()
+
+    func show(_ request: AddRequest) {
+        FloatingPanels.present { close in
+            AddDownloadSheet(request: request, onClose: close)
+        }
     }
 }
 

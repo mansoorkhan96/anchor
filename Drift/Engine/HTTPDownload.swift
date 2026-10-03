@@ -51,6 +51,7 @@ final class HTTPDownload: NSObject, URLSessionDataDelegate, @unchecked Sendable 
     private var stopped = false
     private var sampled: Int64 = 0
     private let adoptServerName: Bool
+    private let overwrite: Bool
 
     init(item: DownloadItem, maxConnections: Int, onEvent: @escaping @Sendable (DownloadEvent) -> Void) {
         id = item.id
@@ -63,6 +64,7 @@ final class HTTPDownload: NSObject, URLSessionDataDelegate, @unchecked Sendable 
         supportsRanges = item.supportsRanges
         validator = item.validator
         adoptServerName = item.nameFromServer == true && item.segments.isEmpty
+        overwrite = item.overwrite == true
         self.maxConnections = max(1, maxConnections)
         connectionCap = max(1, maxConnections)
         self.onEvent = onEvent
@@ -227,6 +229,10 @@ final class HTTPDownload: NSObject, URLSessionDataDelegate, @unchecked Sendable 
             totalBytes = received
             segments = [Segment(start: 0, end: max(0, received - 1), received: received)]
             truncate(partialURL.path, off_t(received))
+        }
+        let existing = directory.appending(path: fileName)
+        if overwrite, FileManager.default.fileExists(atPath: existing.path) {
+            try? FileManager.default.trashItem(at: existing, resultingItemURL: nil)
         }
         let finalName = FileNaming.unique(fileName, in: directory, ignoringPartials: true)
         do {

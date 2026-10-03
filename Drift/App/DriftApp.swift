@@ -12,6 +12,7 @@ struct DriftApp: App {
                 .frame(minWidth: 860, minHeight: 520)
         }
         .defaultSize(width: 1180, height: 760)
+        .windowStyle(.hiddenTitleBar)
         .commands {
             CommandGroup(replacing: .newItem) {
                 Button("New Download…") { store.addRequest = AddRequest() }
@@ -30,7 +31,8 @@ struct DriftApp: App {
             }
         }
 
-        MenuBarExtra {
+        MenuBarExtra(isInserted: Binding(get: { store.settings.showMenuBarIcon },
+                                         set: { store.settings.showMenuBarIcon = $0 })) {
             MenuBarView()
                 .environment(store)
         } label: {

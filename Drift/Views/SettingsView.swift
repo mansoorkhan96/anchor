@@ -96,7 +96,7 @@ struct SettingsView: View {
             }
             .background(Color.driftWindow)
         }
-        .frame(width: 760, height: 580)
+        .frame(width: 760, height: 660)
         .tint(.driftAccent)
     }
 }
@@ -188,8 +188,11 @@ private struct GeneralPage: View {
                 SettingsRow(title: "Save downloads to", detail: displayPath(settings.downloadFolder), divider: true) {
                     Button("Change…", action: chooseFolder).buttonStyle(.driftSecondary)
                 }
-                SettingsRow(title: "Sort into category folders", detail: "Video, Music, Apps and others get their own subfolder") {
+                SettingsRow(title: "Sort into category folders", detail: "Video, Music, Apps and others get their own subfolder", divider: true) {
                     DriftSwitch(isOn: $settings.categorySubfolders, label: "Sort into category folders")
+                }
+                SettingsRow(title: "If the file already exists", detail: "Ask each time, or always rename or overwrite") {
+                    DriftSegmented(options: ExistingFileAction.allCases, selection: $settings.existingFileAction, title: \.title, minWidth: 0)
                 }
             }
             SettingsCard {
@@ -198,6 +201,9 @@ private struct GeneralPage: View {
                 }
             }
             SettingsCard {
+                SettingsRow(title: "Show Drift in the menu bar", detail: "Live speed and recent downloads, one click away", divider: true) {
+                    DriftSwitch(isOn: $settings.showMenuBarIcon, label: "Show Drift in the menu bar")
+                }
                 SettingsRow(title: "Recent downloads in menu bar", detail: "How many show in the menu bar list", divider: true) {
                     NumberStepper(value: $settings.menuBarCount, range: 3...15)
                 }

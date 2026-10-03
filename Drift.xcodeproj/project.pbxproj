@@ -17,6 +17,7 @@
 		56268192EDB3D4839E59695F /* DebugSnapshot.swift in Sources */ = {isa = PBXBuildFile; fileRef = 500742F0D5ED50753FFBB4AE /* DebugSnapshot.swift */; };
 		5D111814D3870637BD6EF7A9 /* FileCategory.swift in Sources */ = {isa = PBXBuildFile; fileRef = 847D80793840446CEC52C5D3 /* FileCategory.swift */; };
 		6408F051A917ED30515EF783 /* SegmentPlanner.swift in Sources */ = {isa = PBXBuildFile; fileRef = 4CCDB5352B78FDF102FC53C3 /* SegmentPlanner.swift */; };
+		68BA2D46EFD8326563369ED8 /* FileConflictView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 270FBD82479F9E786F86C760 /* FileConflictView.swift */; };
 		6F25A400F25E9DE0A202D030 /* BrowserExtension in Resources */ = {isa = PBXBuildFile; fileRef = 1926BBD3575AD4DC05AA01AF /* BrowserExtension */; };
 		709057788D8DABCAF3989C3C /* MenuBarView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 4DDFCFCACB8DE2E0A21E6CBB /* MenuBarView.swift */; };
 		7619F7D321D1A28767406202 /* AppRouter.swift in Sources */ = {isa = PBXBuildFile; fileRef = 76FBA2E4B76DF68225E9E00A /* AppRouter.swift */; };
@@ -53,6 +54,7 @@
 		1838DE170DA877B6F676AFA2 /* AppSettings.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AppSettings.swift; sourceTree = "<group>"; };
 		1926BBD3575AD4DC05AA01AF /* BrowserExtension */ = {isa = PBXFileReference; lastKnownFileType = folder; path = BrowserExtension; sourceTree = SOURCE_ROOT; };
 		2422888F84E23778A8427069 /* SettingsView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SettingsView.swift; sourceTree = "<group>"; };
+		270FBD82479F9E786F86C760 /* FileConflictView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = FileConflictView.swift; sourceTree = "<group>"; };
 		2A614D70A1860749FC6DA7CB /* Probe.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Probe.swift; sourceTree = "<group>"; };
 		46FF34950EC60FE0BF896F2A /* RateLimiter.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = RateLimiter.swift; sourceTree = "<group>"; };
 		4CCDB5352B78FDF102FC53C3 /* SegmentPlanner.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SegmentPlanner.swift; sourceTree = "<group>"; };
@@ -137,6 +139,7 @@
 				C7B3FC8C4FC2009B7357229E /* AddDownloadSheet.swift */,
 				7F65ECECD58388A0D3920E7D /* DownloadListView.swift */,
 				A0278368CA85399B466A2078 /* DownloadRow.swift */,
+				270FBD82479F9E786F86C760 /* FileConflictView.swift */,
 				7BA320BD8958CE11B587CDD0 /* MainView.swift */,
 				4DDFCFCACB8DE2E0A21E6CBB /* MenuBarView.swift */,
 				2422888F84E23778A8427069 /* SettingsView.swift */,
@@ -332,6 +335,7 @@
 				A68F62707CAD1A2DD18A68C3 /* DownloadStore.swift in Sources */,
 				ECF11542596170A83DB72072 /* DriftApp.swift in Sources */,
 				5D111814D3870637BD6EF7A9 /* FileCategory.swift in Sources */,
+				68BA2D46EFD8326563369ED8 /* FileConflictView.swift in Sources */,
 				16B67EDEA20F5FD512F9B90C /* FileNaming.swift in Sources */,
 				DC1A50CCECF5B8BFED3F829A /* Formatters.swift in Sources */,
 				14FB89A5D3475CA779C218A1 /* HTTPDownload.swift in Sources */,

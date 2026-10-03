@@ -17,6 +17,20 @@ enum SortOrder: String, CaseIterable, Identifiable {
     }
 }
 
+/// What to do when a download's file name already exists in the folder.
+enum ExistingFileAction: String, CaseIterable, Identifiable {
+    case ask, rename, overwrite
+
+    var id: String { rawValue }
+    var title: String {
+        switch self {
+        case .ask: "Ask"
+        case .rename: "Rename"
+        case .overwrite: "Overwrite"
+        }
+    }
+}
+
 /// Order of the recent-downloads list in the menu bar.
 enum MenuBarOrder: String, CaseIterable, Identifiable {
     case newest, unfinishedFirst
@@ -46,6 +60,8 @@ final class AppSettings {
     var sortOrder: SortOrder { didSet { defaults.set(sortOrder.rawValue, forKey: "sortOrder") } }
     var menuBarOrder: MenuBarOrder { didSet { defaults.set(menuBarOrder.rawValue, forKey: "menuBarOrder") } }
     var menuBarCount: Int { didSet { defaults.set(menuBarCount, forKey: "menuBarCount") } }
+    var showMenuBarIcon: Bool { didSet { defaults.set(showMenuBarIcon, forKey: "showMenuBarIcon") } }
+    var existingFileAction: ExistingFileAction { didSet { defaults.set(existingFileAction.rawValue, forKey: "existingFileAction") } }
 
     private init() {
         defaults.register(defaults: [
@@ -53,6 +69,7 @@ final class AppSettings {
             "clipboardMonitoring": true, "browserIntegration": true, "confirmBrowserDownloads": true,
             "notifications": true, "sortOrder": SortOrder.newest.rawValue,
             "menuBarOrder": MenuBarOrder.unfinishedFirst.rawValue, "menuBarCount": 5,
+            "showMenuBarIcon": true, "existingFileAction": ExistingFileAction.ask.rawValue,
         ])
         downloadFolder = defaults.string(forKey: "downloadFolder").map { URL(filePath: $0) } ?? URL.downloadsDirectory
         maxConcurrent = defaults.integer(forKey: "maxConcurrent")
@@ -68,6 +85,8 @@ final class AppSettings {
         sortOrder = SortOrder(rawValue: defaults.string(forKey: "sortOrder") ?? "") ?? .newest
         menuBarOrder = MenuBarOrder(rawValue: defaults.string(forKey: "menuBarOrder") ?? "") ?? .unfinishedFirst
         menuBarCount = defaults.integer(forKey: "menuBarCount")
+        showMenuBarIcon = defaults.bool(forKey: "showMenuBarIcon")
+        existingFileAction = ExistingFileAction(rawValue: defaults.string(forKey: "existingFileAction") ?? "") ?? .ask
     }
 
     /// Bytes per second actually applied to downloads; 0 means unlimited.

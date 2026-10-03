@@ -145,17 +145,53 @@ final class DownloadStore {
         let name = FileNaming.sanitize(fileName ?? probe?.fileName ?? FileNaming.fileName(from: url))
         let category = FileCategory.detect(fileName: name)
         let folder = directory ?? settings.folder(for: category)
-        var item = DownloadItem(url: url, fileName: uniqueName(name, in: folder), directory: folder, category: category)
-        item.headers = headers
-        item.openWhenDone = openWhenDone
-        item.nameFromServer = fileName == nil && probe == nil
-        if let probe {
-            item.totalBytes = probe.totalBytes
+
+        let enqueue = { (overwrite: Bool) in
+            // Overwriting is only safe when no other unfinished download is using the same name.
+            let canOverwrite = overwrite && self.uniqueName(name, in: folder, ignoringFinished: true) == name
+            var item = DownloadItem(url: url, fileName: canOverwrite ? name : self.uniqueName(name, in: folder),
+                                    directory: folder, category: category)
+            item.headers = headers
+            item.openWhenDone = openWhenDone
+            item.nameFromServer = fileName == nil && probe == nil
+            item.overwrite = canOverwrite ? true : nil
+            if let probe { item.totalBytes = probe.totalBytes }
+            self.items.insert(item, at: 0)
+            self.markDirty()
+            if startNow { self.start(item.id) } else { self.schedule() }
         }
-        items.insert(item, at: 0)
-        markDirty()
-        if startNow { start(item.id) } else { schedule() }
+
+        let existing = folder.appending(path: name)
+        guard FileManager.default.fileExists(atPath: existing.path) else {
+            enqueue(false)
+            return true
+        }
+        switch settings.existingFileAction {
+        case .rename: enqueue(false)
+        case .overwrite: enqueue(true)
+        case .ask: askAboutExisting(existing, renamedTo: uniqueName(name, in: folder), then: enqueue)
+        }
         return true
+    }
+
+    /// FDM-style prompt in a floating panel, so it shows even while the browser is in front.
+    private func askAboutExisting(_ file: URL, renamedTo: String, then enqueue: @escaping (Bool) -> Void) {
+        var decided = false
+        FloatingPanels.present(onEscape: nil) { close in
+            FileConflictView(existing: file, renamedTo: renamedTo) { [weak self] choice, remember in
+                guard !decided else { return }
+                decided = true
+                close()
+                if remember, choice != .abort {
+                    self?.settings.existingFileAction = choice == .rename ? .rename : .overwrite
+                }
+                switch choice {
+                case .rename: enqueue(false)
+                case .overwrite: enqueue(true)
+                case .abort: break
+                }
+            }
+        }
     }
 
     func addTorrentFile(_ file: URL, directory: URL? = nil, startNow: Bool = true) {
@@ -184,9 +220,12 @@ final class DownloadStore {
         if startNow { start(item.id) } else { schedule() }
     }
 
-    private func uniqueName(_ name: String, in folder: URL) -> String {
+    private func uniqueName(_ name: String, in folder: URL, ignoringFinished: Bool = false) -> String {
         let taken = Set(items.filter { $0.directory == folder && !$0.state.isFinished }.map(\.fileName))
-        return FileNaming.unique(name, in: folder, taken: taken)
+        guard ignoringFinished else { return FileNaming.unique(name, in: folder, taken: taken) }
+        // Only check names claimed by other unfinished downloads and their partial files, not finished files on disk.
+        let partial = folder.appending(path: name + ".drift-part")
+        return taken.contains(name) || FileManager.default.fileExists(atPath: partial.path) ? FileNaming.unique(name, in: folder, taken: taken) : name
     }
 
     // MARK: Control
