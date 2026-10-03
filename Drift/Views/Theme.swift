@@ -86,16 +86,21 @@ struct IconButton: View {
     var tint: Color = .driftText
     var fill: Color = .driftText.opacity(0.07)
     var size: CGFloat = 32
+    /// Draws a hairline edge so light buttons don't fade into a white background.
+    var outlined = false
+    /// Glyph size as a fraction of the button.
+    var glyphScale: CGFloat = 0.37
     let action: () -> Void
     @State private var hovering = false
 
     var body: some View {
         Button(action: action) {
             Image(systemName: symbol)
-                .font(.system(size: size * 0.37, weight: .semibold))
+                .font(.system(size: size * glyphScale, weight: .semibold))
                 .foregroundStyle(tint)
                 .frame(width: size, height: size)
                 .background(fill, in: .circle)
+                .overlay(Circle().strokeBorder(outlined ? Color.driftLine : .clear))
                 .overlay(Circle().fill(Color.driftText.opacity(hovering ? 0.06 : 0)))
                 .contentShape(.circle)
         }
