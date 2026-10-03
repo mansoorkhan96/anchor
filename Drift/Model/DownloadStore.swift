@@ -53,6 +53,8 @@ final class DownloadStore {
     private(set) var totalSpeed: Double = 0
     var addRequest: AddRequest?
     var clipboardSuggestion: URL?
+    /// The download whose details slide-over is open in the main window.
+    var focusedID: UUID?
     var alert: String?
 
     let settings = AppSettings.shared

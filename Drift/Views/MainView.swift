@@ -31,6 +31,10 @@ struct MainView: View {
         } message: {
             Text(store.alert ?? "")
         }
+        // Opened from elsewhere (e.g. the menu bar): make sure the focused download is visible in the list.
+        .onChange(of: store.focusedID) { _, id in
+            if let id, let item = store.item(id), !filter.matches(item) { filter = .all }
+        }
         .onDrop(of: [.fileURL, .url, .plainText], isTargeted: nil) { providers in
             handleDrop(providers)
         }

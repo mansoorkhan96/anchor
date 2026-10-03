@@ -119,6 +119,7 @@ struct MenuBarView: View {
     private func showMain() {
         openWindow(id: "main")
         NSApp.activate()
+        AppRouter.shared.closeMenuBarPanel()
     }
 }
 
@@ -198,8 +199,8 @@ private struct RecentRow: View {
         .background(hovering ? Color.driftField : .clear, in: .rect(cornerRadius: 9))
         .contentShape(.rect)
         .onHover { hovering = $0 }
-        .onTapGesture { if item.state.isFinished { store.open(item.id) } }
-        .help(item.state.isFinished ? "Open \(item.fileName)" : item.fileName)
+        .onTapGesture { AppRouter.shared.showDetails(item.id) }
+        .help("Show details for \(item.fileName)")
     }
 
     @ViewBuilder private var action: some View {
