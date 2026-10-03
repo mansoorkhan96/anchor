@@ -1,4 +1,5 @@
 import SwiftUI
+import UniformTypeIdentifiers
 import ServiceManagement
 
 private enum SettingsSection: String, CaseIterable, Identifiable {
@@ -192,7 +193,14 @@ private struct GeneralPage: View {
                     DriftSwitch(isOn: $settings.categorySubfolders, label: "Sort into category folders")
                 }
                 SettingsRow(title: "If the file already exists", detail: "Ask each time, or always rename or overwrite") {
-                    DriftSegmented(options: ExistingFileAction.allCases, selection: $settings.existingFileAction, title: \.title, minWidth: 0)
+                    DriftSegmented(options: ExistingFileAction.allCases, selection: $settings.existingFileAction, title: \.title,
+                                   minWidth: 0, symbol: { action in
+                                       switch action {
+                                       case .ask: "questionmark.bubble"
+                                       case .rename: "character.cursor.ibeam"
+                                       case .overwrite: "arrow.triangle.2.circlepath"
+                                       }
+                                   })
                 }
             }
             SettingsCard {
@@ -208,7 +216,8 @@ private struct GeneralPage: View {
                     NumberStepper(value: $settings.menuBarCount, range: 3...15)
                 }
                 SettingsRow(title: "Menu bar order", detail: "Newest first, or unfinished downloads on top") {
-                    DriftSegmented(options: MenuBarOrder.allCases, selection: $settings.menuBarOrder, title: \.title, minWidth: 0)
+                    DriftSegmented(options: MenuBarOrder.allCases, selection: $settings.menuBarOrder, title: \.title,
+                                   minWidth: 0, symbol: { $0 == .newest ? "clock" : "arrow.down.circle" })
                 }
             }
         }
@@ -418,6 +427,7 @@ private struct BrowserPage: View {
     var body: some View {
         @Bindable var settings = store.settings
         VStack(spacing: 16) {
+            DefaultAppCard()
             SettingsCard {
                 SettingsRow(title: "Take over browser downloads",
                             detail: settings.browserIntegration ? "Listening on 127.0.0.1:47821" : "Off", divider: true) {
@@ -444,6 +454,63 @@ private struct BrowserPage: View {
         try? FileManager.default.removeItem(at: target)
         try? FileManager.default.copyItem(at: source, to: target)
         NSWorkspace.shared.activateFileViewerSelecting([target])
+    }
+}
+
+/// Shows which app opens magnet links and .torrent files, and lets Drift take them over.
+private struct DefaultAppCard: View {
+    @State private var magnetApp: URL?
+    @State private var torrentApp: URL?
+    @State private var working = false
+
+    private static let torrentType = UTType("org.bittorrent.torrent") ?? UTType(filenameExtension: "torrent")!
+    private var drift: URL { Bundle.main.bundleURL.standardizedFileURL }
+    private var isDefault: Bool { magnetApp?.standardizedFileURL == drift && torrentApp?.standardizedFileURL == drift }
+
+    var body: some View {
+        SettingsCard {
+            SettingsRow(title: "Open magnet links and .torrent files",
+                        detail: isDefault ? "Drift opens them" : "Currently: \(describe())") {
+                if isDefault {
+                    Chip(text: "Drift is the default", ink: .driftSuccess, wash: .driftSuccessWash)
+                } else {
+                    Button(working ? "Waiting…" : "Make Drift the Default", action: makeDefault)
+                        .buttonStyle(.driftPrimary)
+                        .disabled(working)
+                }
+            }
+        }
+        .onAppear(perform: refresh)
+    }
+
+    private func describe() -> String {
+        let names = Set([magnetApp, torrentApp].map { $0.map { $0.deletingPathExtension().lastPathComponent } ?? "nothing" })
+        return names.sorted().joined(separator: " and ")
+    }
+
+    private func refresh() {
+        let ws = NSWorkspace.shared
+        magnetApp = ws.urlForApplication(toOpen: URL(string: "magnet:?xt=urn:btih:0")!)
+        torrentApp = ws.urlForApplication(toOpen: Self.torrentType)
+    }
+
+    /// macOS asks the user to confirm each change.
+    private func makeDefault() {
+        working = true
+        let ws = NSWorkspace.shared
+        let app = drift
+        ws.setDefaultApplication(at: app, toOpenURLsWithScheme: "magnet") { _ in
+            ws.setDefaultApplication(at: app, toOpen: Self.torrentType) { _ in }
+        }
+        // The completion handlers can lag behind macOS's confirmation prompts, so re-check until it sticks.
+        Task {
+            for _ in 0..<60 {
+                try? await Task.sleep(for: .seconds(1))
+                refresh()
+                if isDefault { break }
+            }
+            working = false
+        }
     }
 }
 
