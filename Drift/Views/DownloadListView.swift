@@ -11,6 +11,7 @@ struct DownloadListView: View {
     @State private var selection: Set<UUID> = []
     @State private var confirmDelete = false
     @State private var panelWidth: CGFloat = 440
+    @State private var spaceMonitor: Any?
 
     private var visible: [DownloadItem] { store.items(for: filter, search: search) }
 
@@ -24,13 +25,11 @@ struct DownloadListView: View {
                 if let link = store.clipboardSuggestion {
                     ClipboardBanner(url: link)
                 }
-                if store.activeCount > 0 || store.totalSpeed > 0 {
-                    ThroughputCard()
-                }
+                ThroughputCard()
                 if items.isEmpty {
                     EmptyState(filter: filter, searching: !search.isEmpty)
                 } else {
-                    LazyVStack(spacing: 8) {
+                    LazyVStack(spacing: 2) {
                         ForEach(items) { item in
                             DownloadRow(item: item, isSelected: selectionBinding(item.id),
                                         isFocused: store.focusedID == item.id) {
@@ -77,6 +76,22 @@ struct DownloadListView: View {
             HeaderBar(title: filter.title, subtitle: subtitle, search: $search,
                       sidebarHidden: sidebarHidden, toggleSidebar: toggleSidebar)
         }
+        .onAppear {
+            spaceMonitor = NSEvent.addLocalMonitorForEvents(matching: .keyDown) { event in
+                // Space in the main window, unless typing in a text field: pause or resume.
+                guard event.keyCode == 49, event.modifierFlags.intersection(.deviceIndependentFlagsMask).isEmpty,
+                      let window = event.window, window.title == "Drift", window.attachedSheet == nil,
+                      !(window.firstResponder is NSText) else { return event }
+                let targets = selection.isEmpty ? (store.focusedID.map { [$0] } ?? []) : Array(selection)
+                guard !targets.isEmpty else { return event }
+                for id in targets { store.toggle(id) }
+                return nil
+            }
+        }
+        .onDisappear {
+            if let spaceMonitor { NSEvent.removeMonitor(spaceMonitor) }
+            spaceMonitor = nil
+        }
         .onChange(of: filter) { selection.removeAll() }
         .onChange(of: store.items.map(\.id)) { _, ids in
             selection.formIntersection(ids)
@@ -101,8 +116,10 @@ struct DownloadListView: View {
     private var anyRunning: Bool { store.activeCount + store.queuedCount > 0 }
 
     private var subtitle: String {
+        let paused = store.items.count { $0.state == .paused }
         var parts: [String] = []
-        if store.activeCount > 0 { parts.append("\(store.activeCount) active") }
+        if store.activeCount > 0 { parts.append("\(store.activeCount) downloading") }
+        if paused > 0 { parts.append("\(paused) paused") }
         if store.queuedCount > 0 { parts.append("\(store.queuedCount) queued") }
         return parts.joined(separator: " · ")
     }
@@ -153,7 +170,7 @@ private struct HeaderBar: View {
             }
             HStack(alignment: .firstTextBaseline, spacing: 12) {
                 Text(title)
-                    .font(.system(size: 20, weight: .semibold))
+                    .font(.system(size: 20, weight: .bold))
                     .tracking(-0.2)
                     .foregroundStyle(Color.driftText)
                 if !subtitle.isEmpty {
@@ -285,6 +302,7 @@ private struct SlidersIcon: Shape {
 
 // MARK: - Throughput
 
+/// Slim speed strip: total speed, live line chart, what's left, and the add shortcut.
 struct ThroughputCard: View {
     @Environment(DownloadStore.self) private var store
 
@@ -292,68 +310,65 @@ struct ThroughputCard: View {
         let parts = Format.speedParts(store.totalSpeed)
         let remaining = store.remainingBytes
         let history = Array(store.speedHistory.enumerated())
-        HStack(alignment: .center, spacing: 28) {
-            VStack(alignment: .leading, spacing: 4) {
-                Text("Total speed")
-                    .font(.system(size: 12, weight: .medium))
+        let peak = max(1, store.speedHistory.max() ?? 1)
+        HStack(spacing: 22) {
+            HStack(alignment: .firstTextBaseline, spacing: 6) {
+                Text(parts.value)
+                    .font(.system(size: 22, weight: .heavy).monospacedDigit())
+                    .tracking(-0.4)
+                    .foregroundStyle(Color.driftText)
+                    .contentTransition(.numericText())
+                Text(parts.unit)
+                    .font(.system(size: 12))
                     .foregroundStyle(Color.driftMuted2)
-                HStack(alignment: .firstTextBaseline, spacing: 6) {
-                    Text(parts.value)
-                        .font(.system(size: 50, weight: .heavy).monospacedDigit())
-                        .tracking(-1.2)
-                        .foregroundStyle(Color.driftText)
-                        .contentTransition(.numericText())
-                    Text(parts.unit)
-                        .font(.system(size: 15, weight: .medium))
-                        .foregroundStyle(Color.driftMuted2)
-                }
-                Chip(text: pace.text, ink: pace.ink, wash: pace.wash)
-                    .padding(.top, 4)
             }
-            .frame(minWidth: 180, alignment: .leading)
+            .frame(minWidth: 110, alignment: .leading)
 
             Chart(history, id: \.offset) { point in
-                AreaMark(x: .value("t", point.offset), y: .value("speed", point.element))
-                    .interpolationMethod(.catmullRom)
-                    .foregroundStyle(LinearGradient(colors: [Color.driftAccent.opacity(0.22), Color.driftAccent.opacity(0)],
-                                                    startPoint: .top, endPoint: .bottom))
                 LineMark(x: .value("t", point.offset), y: .value("speed", point.element))
                     .interpolationMethod(.catmullRom)
-                    .foregroundStyle(Color.driftAccent)
-                    .lineStyle(StrokeStyle(lineWidth: 2.5, lineCap: .round))
+                    .foregroundStyle(store.totalSpeed > 0 ? Color.driftAccent : Color.driftTrack)
+                    .lineStyle(StrokeStyle(lineWidth: 2, lineCap: .round))
             }
             .chartXAxis(.hidden)
             .chartYAxis(.hidden)
-            .chartYScale(domain: 0...max(1, (store.speedHistory.max() ?? 1) * 1.15))
-            .frame(height: 72)
+            // Leave room below zero so an idle line floats in the strip instead of hugging its bottom edge.
+            .chartYScale(domain: -peak * 0.7...peak * 1.15)
+            .frame(height: 26)
 
-            HStack(spacing: 24) {
-                stat("Remaining", Format.bytes(remaining))
-                stat("Done in", store.totalSpeed > 1 ? Format.duration(Double(remaining) / store.totalSpeed) : "-")
+            Text(store.activeCount > 0 ? "\(Format.bytes(remaining)) left" : "Nothing downloading")
+                .font(.system(size: 12).monospacedDigit())
+                .foregroundStyle(Color.driftMuted2)
+                .fixedSize()
+            if store.totalSpeed > 1 {
+                Text("done in \(Format.duration(Double(remaining) / store.totalSpeed))")
+                    .font(.system(size: 12).monospacedDigit())
+                    .foregroundStyle(Color.driftMuted2)
+                    .fixedSize()
+            }
+            HStack(spacing: 4) {
+                KeyHint("⌘N").help("New download")
+                KeyHint("Space").help("Pause or resume the selected downloads")
             }
         }
-        .padding(.horizontal, 24)
-        .padding(.vertical, 20)
-        .background(Color.driftCard, in: .rect(cornerRadius: 18))
+        .padding(.horizontal, 18)
+        .padding(.vertical, 12)
+        .overlay(RoundedRectangle(cornerRadius: 12).strokeBorder(Color.driftLine))
     }
+}
 
-    private var pace: (text: String, ink: Color, wash: Color) {
-        let active = "\(store.activeCount) active"
-        switch store.totalSpeed {
-        case 5_000_000...: return ("Fast · \(active)", .driftSuccess, .driftSuccessWash)
-        case 500_000...: return ("Steady · \(active)", .driftAccentInk, .driftAccentWash)
-        default: return ("Slow · \(active)", .driftPausedInk, Color.driftPaused.opacity(0.18))
-        }
-    }
+private struct KeyHint: View {
+    let text: String
+    init(_ text: String) { self.text = text }
 
-    private func stat(_ title: String, _ value: String) -> some View {
-        VStack(alignment: .leading, spacing: 4) {
-            Text(title).font(.system(size: 12)).foregroundStyle(Color.driftMuted2)
-            Text(value)
-                .font(.system(size: 17, weight: .bold).monospacedDigit())
-                .foregroundStyle(Color.driftText)
-                .contentTransition(.numericText())
-        }
+    var body: some View {
+        Text(text)
+            .font(.system(size: 11, weight: .semibold))
+            .foregroundStyle(Color.driftMuted2)
+            .padding(.horizontal, 6)
+            .padding(.vertical, 2)
+            .background(Color.driftField, in: .rect(cornerRadius: 5))
+            .overlay(RoundedRectangle(cornerRadius: 5).strokeBorder(Color.driftLine))
     }
 }
 
