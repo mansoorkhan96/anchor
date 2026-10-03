@@ -4,6 +4,8 @@ struct AddDownloadSheet: View {
     @Environment(DownloadStore.self) private var store
     @Environment(\.dismiss) private var dismiss
     let request: AddRequest
+    /// Set when shown in the floating panel instead of as a sheet.
+    var onClose: (() -> Void)?
 
     @State private var address = ""
     @State private var fileName = ""
@@ -155,7 +157,7 @@ struct AddDownloadSheet: View {
                     }
                 }
                 Spacer()
-                Button("Cancel") { dismiss() }
+                Button("Cancel") { close() }
                     .buttonStyle(.driftPlain)
                     .keyboardShortcut(.cancelAction)
                 Button("Add to Queue") { add(startNow: false) }
@@ -199,7 +201,7 @@ struct AddDownloadSheet: View {
     }
 
     private var subtitle: String {
-        if request.headers["Cookie"] != nil || request.headers["Referer"] != nil { return "From your browser" }
+        if request.fromBrowser { return "From your browser" }
         if fromClipboard { return "Link found on your clipboard" }
         if !request.url.isEmpty { return "Link detected" }
         return "Paste a link, magnet, or drop a .torrent file"
@@ -304,6 +306,10 @@ struct AddDownloadSheet: View {
         let name = fileName.trimmingCharacters(in: .whitespaces)
         let ok = store.add(address, fileName: name.isEmpty ? nil : name, directory: targetFolder,
                            headers: request.headers, probe: probe, startNow: startNow, openWhenDone: openWhenDone)
-        if ok { dismiss() }
+        if ok { close() }
+    }
+
+    private func close() {
+        if let onClose { onClose() } else { dismiss() }
     }
 }

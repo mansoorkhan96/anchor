@@ -26,15 +26,21 @@ final class AppRouter {
 
     func handleBrowserDownload(url: String, fileName: String?, headers: [String: String]) {
         if AppSettings.shared.confirmBrowserDownloads {
-            present(AddRequest(url: url, headers: headers, suggestedName: fileName))
+            present(AddRequest(url: url, headers: headers, suggestedName: fileName, fromBrowser: true))
         } else {
             store.add(url, fileName: fileName, headers: headers)
         }
     }
 
+    /// Inside Drift: a sheet on the main window. From another app (e.g. the browser): a floating panel,
+    /// because macOS won't let a background app pull itself to the front.
     func present(_ request: AddRequest) {
-        store.addRequest = request
-        activate()
+        if NSApp.isActive {
+            store.addRequest = request
+            openMainWindow?()
+        } else {
+            AddDownloadPanel.shared.show(request)
+        }
     }
 
     func activate() {

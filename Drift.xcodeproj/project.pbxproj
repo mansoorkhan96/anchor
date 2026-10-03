@@ -29,6 +29,7 @@
 		B6080A9BA9846FB427A0E18C /* Theme.swift in Sources */ = {isa = PBXBuildFile; fileRef = A0875D4A3B85B50C9FFE45C8 /* Theme.swift */; };
 		C1FD69F439DDE81D3068F2E4 /* AddDownloadSheet.swift in Sources */ = {isa = PBXBuildFile; fileRef = C7B3FC8C4FC2009B7357229E /* AddDownloadSheet.swift */; };
 		D1CB1248290929C96699FF6E /* DownloadListView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 7F65ECECD58388A0D3920E7D /* DownloadListView.swift */; };
+		D912BFECD3DD9378437EB5F1 /* AddDownloadPanel.swift in Sources */ = {isa = PBXBuildFile; fileRef = AB4D7473D92AA02FE334D442 /* AddDownloadPanel.swift */; };
 		DC1A50CCECF5B8BFED3F829A /* Formatters.swift in Sources */ = {isa = PBXBuildFile; fileRef = F3AABE81BC4F1F133E1CBD78 /* Formatters.swift */; };
 		EA74697FF32067E760E1BA60 /* RateLimiter.swift in Sources */ = {isa = PBXBuildFile; fileRef = 46FF34950EC60FE0BF896F2A /* RateLimiter.swift */; };
 		ECF11542596170A83DB72072 /* DriftApp.swift in Sources */ = {isa = PBXBuildFile; fileRef = 80473000068BB96DF392A468 /* DriftApp.swift */; };
@@ -72,6 +73,7 @@
 		A0875D4A3B85B50C9FFE45C8 /* Theme.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Theme.swift; sourceTree = "<group>"; };
 		A7AE282971614E3AA76CED2D /* BrowserBridge.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = BrowserBridge.swift; sourceTree = "<group>"; };
 		AAC01F602976E92B9D51F828 /* AppPaths.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AppPaths.swift; sourceTree = "<group>"; };
+		AB4D7473D92AA02FE334D442 /* AddDownloadPanel.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AddDownloadPanel.swift; sourceTree = "<group>"; };
 		B7EF412613A394554C6B7182 /* Info.plist */ = {isa = PBXFileReference; lastKnownFileType = text.plist; path = Info.plist; sourceTree = "<group>"; };
 		B8DA68BA96D8381013FF15C2 /* FileNaming.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = FileNaming.swift; sourceTree = "<group>"; };
 		C7B3FC8C4FC2009B7357229E /* AddDownloadSheet.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AddDownloadSheet.swift; sourceTree = "<group>"; };
@@ -166,6 +168,7 @@
 		8EC4FF51228A8D1AB56EA263 /* App */ = {
 			isa = PBXGroup;
 			children = (
+				AB4D7473D92AA02FE334D442 /* AddDownloadPanel.swift */,
 				76FBA2E4B76DF68225E9E00A /* AppRouter.swift */,
 				500742F0D5ED50753FFBB4AE /* DebugSnapshot.swift */,
 				80473000068BB96DF392A468 /* DriftApp.swift */,
@@ -314,6 +317,7 @@
 			isa = PBXSourcesBuildPhase;
 			buildActionMask = 2147483647;
 			files = (
+				D912BFECD3DD9378437EB5F1 /* AddDownloadPanel.swift in Sources */,
 				C1FD69F439DDE81D3068F2E4 /* AddDownloadSheet.swift in Sources */,
 				3F979552F5462569BD9AEDB6 /* AppPaths.swift in Sources */,
 				7619F7D321D1A28767406202 /* AppRouter.swift in Sources */,

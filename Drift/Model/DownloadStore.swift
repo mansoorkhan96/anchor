@@ -9,6 +9,7 @@ struct AddRequest: Identifiable, Equatable {
     var headers: [String: String] = [:]
     var suggestedName: String?
     var torrentFile: URL?
+    var fromBrowser = false
 }
 
 enum SidebarFilter: Hashable {
