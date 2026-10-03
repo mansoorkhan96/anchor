@@ -122,6 +122,7 @@ private struct HeaderBar: View {
     let sidebarHidden: Bool
     let toggleSidebar: () -> Void
     @FocusState private var searchFocused: Bool
+    @Environment(\.openSettings) private var openSettings
 
     private var anyRunning: Bool { store.activeCount + store.queuedCount > 0 }
 
@@ -223,6 +224,21 @@ private struct HeaderBar: View {
             }
             .buttonStyle(.plain)
             .help("New download (⌘N)")
+
+            Button {
+                openSettings()
+            } label: {
+                Image(systemName: "gearshape")
+                    .font(.system(size: 14, weight: .medium))
+                    .foregroundStyle(Color.driftText)
+                    .frame(width: 32, height: 32)
+                    .background(Color.driftField, in: .circle)
+                    .overlay(Circle().strokeBorder(Color.driftLine))
+                    .contentShape(.circle)
+            }
+            .buttonStyle(.plain)
+            .help("Settings (⌘,)")
+            .accessibilityLabel("Settings")
         }
         .padding(.leading, sidebarHidden ? 76 : 20)
         .padding(.trailing, 20)
