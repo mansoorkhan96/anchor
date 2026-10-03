@@ -82,6 +82,10 @@ final class BrowserBridge {
             if let agent = json["userAgent"] as? String, !agent.isEmpty { headers["User-Agent"] = agent }
             let name = json["filename"] as? String
             Task { @MainActor in
+                // Switched off in Settings: refuse, so the extension lets the browser keep the download.
+                guard AppSettings.shared.browserIntegration else {
+                    return send("409 Conflict", #"{"error":"disabled"}"#)
+                }
                 AppRouter.shared.handleBrowserDownload(url: url, fileName: name, headers: headers)
                 send("200 OK", #"{"ok":true}"#)
             }
