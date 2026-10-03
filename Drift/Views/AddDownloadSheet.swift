@@ -81,7 +81,7 @@ struct AddDownloadSheet: View {
                             ForEach(FileCategory.allCases) { Text($0.title).tag($0) }
                         }
                         .labelsHidden()
-                        .frame(height: 36)
+                        .frame(maxWidth: .infinity, minHeight: 36, alignment: .leading)
                     }
                     .frame(maxWidth: .infinity)
                 }
@@ -109,6 +109,7 @@ struct AddDownloadSheet: View {
         }
         .padding(24)
         .frame(width: 560, height: 470)
+        .tint(.driftAccent)
         .task {
             address = request.url
             if let name = request.suggestedName, !name.isEmpty {
@@ -233,6 +234,7 @@ struct AddDownloadSheet: View {
 }
 
 private struct Chip: View {
+    @Environment(\.colorScheme) private var colorScheme
     let text: String
     let color: Color
 
@@ -240,7 +242,7 @@ private struct Chip: View {
         Text(text)
             .font(.caption)
             .lineLimit(1)
-            .foregroundStyle(color == .primary ? Color.primary : color)
+            .foregroundStyle(color == .primary ? Color.primary : colorScheme == .light ? color.mix(with: .black, by: 0.35) : color)
             .padding(.horizontal, 8)
             .padding(.vertical, 3)
             .background((color == .primary ? Color.primary.opacity(0.08) : color.opacity(0.14)), in: .rect(cornerRadius: 6))
