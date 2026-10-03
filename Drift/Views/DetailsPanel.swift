@@ -1,59 +1,51 @@
 import SwiftUI
 
-/// Drag-up panel under the download list (like FDM's): files for torrents, plus general details.
+/// Slide-over from the right with a download's details: files for torrents, plus general info.
 struct DetailsPanel: View {
     @Environment(DownloadStore.self) private var store
     let item: DownloadItem
-    @Binding var height: CGFloat
+    @Binding var width: CGFloat
     let close: () -> Void
 
     enum Tab: String, CaseIterable { case files = "Files", general = "General" }
     @State private var tab: Tab = .files
     @State private var dragStart: CGFloat?
+    @State private var escapeMonitor: Any?
 
     private var tabs: [Tab] { item.files == nil ? [.general] : Tab.allCases }
 
     var body: some View {
-        VStack(spacing: 0) {
-            // Drag handle
-            Capsule()
-                .fill(Color.driftTrack)
-                .frame(width: 38, height: 5)
-                .frame(maxWidth: .infinity)
-                .frame(height: 14)
-                .contentShape(.rect)
-                .onHover { inside in
-                    if inside { NSCursor.resizeUpDown.push() } else { NSCursor.pop() }
+        VStack(alignment: .leading, spacing: 14) {
+            HStack(alignment: .top, spacing: 12) {
+                FileTile(item: item, size: 38)
+                VStack(alignment: .leading, spacing: 3) {
+                    Text(item.fileName)
+                        .font(.system(size: 14, weight: .semibold))
+                        .foregroundStyle(Color.driftText)
+                        .lineLimit(2)
+                        .truncationMode(.middle)
+                    Text(kindLine)
+                        .font(.system(size: 12))
+                        .foregroundStyle(Color.driftMuted)
                 }
-                .gesture(
-                    DragGesture(minimumDistance: 1)
-                        .onChanged { value in
-                            let start = dragStart ?? height
-                            dragStart = start
-                            height = min(560, max(170, start - value.translation.height))
-                        }
-                        .onEnded { _ in dragStart = nil }
-                )
-
-            HStack(spacing: 12) {
-                FileTile(item: item, size: 30)
-                Text(item.fileName)
-                    .font(.system(size: 13.5, weight: .semibold))
-                    .foregroundStyle(Color.driftText)
-                    .lineLimit(1)
-                    .truncationMode(.middle)
-                Spacer(minLength: 12)
-                if tabs.count > 1 {
-                    DriftSegmented(options: tabs, selection: $tab, title: \.rawValue, minWidth: 64, symbol: { $0 == .files ? "doc.on.doc" : "info.circle" })
+                Spacer(minLength: 8)
+                HStack(spacing: 6) {
+                    StatusAction(item: item)
+                    IconButton(symbol: "xmark", label: "Close details", tint: .driftMuted2, fill: .driftField, size: 28,
+                               outlined: true, action: close)
                 }
-                IconButton(symbol: "xmark", label: "Close details", tint: .driftMuted2, fill: .clear, size: 28, action: close)
             }
-            .padding(.horizontal, 20)
-            .padding(.bottom, 10)
+
+            if tabs.count > 1 {
+                DriftSegmented(options: tabs, selection: $tab, title: \.rawValue, minWidth: 0,
+                               symbol: { $0 == .files ? "doc.on.doc" : "info.circle" })
+                    .frame(maxWidth: .infinity, alignment: .leading)
+            }
 
             Group {
                 if tabs.contains(.files), tab == .files, let files = item.files {
-                    TorrentFileList(files: files, showProgress: true, maxHeight: .infinity,
+                    TorrentFileList(files: files, showProgress: true, maxHeight: .infinity, compact: true,
+                                    rootFolder: item.fileName,
                                     onInclude: { store.setFile($0, of: item.id, included: $1) },
                                     onPriority: { store.setFilePriority($0, of: item.id, to: $1) },
                                     onAll: { store.setAllFiles(of: item.id, included: $0) })
@@ -61,16 +53,74 @@ struct DetailsPanel: View {
                     GeneralDetails(item: item)
                 }
             }
-            .padding(.horizontal, 20)
-            .padding(.bottom, 16)
             .frame(maxHeight: .infinity, alignment: .top)
         }
-        .frame(height: height)
+        .padding(18)
+        .frame(width: width)
+        .frame(maxHeight: .infinity, alignment: .top)
         .background(Color.driftWindow)
-        .overlay(alignment: .top) { Rectangle().fill(Color.driftLine).frame(height: 1) }
-        .shadow(color: .black.opacity(0.06), radius: 10, y: -4)
+        .overlay(alignment: .leading) {
+            // Resize handle on the left edge
+            Rectangle()
+                .fill(Color.driftLine)
+                .frame(width: 1)
+                .frame(width: 8)
+                .contentShape(.rect)
+                .onHover { inside in
+                    if inside { NSCursor.resizeLeftRight.push() } else { NSCursor.pop() }
+                }
+                .gesture(
+                    DragGesture(minimumDistance: 1)
+                        .onChanged { value in
+                            let start = dragStart ?? width
+                            dragStart = start
+                            width = min(640, max(360, start - value.translation.width))
+                        }
+                        .onEnded { _ in dragStart = nil }
+                )
+                .offset(x: -4)
+        }
+        .shadow(color: .black.opacity(0.08), radius: 16, x: -6)
         .onChange(of: item.id) { tab = item.files == nil ? .general : .files }
-        .onAppear { tab = item.files == nil ? .general : .files }
+        .onAppear {
+            tab = item.files == nil ? .general : .files
+            escapeMonitor = NSEvent.addLocalMonitorForEvents(matching: .keyDown) { event in
+                // Escape in the main window (not a sheet or the floating New Download panel) closes the slide-over.
+                guard event.keyCode == 53, let window = event.window, window.title == "Drift",
+                      window.attachedSheet == nil else { return event }
+                close()
+                return nil
+            }
+        }
+        .onDisappear {
+            if let escapeMonitor { NSEvent.removeMonitor(escapeMonitor) }
+            escapeMonitor = nil
+        }
+    }
+
+    private var kindLine: String {
+        if let files = item.files { return "Torrent · \(files.count) file\(files.count == 1 ? "" : "s")" }
+        if item.kind == .torrent { return "Torrent" }
+        return item.url.host() ?? item.category.title
+    }
+}
+
+/// Round toggle next to the close button: resume, pause, retry, or show in Finder.
+private struct StatusAction: View {
+    @Environment(DownloadStore.self) private var store
+    let item: DownloadItem
+
+    var body: some View {
+        switch item.state {
+        case .downloading, .connecting, .queued:
+            IconButton(symbol: "pause.fill", label: "Pause", tint: .driftText, fill: .driftField, size: 28, outlined: true, glyphScale: 0.32) { store.pause(item.id) }
+        case .paused:
+            IconButton(symbol: "play.fill", label: "Resume", tint: .white, fill: .driftAccentStrong, size: 28, glyphScale: 0.32) { store.resume(item.id) }
+        case .failed:
+            IconButton(symbol: "arrow.clockwise", label: "Retry", tint: .white, fill: .driftAccentStrong, size: 28, glyphScale: 0.34) { store.retry(item.id) }
+        case .completed:
+            IconButton(symbol: "magnifyingglass", label: "Show in Finder", tint: .driftText, fill: .driftField, size: 28, outlined: true) { store.reveal(item.id) }
+        }
     }
 }
 

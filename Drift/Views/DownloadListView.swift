@@ -11,7 +11,7 @@ struct DownloadListView: View {
     @State private var selection: Set<UUID> = []
     @State private var confirmDelete = false
     @State private var focused: UUID?
-    @State private var panelHeight: CGFloat = 300
+    @State private var panelWidth: CGFloat = 440
 
     private var visible: [DownloadItem] { store.items(for: filter, search: search) }
 
@@ -62,12 +62,17 @@ struct DownloadListView: View {
             }
             .animation(.snappy(duration: 0.22), value: selection.isEmpty)
         }
-            if let id = focused, let item = store.item(id) {
-                DetailsPanel(item: item, height: $panelHeight) {
-                    withAnimation(.snappy(duration: 0.22)) { focused = nil }
+        }
+        .overlay(alignment: .trailing) {
+            ZStack {
+                if let id = focused, let item = store.item(id) {
+                    DetailsPanel(item: item, width: $panelWidth) {
+                        withAnimation(.snappy(duration: 0.25)) { focused = nil }
+                    }
+                    .transition(.move(edge: .trailing))
                 }
-                .transition(.move(edge: .bottom))
             }
+            .animation(.snappy(duration: 0.25), value: focused)
         }
         .safeAreaInset(edge: .top, spacing: 0) {
             HeaderBar(title: filter.title, subtitle: subtitle, search: $search,
