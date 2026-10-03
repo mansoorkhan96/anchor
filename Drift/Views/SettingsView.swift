@@ -96,7 +96,7 @@ struct SettingsView: View {
             }
             .background(Color.driftWindow)
         }
-        .frame(width: 760, height: 540)
+        .frame(width: 760, height: 580)
         .tint(.driftAccent)
     }
 }
@@ -195,6 +195,14 @@ private struct GeneralPage: View {
             SettingsCard {
                 SettingsRow(title: "Open Drift at login", detail: "Stays in the menu bar so browser downloads always work") {
                     DriftSwitch(isOn: $launchAtLogin, label: "Open Drift at login")
+                }
+            }
+            SettingsCard {
+                SettingsRow(title: "Recent downloads in menu bar", detail: "How many show in the menu bar list", divider: true) {
+                    NumberStepper(value: $settings.menuBarCount, range: 3...15)
+                }
+                SettingsRow(title: "Menu bar order", detail: "Newest first, or unfinished downloads on top") {
+                    DriftSegmented(options: MenuBarOrder.allCases, selection: $settings.menuBarOrder, title: \.title, minWidth: 0)
                 }
             }
         }
