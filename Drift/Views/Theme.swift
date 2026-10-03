@@ -23,6 +23,7 @@ extension Color {
     static let driftAccentWash = adaptive(light: 0xEEF5FE, dark: 0x1D2B40)
     static let driftAccentTint = adaptive(light: 0xDCEAFD, dark: 0x24395A)
     static let driftAccentRing = adaptive(light: 0x7FB3FB, dark: 0x4A79C2)
+    static let driftAccentEdge = adaptive(light: 0xB9D5FB, dark: 0x34558A)
 
     // Neutrals
     static let driftWindow = adaptive(light: 0xFFFFFF, dark: 0x1B1B1D)
@@ -40,6 +41,8 @@ extension Color {
     static let driftPaused = adaptive(light: 0xE8B248, dark: 0xF0C060)
     static let driftPausedInk = adaptive(light: 0xA86F0B, dark: 0xF0C060)
     static let driftSuccess = adaptive(light: 0x2F7D3A, dark: 0x6FD38A)
+    static let driftDone = adaptive(light: 0x4FAE5C, dark: 0x5FC46E)
+    static let driftQueued = adaptive(light: 0xA1A1A6, dark: 0x7C7C82)
     static let driftSuccessWash = adaptive(light: 0xE4F3E5, dark: 0x1F3524)
     static let driftDanger = adaptive(light: 0xD93A4A, dark: 0xFF6B78)
     static let driftDangerWash = adaptive(light: 0xFDECEE, dark: 0x3D2226)
@@ -152,19 +155,19 @@ struct SelectionCheckbox: View {
         Button {
             isOn.toggle()
         } label: {
-            RoundedRectangle(cornerRadius: 5)
-                .fill(isOn ? Color.driftAccent : Color.driftWindow)
-                .overlay(RoundedRectangle(cornerRadius: 5)
-                    .strokeBorder(isOn ? Color.clear : Color.driftText.opacity(0.28), lineWidth: 1.5))
+            RoundedRectangle(cornerRadius: 4)
+                .fill(isOn ? Color.driftAccent : Color.clear)
+                .overlay(RoundedRectangle(cornerRadius: 4)
+                    .strokeBorder(isOn ? Color.clear : Color.driftText.opacity(0.22), lineWidth: 1.5))
                 .overlay {
                     if isOn {
                         Image(systemName: "checkmark")
-                            .font(.system(size: 10, weight: .heavy))
+                            .font(.system(size: 8.5, weight: .heavy))
                             .foregroundStyle(.white)
                     }
                 }
-                .frame(width: 18, height: 18)
-                .frame(width: 32, height: 32)
+                .frame(width: 16, height: 16)
+                .frame(width: 24, height: 28)
                 .contentShape(.rect)
         }
         .buttonStyle(.plain)

@@ -8,80 +8,54 @@ struct DownloadRow: View {
     var onFocus: () -> Void = {}
     @State private var hovering = false
 
-    private var barColor: Color {
-        switch item.state {
-        case .paused: .driftPaused
-        case .failed: .driftDanger
-        default: item.kind == .torrent ? .driftTorrent : .driftAccent
-        }
-    }
-
     var body: some View {
-        HStack(spacing: 16) {
-            // Double-click lives on the file info only, so clicks on the buttons and checkbox never wait for it.
-            HStack(spacing: 16) {
-                FileTile(item: item)
-                VStack(alignment: .leading, spacing: 8) {
-                    HStack(alignment: .firstTextBaseline, spacing: 10) {
-                        Text(item.fileName)
-                            .font(.system(size: 14, weight: .semibold))
-                            .foregroundStyle(Color.driftText)
-                            .lineLimit(1)
-                            .truncationMode(.middle)
-                        if let priority = item.priority, priority != .normal {
-                            HStack(spacing: 3) {
-                                Image(systemName: priority.symbol).font(.system(size: 8, weight: .bold))
-                                Text(priority.title).font(.system(size: 10.5, weight: .semibold))
-                            }
-                            .foregroundStyle(priority == .high ? Color.driftAccentInk : Color.driftMuted)
-                            .padding(.horizontal, 6)
-                            .padding(.vertical, 1.5)
-                            .background(priority == .high ? Color.driftAccentWash : Color.driftField, in: .capsule)
-                            .help("\(priority.title) priority")
-                        }
-                        Text(meta)
-                            .font(.system(size: 12).monospacedDigit())
-                            .foregroundStyle(item.state.isFailed ? Color.driftDanger : Color.driftMuted)
-                            .lineLimit(1)
-                    }
-                    if !item.state.isFinished {
-                        ProgressLine(fraction: item.progress, color: barColor)
-                    }
+        HStack(spacing: 12) {
+            SelectionCheckbox(isOn: $isSelected, label: "Select \(item.fileName)")
+                .padding(.horizontal, -4)
+            StatusPie(item: item)
+            HStack(spacing: 5) {
+                if let priority = item.priority, priority != .normal {
+                    Image(systemName: priority.symbol)
+                        .font(.system(size: 9, weight: .bold))
+                        .foregroundStyle(priority == .high ? Color.driftAccentInk : Color.driftMuted)
+                        .help("\(priority.title) priority")
                 }
-                .frame(maxWidth: .infinity, alignment: .leading)
+                Text(item.fileName)
+                    .font(.system(size: 13, weight: .medium))
+                    .foregroundStyle(Color.driftText)
+                    .lineLimit(1)
+                    .truncationMode(.middle)
             }
+            .frame(maxWidth: .infinity, alignment: .leading)
 
+            CategoryTag(item: item)
 
-            Group {
-                if item.state == .downloading {
-                    Text(Format.speed(item.speed))
-                        .font(.system(size: 13, weight: .semibold).monospacedDigit())
-                        .foregroundStyle(Color.driftText)
-                        .contentTransition(.numericText())
-                } else {
-                    StatusPill(state: item.state)
-                }
-            }
-            .frame(width: 104, alignment: .trailing)
-
-            Text(item.eta.map(Format.duration) ?? "")
+            Text(item.state == .downloading ? Format.speed(item.speed) : "")
+                .font(.system(size: 12, weight: .semibold).monospacedDigit())
+                .foregroundStyle(Color.driftAccentStrong)
+                .frame(width: 80, alignment: .trailing)
+                .contentTransition(.numericText())
+            Text(percentText)
                 .font(.system(size: 12).monospacedDigit())
                 .foregroundStyle(Color.driftMuted)
-                .frame(width: 64, alignment: .trailing)
+                .frame(width: 38, alignment: .trailing)
+            Text(sizeText)
+                .font(.system(size: 12).monospacedDigit())
+                .foregroundStyle(item.state.isFailed ? Color.driftDanger : Color.driftMuted2)
+                .lineLimit(1)
+                .truncationMode(.tail)
+                .frame(width: 120, alignment: .trailing)
+                .help(item.state.isFailed ? sizeText : "")
 
             actionButton
-
-            SelectionCheckbox(isOn: $isSelected, label: "Select \(item.fileName)")
         }
-        .padding(.leading, 12)
-        .padding(.trailing, 10)
-        .padding(.vertical, 12)
-        .background(background, in: .rect(cornerRadius: 14))
-        .overlay(RoundedRectangle(cornerRadius: 14)
-            .strokeBorder(isSelected ? Color.driftAccentRing : isFocused ? Color.driftText.opacity(0.18) : .clear, lineWidth: 1))
+        .padding(.horizontal, 12)
+        .frame(height: 40)
+        .background(background, in: .rect(cornerRadius: 8))
+        .overlay(RoundedRectangle(cornerRadius: 8).strokeBorder(isSelected ? Color.driftAccentEdge : .clear, lineWidth: 1))
         // Anywhere on the row except its buttons: one click shows details, a double click opens or pauses/resumes.
         // The click count comes from the mouse event, so single clicks fire immediately.
-        .contentShape(.rect(cornerRadius: 14))
+        .contentShape(.rect(cornerRadius: 8))
         .onTapGesture {
             if (NSApp.currentEvent?.clickCount ?? 1) >= 2 {
                 item.state.isFinished ? store.open(item.id) : store.toggle(item.id)
@@ -95,39 +69,38 @@ struct DownloadRow: View {
 
     private var background: Color {
         if isSelected { return .driftAccentWash }
-        if hovering || isFocused { return .driftField }
-        return item.state.isFinished || item.state == .queued || item.state == .paused ? .driftCardQuiet : .driftCard
+        if isFocused { return .driftField }
+        return hovering ? .driftCard : .clear
     }
 
-    private var meta: String {
-        let size = Format.progress(item.receivedBytes, of: item.totalBytes)
+    private var percentText: String {
+        guard !item.state.isFinished, item.totalBytes != nil else { return "" }
+        return "\(Int(item.progress * 100))%"
+    }
+
+    private var sizeText: String {
         switch item.state {
-        case .connecting: return "Connecting…"
-        case .downloading:
-            if item.kind == .torrent {
-                return item.totalBytes == nil ? "Torrent · fetching metadata · \(item.peers) peers" : "Torrent · \(size) · \(item.peers) peers"
-            }
-            return "\(size) · \(item.connections) connection\(item.connections == 1 ? "" : "s")"
-        case .queued: return item.receivedBytes > 0 ? size : (item.totalBytes.map(Format.bytes) ?? "Waiting for a free slot")
-        case .paused: return size
         case .failed(let reason): return reason
-        case .completed:
-            let total = Format.bytes(item.totalBytes ?? item.receivedBytes)
-            let when = (item.completedAt ?? item.createdAt).formatted(.relative(presentation: .named))
-            return "\(total) · \(item.url.host() ?? "torrent") · \(when)"
+        case .completed: return Format.bytes(item.totalBytes ?? item.receivedBytes)
+        case .connecting where item.totalBytes == nil: return "Connecting…"
+        default:
+            guard let total = item.totalBytes, total > 0 else {
+                return item.kind == .torrent && item.state.isActive ? "Fetching info…" : Format.bytes(item.receivedBytes)
+            }
+            return Format.progress(item.receivedBytes, of: total)
         }
     }
 
     @ViewBuilder private var actionButton: some View {
         switch item.state {
         case .downloading, .connecting, .queued:
-            IconButton(symbol: "pause.fill", label: "Pause") { store.toggle(item.id) }
+            IconButton(symbol: "pause.fill", label: "Pause", fill: .driftField, size: 26) { store.toggle(item.id) }
         case .paused:
-            IconButton(symbol: "play.fill", label: "Resume", tint: .driftAccentInk, fill: .driftAccentWash) { store.toggle(item.id) }
+            IconButton(symbol: "play.fill", label: "Resume", tint: .driftAccentStrong, fill: .driftAccentWash, size: 26) { store.toggle(item.id) }
         case .failed:
-            IconButton(symbol: "arrow.clockwise", label: "Retry", tint: .driftDanger, fill: .driftDangerWash) { store.retry(item.id) }
+            IconButton(symbol: "arrow.clockwise", label: "Retry", tint: .driftDanger, fill: .driftDangerWash, size: 26) { store.retry(item.id) }
         case .completed:
-            RevealButton { store.reveal(item.id) }
+            RevealButton(size: 26, outlined: true) { store.reveal(item.id) }
         }
     }
 
@@ -166,6 +139,85 @@ struct DownloadRow: View {
         Divider()
         Button("Remove from List") { store.remove([item.id], deleteFiles: false) }
         Button("Move to Trash", role: .destructive) { store.remove([item.id], deleteFiles: true) }
+    }
+}
+
+/// Linear-style status icon: a ring with a pie that fills with progress, in the state's color.
+struct StatusPie: View {
+    let item: DownloadItem
+
+    var body: some View {
+        Canvas { ctx, size in
+            let rect = CGRect(origin: .zero, size: size)
+            let center = CGPoint(x: rect.midX, y: rect.midY)
+            switch item.state {
+            case .completed:
+                ctx.fill(Path(ellipseIn: rect.insetBy(dx: 1, dy: 1)), with: .color(.driftDone))
+                var check = Path()
+                check.move(to: CGPoint(x: size.width * 0.3, y: size.height * 0.51))
+                check.addLine(to: CGPoint(x: size.width * 0.44, y: size.height * 0.64))
+                check.addLine(to: CGPoint(x: size.width * 0.7, y: size.height * 0.37))
+                ctx.stroke(check, with: .color(.white), style: StrokeStyle(lineWidth: 1.7, lineCap: .round, lineJoin: .round))
+            case .failed:
+                ctx.fill(Path(ellipseIn: rect.insetBy(dx: 1, dy: 1)), with: .color(.driftDanger))
+                var bang = Path()
+                bang.move(to: CGPoint(x: center.x, y: size.height * 0.28))
+                bang.addLine(to: CGPoint(x: center.x, y: size.height * 0.56))
+                ctx.stroke(bang, with: .color(.white), style: StrokeStyle(lineWidth: 1.8, lineCap: .round))
+                ctx.fill(Path(ellipseIn: CGRect(x: center.x - 1, y: size.height * 0.68, width: 2, height: 2)), with: .color(.white))
+            default:
+                let dashed = item.state == .queued || item.state == .connecting
+                ctx.stroke(Path(ellipseIn: rect.insetBy(dx: 1.4, dy: 1.4)), with: .color(color),
+                           style: StrokeStyle(lineWidth: 1.6, dash: dashed ? [2, 1.6] : []))
+                let fraction = item.progress
+                if fraction > 0 {
+                    var pie = Path()
+                    pie.move(to: center)
+                    pie.addArc(center: center, radius: size.width * 0.28, startAngle: .degrees(-90),
+                               endAngle: .degrees(-90 + 360 * min(1, fraction)), clockwise: false)
+                    pie.closeSubpath()
+                    ctx.fill(pie, with: .color(color))
+                }
+            }
+        }
+        .frame(width: 16, height: 16)
+        .help(help)
+    }
+
+    private var color: Color {
+        switch item.state {
+        case .downloading: item.kind == .torrent ? .driftTorrent : .driftAccent
+        case .connecting: .driftAccent
+        case .paused: .driftPaused
+        default: .driftQueued
+        }
+    }
+
+    private var help: String {
+        switch item.state {
+        case .downloading: "Downloading"
+        case .connecting: "Connecting"
+        case .queued: "Queued"
+        case .paused: "Paused"
+        case .failed: "Failed"
+        case .completed: "Done"
+        }
+    }
+}
+
+/// Small colored tag naming the download's kind.
+struct CategoryTag: View {
+    let item: DownloadItem
+
+    var body: some View {
+        let torrent = item.kind == .torrent
+        Text(torrent ? "Torrent" : item.category.title)
+            .font(.system(size: 11, weight: .semibold))
+            .foregroundStyle(torrent ? Color.adaptive(light: 0x2E8A62, dark: 0x8FDDB5) : item.category.ink)
+            .padding(.horizontal, 7)
+            .padding(.vertical, 2)
+            .background(torrent ? Color.adaptive(light: 0xE6F4EE, dark: 0x1E3329) : item.category.wash, in: .rect(cornerRadius: 6))
+            .fixedSize()
     }
 }
 
