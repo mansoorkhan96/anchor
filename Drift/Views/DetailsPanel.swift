@@ -119,7 +119,7 @@ private struct StatusAction: View {
         case .failed:
             IconButton(symbol: "arrow.clockwise", label: "Retry", tint: .white, fill: .driftAccentStrong, size: 28, glyphScale: 0.34) { store.retry(item.id) }
         case .completed:
-            IconButton(symbol: "magnifyingglass", label: "Show in Finder", tint: .driftText, fill: .driftField, size: 28, outlined: true) { store.reveal(item.id) }
+            RevealButton(size: 28, outlined: true) { store.reveal(item.id) }
         }
     }
 }

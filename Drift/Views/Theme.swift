@@ -112,9 +112,38 @@ struct IconButton: View {
     }
 }
 
+/// "Show in Finder" button using the real, colorful Finder icon.
+struct RevealButton: View {
+    var size: CGFloat = 32
+    var outlined = false
+    let action: () -> Void
+    @State private var hovering = false
+
+    private static let finderIcon: NSImage = NSWorkspace.shared.icon(forFile: "/System/Library/CoreServices/Finder.app")
+
+    var body: some View {
+        Button(action: action) {
+            Image(nsImage: Self.finderIcon)
+                .resizable()
+                .interpolation(.high)
+                .frame(width: size * 0.66, height: size * 0.66)
+                .frame(width: size, height: size)
+                .background(Color.driftText.opacity(hovering ? 0.1 : 0.06), in: .circle)
+                .overlay(Circle().strokeBorder(outlined ? Color.driftLine : .clear))
+                .contentShape(.circle)
+        }
+        .buttonStyle(.plain)
+        .allowsWindowActivationEvents(true)
+        .onHover { hovering = $0 }
+        .help("Show in Finder")
+        .accessibilityLabel("Show in Finder")
+    }
+}
+
 // MARK: - Selection checkbox
 
-/// Round selection checkbox. Works on the first click even when the window isn't focused.
+/// Square selection checkbox, matching the torrent file checkboxes. Works on the first click even when the
+/// window isn't focused.
 struct SelectionCheckbox: View {
     @Binding var isOn: Bool
     let label: String
@@ -123,19 +152,20 @@ struct SelectionCheckbox: View {
         Button {
             isOn.toggle()
         } label: {
-            ZStack {
-                Circle()
-                    .strokeBorder(isOn ? Color.clear : Color.driftText.opacity(0.25), lineWidth: 1.5)
-                    .background(Circle().fill(isOn ? Color.driftAccent : Color.clear))
-                if isOn {
-                    Image(systemName: "checkmark")
-                        .font(.system(size: 10, weight: .heavy))
-                        .foregroundStyle(.white)
+            RoundedRectangle(cornerRadius: 5)
+                .fill(isOn ? Color.driftAccent : Color.driftWindow)
+                .overlay(RoundedRectangle(cornerRadius: 5)
+                    .strokeBorder(isOn ? Color.clear : Color.driftText.opacity(0.28), lineWidth: 1.5))
+                .overlay {
+                    if isOn {
+                        Image(systemName: "checkmark")
+                            .font(.system(size: 10, weight: .heavy))
+                            .foregroundStyle(.white)
+                    }
                 }
-            }
-            .frame(width: 22, height: 22)
-            .frame(width: 32, height: 32)
-            .contentShape(.rect)
+                .frame(width: 18, height: 18)
+                .frame(width: 32, height: 32)
+                .contentShape(.rect)
         }
         .buttonStyle(.plain)
         .allowsWindowActivationEvents(true)

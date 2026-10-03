@@ -119,7 +119,7 @@ struct DownloadRow: View {
         case .failed:
             IconButton(symbol: "arrow.clockwise", label: "Retry", tint: .driftDanger, fill: .driftDangerWash) { store.retry(item.id) }
         case .completed:
-            IconButton(symbol: "magnifyingglass", label: "Show in Finder") { store.reveal(item.id) }
+            RevealButton { store.reveal(item.id) }
         }
     }
 

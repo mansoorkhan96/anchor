@@ -218,7 +218,7 @@ private struct RecentRow: View {
         case .failed:
             IconButton(symbol: "arrow.clockwise", label: "Retry", tint: .driftDanger, fill: .driftDangerWash, size: 26) { store.retry(item.id) }
         case .completed:
-            IconButton(symbol: "magnifyingglass", label: "Show in Finder", size: 26) { store.reveal(item.id) }
+            RevealButton(size: 26) { store.reveal(item.id) }
         }
     }
 
