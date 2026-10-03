@@ -54,6 +54,8 @@ struct DownloadItem: Codable, Identifiable, Hashable, Sendable {
     var nameFromServer: Bool?
     /// The user chose to replace an existing file with this name; it goes to the Trash when the download finishes.
     var overwrite: Bool?
+    /// When the download joined the waiting line; it starts after everything queued before it.
+    var queuedAt: Date?
 
     /// Extra request headers forwarded from the browser (cookies, referer, user agent).
     var headers: [String: String] = [:]
@@ -70,7 +72,7 @@ struct DownloadItem: Codable, Identifiable, Hashable, Sendable {
 
     enum CodingKeys: String, CodingKey {
         case id, kind, url, fileName, directory, category, totalBytes, receivedBytes, segments
-        case supportsRanges, validator, state, createdAt, completedAt, openWhenDone, headers, nameFromServer, overwrite
+        case supportsRanges, validator, state, createdAt, completedAt, openWhenDone, headers, nameFromServer, overwrite, queuedAt
         case torrentGID, torrentFile
     }
 

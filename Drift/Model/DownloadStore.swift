@@ -304,6 +304,18 @@ final class DownloadStore {
         items.filter { $0.state.isActive || $0.state == .queued }.forEach { pause($0.id) }
     }
 
+    /// Puts paused or failed downloads at the back of the waiting line; they start when a slot frees up.
+    func queue(_ ids: Set<UUID>) {
+        let now = Date()
+        for item in items where ids.contains(item.id) && (item.state == .paused || item.state.isFailed) {
+            mutate(item.id) {
+                $0.state = .queued
+                $0.queuedAt = now
+            }
+        }
+        schedule()
+    }
+
     func resumeAll() {
         for item in items where item.state == .paused || item.state.isFailed {
             mutate(item.id) { $0.state = .queued }
@@ -445,7 +457,8 @@ final class DownloadStore {
 
     private func schedule() {
         var active = activeCount
-        let waiting = items.filter { $0.state == .queued }.sorted { $0.createdAt < $1.createdAt }
+        let waiting = items.filter { $0.state == .queued }
+            .sorted { ($0.queuedAt ?? $0.createdAt) < ($1.queuedAt ?? $1.createdAt) }
         for item in waiting where active < settings.maxConcurrent {
             start(item.id)
             active += 1

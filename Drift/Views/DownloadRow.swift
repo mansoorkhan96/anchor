@@ -133,8 +133,12 @@ struct DownloadRow: View {
         Divider()
         switch item.state {
         case .downloading, .connecting, .queued: Button("Pause") { store.pause(item.id) }
-        case .paused: Button("Resume") { store.resume(item.id) }
-        case .failed: Button("Retry") { store.retry(item.id) }
+        case .paused:
+            Button("Resume") { store.resume(item.id) }
+            Button("Add to Queue") { store.queue([item.id]) }
+        case .failed:
+            Button("Retry") { store.retry(item.id) }
+            Button("Add to Queue") { store.queue([item.id]) }
         case .completed: EmptyView()
         }
         Divider()
