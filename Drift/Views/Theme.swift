@@ -219,35 +219,54 @@ struct Chip: View {
     }
 }
 
-/// Segmented control styled like the design: gray track, white selected pill with blue text.
+/// Segmented control: rounded gray track, equal-width segments, and a white selected pill that slides.
 struct DriftSegmented<Value: Hashable>: View {
     let options: [Value]
     @Binding var selection: Value
     let title: (Value) -> String
     var minWidth: CGFloat = 40
+    var symbol: ((Value) -> String)? = nil
+    var height: CGFloat = 34
+    @Namespace private var pill
 
     var body: some View {
-        HStack(spacing: 2) {
+        HStack(spacing: 0) {
             ForEach(options, id: \.self) { option in
                 let on = option == selection
                 Button {
-                    selection = option
+                    withAnimation(.snappy(duration: 0.2)) { selection = option }
                 } label: {
-                    Text(title(option))
-                        .font(.system(size: 12, weight: .semibold).monospacedDigit())
-                        .foregroundStyle(on ? Color.driftAccentInk : Color.driftMuted2)
-                        .frame(minWidth: minWidth, minHeight: 28)
-                        .padding(.horizontal, 4)
-                        .background(on ? Color.driftWindow : .clear, in: .rect(cornerRadius: 7))
-                        .shadow(color: .black.opacity(on ? 0.1 : 0), radius: 1, y: 1)
-                        .contentShape(.rect)
+                    HStack(spacing: 5) {
+                        if let symbol {
+                            Image(systemName: symbol(option))
+                                .font(.system(size: 10.5, weight: .semibold))
+                        }
+                        Text(title(option))
+                            .font(.system(size: 12.5, weight: on ? .semibold : .medium).monospacedDigit())
+                            .lineLimit(1)
+                    }
+                    .foregroundStyle(on ? Color.driftAccentInk : Color.driftMuted)
+                    .padding(.horizontal, 10)
+                    .frame(minWidth: minWidth, maxWidth: .infinity, maxHeight: .infinity)
+                    .background {
+                        if on {
+                            RoundedRectangle(cornerRadius: 8)
+                                .fill(Color.driftWindow)
+                                .shadow(color: .black.opacity(0.08), radius: 2, y: 1)
+                                .matchedGeometryEffect(id: "pill", in: pill)
+                        }
+                    }
+                    .contentShape(.rect)
                 }
                 .buttonStyle(.plain)
+                .accessibilityLabel(title(option))
                 .accessibilityAddTraits(on ? .isSelected : [])
             }
         }
         .padding(3)
-        .background(Color.driftLine, in: .rect(cornerRadius: 9))
+        .frame(height: height)
+        .background(Color.driftField, in: .rect(cornerRadius: 10))
+        .fixedSize(horizontal: true, vertical: false)
     }
 }
 

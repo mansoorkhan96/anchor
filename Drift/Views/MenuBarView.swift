@@ -129,21 +129,25 @@ private struct OrderTabs: View {
 
     var body: some View {
         HStack(spacing: 0) {
-            tab(.newest, title: "Newest")
-            tab(.unfinishedFirst, title: "Unfinished")
+            tab(.newest, title: "Newest", symbol: "clock")
+            tab(.unfinishedFirst, title: "Unfinished", symbol: "arrow.down.circle")
         }
         .padding(2)
         .background(Color.driftField, in: .rect(cornerRadius: 8))
     }
 
-    private func tab(_ order: MenuBarOrder, title: String) -> some View {
+    private func tab(_ order: MenuBarOrder, title: String, symbol: String) -> some View {
         let on = selection == order
         return Button {
             withAnimation(.snappy(duration: 0.2)) { selection = order }
         } label: {
-            Text(title)
-                .font(.system(size: 11, weight: .semibold))
-                .foregroundStyle(on ? Color.driftAccentInk : Color.driftMuted)
+            HStack(spacing: 4) {
+                Image(systemName: symbol)
+                    .font(.system(size: 9.5, weight: .semibold))
+                Text(title)
+                    .font(.system(size: 11, weight: .semibold))
+            }
+            .foregroundStyle(on ? Color.driftAccentInk : Color.driftMuted)
                 .padding(.horizontal, 9)
                 .frame(height: 22)
                 .background {
