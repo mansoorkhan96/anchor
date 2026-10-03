@@ -27,14 +27,39 @@ enum FileCategory: String, Codable, CaseIterable, Identifiable, Sendable {
         }
     }
 
+    /// Dot and progress color (taken from Vitals' module colors).
     var color: Color {
         switch self {
-        case .video: .adaptive(light: 0x9333EA, dark: 0xC084FC)
-        case .music: .adaptive(light: 0xDB2777, dark: 0xF472B6)
-        case .archives: .adaptive(light: 0xC2410C, dark: 0xFB923C)
-        case .documents: .adaptive(light: 0x15803D, dark: 0x4ADE80)
-        case .apps: .adaptive(light: 0x2563EB, dark: 0x60A5FA)
-        case .other: .adaptive(light: 0x5B6170, dark: 0xA1A6B3)
+        case .video: .adaptive(light: 0x5951B0, dark: 0x8C85E0)
+        case .music: .adaptive(light: 0xE296B2, dark: 0xEFA7C1)
+        case .archives: .adaptive(light: 0xE8B248, dark: 0xF0C060)
+        case .documents: .adaptive(light: 0x46902E, dark: 0x6FBF55)
+        case .apps: .adaptive(light: 0x508BD8, dark: 0x6FA3EC)
+        case .other: .adaptive(light: 0x8E8E93, dark: 0xA1A1A6)
+        }
+    }
+
+    /// Text color for file tiles.
+    var ink: Color {
+        switch self {
+        case .video: .adaptive(light: 0x5951B0, dark: 0xA9A3F0)
+        case .music: .adaptive(light: 0xB8467A, dark: 0xF2B3CA)
+        case .archives: .adaptive(light: 0xA86F0B, dark: 0xF3C76E)
+        case .documents: .adaptive(light: 0x3C7F27, dark: 0x8ED17A)
+        case .apps: .adaptive(light: 0x2F6BC0, dark: 0x8DBBFF)
+        case .other: .adaptive(light: 0x5E5E63, dark: 0xB4B4B9)
+        }
+    }
+
+    /// Tile background.
+    var wash: Color {
+        switch self {
+        case .video: .adaptive(light: 0xEDECF7, dark: 0x2A2840)
+        case .music: .adaptive(light: 0xFBEFF4, dark: 0x3A2730)
+        case .archives: .adaptive(light: 0xFCF3E1, dark: 0x3A3020)
+        case .documents: .adaptive(light: 0xE9F3E5, dark: 0x233322)
+        case .apps: .adaptive(light: 0xE8F0FB, dark: 0x1F2D42)
+        case .other: .adaptive(light: 0xF2F2F4, dark: 0x2E2E31)
         }
     }
 

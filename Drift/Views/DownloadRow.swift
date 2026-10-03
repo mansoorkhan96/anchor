@@ -6,8 +6,6 @@ struct DownloadRow: View {
     @Binding var isSelected: Bool
     @State private var hovering = false
 
-    private var tint: Color { item.kind == .torrent ? .driftTorrent : item.category.color }
-
     private var barColor: Color {
         switch item.state {
         case .paused: .driftPaused
@@ -18,63 +16,58 @@ struct DownloadRow: View {
 
     var body: some View {
         HStack(spacing: 16) {
-            FileTile(fileName: item.fileName, tint: tint, isTorrent: item.kind == .torrent)
-
-            VStack(alignment: .leading, spacing: 7) {
-                HStack(alignment: .firstTextBaseline, spacing: 10) {
-                    Text(item.fileName)
-                        .font(.system(size: 13.5, weight: .semibold))
-                        .foregroundStyle(.primary)
-                        .lineLimit(1)
-                        .truncationMode(.middle)
-                    Text(meta)
-                        .font(.caption.monospacedDigit())
-                        .foregroundStyle(item.state.isFailed ? Color.driftDanger : .secondary)
-                        .lineLimit(1)
+            // Double-click lives on the file info only, so clicks on the buttons and checkbox never wait for it.
+            HStack(spacing: 16) {
+                FileTile(item: item)
+                VStack(alignment: .leading, spacing: 8) {
+                    HStack(alignment: .firstTextBaseline, spacing: 10) {
+                        Text(item.fileName)
+                            .font(.system(size: 14, weight: .semibold))
+                            .foregroundStyle(Color.driftText)
+                            .lineLimit(1)
+                            .truncationMode(.middle)
+                        Text(meta)
+                            .font(.system(size: 12).monospacedDigit())
+                            .foregroundStyle(item.state.isFailed ? Color.driftDanger : Color.driftMuted)
+                            .lineLimit(1)
+                    }
+                    if !item.state.isFinished {
+                        ProgressLine(fraction: item.progress, color: barColor)
+                    }
                 }
-                if !item.state.isFinished {
-                    SegmentBar(item: item, color: barColor)
-                        .frame(height: 5)
-                }
+                .frame(maxWidth: .infinity, alignment: .leading)
             }
-            .frame(maxWidth: .infinity, alignment: .leading)
+            .contentShape(.rect)
+            .onTapGesture(count: 2) { item.state.isFinished ? store.open(item.id) : store.toggle(item.id) }
 
             Text(speedText)
-                .font(.system(size: 12.5, weight: .medium).monospacedDigit())
-                .foregroundStyle(item.state.isActive ? .primary : speedColor)
+                .font(.system(size: 13, weight: .semibold).monospacedDigit())
+                .foregroundStyle(speedColor)
                 .frame(width: 92, alignment: .trailing)
                 .contentTransition(.numericText())
 
             Text(item.eta.map(Format.duration) ?? "")
-                .font(.caption.monospacedDigit())
-                .foregroundStyle(.secondary)
+                .font(.system(size: 12).monospacedDigit())
+                .foregroundStyle(Color.driftMuted)
                 .frame(width: 64, alignment: .trailing)
 
             actionButton
 
             SelectionCheckbox(isOn: $isSelected, label: "Select \(item.fileName)")
         }
-        .padding(.horizontal, 14)
+        .padding(.leading, 12)
+        .padding(.trailing, 10)
         .padding(.vertical, 12)
-        .background(background, in: .rect(cornerRadius: 12))
-        .overlay(RoundedRectangle(cornerRadius: 12).strokeBorder(border))
-        .contentShape(.rect(cornerRadius: 12))
+        .background(background, in: .rect(cornerRadius: 14))
+        .overlay(RoundedRectangle(cornerRadius: 14).strokeBorder(isSelected ? Color.driftAccentRing : .clear, lineWidth: 1))
         .onHover { hovering = $0 }
-        // Simultaneous so single clicks on the buttons inside never wait for a possible double click.
-        .simultaneousGesture(TapGesture(count: 2).onEnded {
-            item.state.isFinished ? store.open(item.id) : store.toggle(item.id)
-        })
         .contextMenu { menu }
     }
 
     private var background: Color {
-        if isSelected { return Color.driftAccent.opacity(0.10) }
-        if hovering { return Color.primary.opacity(0.05) }
-        return item.state.isActive ? Color.primary.opacity(0.03) : .clear
-    }
-
-    private var border: Color {
-        isSelected ? Color.driftAccent.opacity(0.55) : Color.driftStroke.opacity(item.state.isActive ? 1 : 0.7)
+        if isSelected { return .driftAccentWash }
+        if hovering { return .driftField }
+        return item.state.isFinished || item.state == .queued || item.state == .paused ? .driftCardQuiet : .driftCard
     }
 
     private var meta: String {
@@ -108,9 +101,10 @@ struct DownloadRow: View {
 
     private var speedColor: Color {
         switch item.state {
-        case .paused: .driftPaused
+        case .downloading: .driftText
+        case .paused: .driftPausedInk
         case .failed: .driftDanger
-        default: .secondary
+        default: .driftMuted
         }
     }
 
@@ -119,9 +113,9 @@ struct DownloadRow: View {
         case .downloading, .connecting, .queued:
             IconButton(symbol: "pause.fill", label: "Pause") { store.toggle(item.id) }
         case .paused:
-            IconButton(symbol: "play.fill", label: "Resume", tint: .driftAccent) { store.toggle(item.id) }
+            IconButton(symbol: "play.fill", label: "Resume", tint: .driftAccentInk, fill: .driftAccentWash) { store.toggle(item.id) }
         case .failed:
-            IconButton(symbol: "arrow.clockwise", label: "Retry", tint: .driftDanger) { store.retry(item.id) }
+            IconButton(symbol: "arrow.clockwise", label: "Retry", tint: .driftDanger, fill: .driftDangerWash) { store.retry(item.id) }
         case .completed:
             IconButton(symbol: "magnifyingglass", label: "Show in Finder") { store.reveal(item.id) }
         }
@@ -149,12 +143,25 @@ struct DownloadRow: View {
     }
 }
 
+/// Square file badge: the extension in the category's ink on its soft wash.
 struct FileTile: View {
-    @Environment(\.colorScheme) private var colorScheme
     let fileName: String
-    let tint: Color
+    let ink: Color
+    let wash: Color
     var isTorrent = false
-    var size: CGFloat = 40
+    var size: CGFloat = 42
+
+    init(fileName: String, category: FileCategory, isTorrent: Bool = false, size: CGFloat = 42) {
+        self.fileName = fileName
+        self.isTorrent = isTorrent
+        self.size = size
+        ink = isTorrent ? .adaptive(light: 0x2E8A62, dark: 0x8FDDB5) : category.ink
+        wash = isTorrent ? .adaptive(light: 0xE6F4EE, dark: 0x1E3329) : category.wash
+    }
+
+    init(item: DownloadItem, size: CGFloat = 42) {
+        self.init(fileName: item.fileName, category: item.category, isTorrent: item.kind == .torrent, size: size)
+    }
 
     private var label: String {
         let ext = (fileName as NSString).pathExtension.uppercased()
@@ -164,51 +171,32 @@ struct FileTile: View {
 
     var body: some View {
         Text(label)
-            .font(.system(size: size * 0.25, weight: .bold))
-            .tracking(0.4)
-            .foregroundStyle(tint)
+            .font(.system(size: max(8, size * 0.24), weight: .heavy))
+            .tracking(0.5)
+            .foregroundStyle(ink)
             .frame(width: size, height: size)
-            .background(tint.opacity(colorScheme == .light ? 0.12 : 0.18), in: .rect(cornerRadius: size * 0.25))
+            .background(wash, in: .rect(cornerRadius: size * 0.29))
     }
 }
 
-/// FDM-style bar: one chunk per connection segment, each filled by how much of it has arrived.
-struct SegmentBar: View {
-    let item: DownloadItem
+/// Single rounded progress bar.
+struct ProgressLine: View {
+    let fraction: Double
     let color: Color
+    var height: CGFloat = 6
 
     var body: some View {
-        Canvas { context, size in
-            let track = Color.primary.opacity(0.08)
-            let segments = item.segments.sorted { $0.start < $1.start }
-            let total = Double(item.totalBytes ?? 0)
-
-            guard item.kind == .http, total > 0, segments.count > 1 else {
-                draw(context, CGRect(origin: .zero, size: size), fraction: item.progress, track: track)
-                return
-            }
-
-            let gap: CGFloat = segments.count > 40 ? 0 : 2
-            let usable = size.width - gap * CGFloat(segments.count - 1)
-            var x: CGFloat = 0
-            for segment in segments {
-                let width = max(1, usable * CGFloat(Double(segment.length) / total))
-                let fraction = Double(segment.received) / Double(max(1, segment.length))
-                draw(context, CGRect(x: x, y: 0, width: width, height: size.height), fraction: fraction, track: track)
-                x += width + gap
+        GeometryReader { geo in
+            ZStack(alignment: .leading) {
+                Capsule().fill(Color.driftTrack)
+                Capsule()
+                    .fill(color)
+                    .frame(width: fraction > 0 ? max(height, geo.size.width * min(1, fraction)) : 0)
             }
         }
+        .frame(height: height)
         .accessibilityElement()
         .accessibilityLabel("Progress")
-        .accessibilityValue("\(Int(item.progress * 100)) percent")
-    }
-
-    private func draw(_ context: GraphicsContext, _ rect: CGRect, fraction: Double, track: Color) {
-        let radius = min(2, rect.height / 2)
-        context.fill(Path(roundedRect: rect, cornerRadius: radius), with: .color(track))
-        guard fraction > 0 else { return }
-        var filled = rect
-        filled.size.width = rect.width * CGFloat(min(1, fraction))
-        context.fill(Path(roundedRect: filled, cornerRadius: radius), with: .color(color))
+        .accessibilityValue("\(Int(fraction * 100)) percent")
     }
 }

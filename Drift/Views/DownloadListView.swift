@@ -26,7 +26,7 @@ struct DownloadListView: View {
                 if items.isEmpty {
                     EmptyState(filter: filter, searching: !search.isEmpty)
                 } else {
-                    LazyVStack(spacing: 6) {
+                    LazyVStack(spacing: 8) {
                         ForEach(items) { item in
                             DownloadRow(item: item, isSelected: selectionBinding(item.id))
                         }
@@ -35,23 +35,25 @@ struct DownloadListView: View {
             }
             .padding(.horizontal, 20)
             .padding(.top, 8)
-            .padding(.bottom, selection.isEmpty ? 20 : 84)
+            .padding(.bottom, 84)
             .animation(.snappy(duration: 0.25), value: items.map(\.id))
             .animation(.snappy(duration: 0.25), value: store.clipboardSuggestion)
         }
         .overlay(alignment: .bottom) {
-            if !selection.isEmpty {
-                SelectionBar(count: selection.count,
-                             allSelected: selection.count == items.count,
-                             selectAll: { selection = Set(items.map(\.id)) },
-                             clear: { selection.removeAll() },
-                             move: moveSelection,
-                             delete: { confirmDelete = true })
-                    .padding(.bottom, 18)
-                    .transition(.move(edge: .bottom).combined(with: .opacity))
+            ZStack {
+                if !selection.isEmpty {
+                    SelectionBar(count: selection.count,
+                                 allSelected: selection.count == items.count,
+                                 selectAll: { selection = Set(items.map(\.id)) },
+                                 clear: { selection.removeAll() },
+                                 move: moveSelection,
+                                 delete: { confirmDelete = true })
+                        .padding(.bottom, 18)
+                        .transition(.move(edge: .bottom).combined(with: .opacity))
+                }
             }
+            .animation(.snappy(duration: 0.22), value: selection.isEmpty)
         }
-        .animation(.snappy(duration: 0.25), value: selection.isEmpty)
         .navigationTitle(filter.title)
         .navigationSubtitle(subtitle)
         .searchable(text: $search, placement: .toolbar, prompt: "Search")
@@ -88,7 +90,7 @@ struct DownloadListView: View {
                         .padding(.horizontal, 4)
                 }
                 .buttonStyle(.glassProminent)
-                .tint(.driftAccent)
+                .tint(.driftAccentStrong)
                 .help("New download (⌘N)")
             }
         }
@@ -150,51 +152,67 @@ struct ThroughputCard: View {
     var body: some View {
         let parts = Format.speedParts(store.totalSpeed)
         let remaining = store.remainingBytes
-        HStack(alignment: .bottom, spacing: 28) {
+        let history = Array(store.speedHistory.enumerated())
+        HStack(alignment: .center, spacing: 28) {
             VStack(alignment: .leading, spacing: 4) {
                 Text("Total speed")
-                    .font(.caption.weight(.semibold))
-                    .foregroundStyle(.secondary)
+                    .font(.system(size: 12, weight: .medium))
+                    .foregroundStyle(Color.driftMuted2)
                 HStack(alignment: .firstTextBaseline, spacing: 6) {
                     Text(parts.value)
-                        .font(.system(size: 44, weight: .light, design: .rounded).monospacedDigit())
+                        .font(.system(size: 50, weight: .heavy).monospacedDigit())
+                        .tracking(-1.2)
+                        .foregroundStyle(Color.driftText)
                         .contentTransition(.numericText())
                     Text(parts.unit)
-                        .font(.callout)
-                        .foregroundStyle(.secondary)
+                        .font(.system(size: 15, weight: .medium))
+                        .foregroundStyle(Color.driftMuted2)
                 }
+                Chip(text: pace.text, ink: pace.ink, wash: pace.wash)
+                    .padding(.top, 4)
             }
-            .frame(minWidth: 150, alignment: .leading)
+            .frame(minWidth: 180, alignment: .leading)
 
-            Chart(Array(store.speedHistory.enumerated()), id: \.offset) { point in
+            Chart(history, id: \.offset) { point in
                 AreaMark(x: .value("t", point.offset), y: .value("speed", point.element))
                     .interpolationMethod(.catmullRom)
-                    .foregroundStyle(Color.driftAccent.opacity(0.14))
+                    .foregroundStyle(LinearGradient(colors: [Color.driftAccent.opacity(0.22), Color.driftAccent.opacity(0)],
+                                                    startPoint: .top, endPoint: .bottom))
                 LineMark(x: .value("t", point.offset), y: .value("speed", point.element))
                     .interpolationMethod(.catmullRom)
                     .foregroundStyle(Color.driftAccent)
-                    .lineStyle(StrokeStyle(lineWidth: 1.75))
+                    .lineStyle(StrokeStyle(lineWidth: 2.5, lineCap: .round))
             }
             .chartXAxis(.hidden)
             .chartYAxis(.hidden)
             .chartYScale(domain: 0...max(1, (store.speedHistory.max() ?? 1) * 1.15))
-            .frame(height: 64)
+            .frame(height: 72)
 
             HStack(spacing: 24) {
                 stat("Remaining", Format.bytes(remaining))
                 stat("Done in", store.totalSpeed > 1 ? Format.duration(Double(remaining) / store.totalSpeed) : "-")
             }
         }
-        .padding(.horizontal, 22)
-        .padding(.vertical, 18)
-        .background(Color.primary.opacity(0.03), in: .rect(cornerRadius: 14))
-        .overlay(RoundedRectangle(cornerRadius: 14).strokeBorder(Color.driftStroke.opacity(0.8)))
+        .padding(.horizontal, 24)
+        .padding(.vertical, 20)
+        .background(Color.driftCard, in: .rect(cornerRadius: 18))
+    }
+
+    private var pace: (text: String, ink: Color, wash: Color) {
+        let active = "\(store.activeCount) active"
+        switch store.totalSpeed {
+        case 5_000_000...: return ("Fast · \(active)", .driftSuccess, .driftSuccessWash)
+        case 500_000...: return ("Steady · \(active)", .driftAccentInk, .driftAccentWash)
+        default: return ("Slow · \(active)", .driftPausedInk, Color.driftPaused.opacity(0.18))
+        }
     }
 
     private func stat(_ title: String, _ value: String) -> some View {
         VStack(alignment: .leading, spacing: 4) {
-            Text(title).font(.caption).foregroundStyle(.secondary)
-            Text(value).font(.system(size: 15, weight: .medium).monospacedDigit())
+            Text(title).font(.system(size: 12)).foregroundStyle(Color.driftMuted2)
+            Text(value)
+                .font(.system(size: 17, weight: .bold).monospacedDigit())
+                .foregroundStyle(Color.driftText)
                 .contentTransition(.numericText())
         }
     }
@@ -211,25 +229,30 @@ private struct SelectionBar: View {
     let delete: () -> Void
 
     var body: some View {
-        HStack(spacing: 4) {
+        HStack(spacing: 6) {
             Text("\(count) selected")
                 .font(.system(size: 13, weight: .semibold))
                 .monospacedDigit()
-                .padding(.leading, 12)
+                .foregroundStyle(Color.driftText)
+                .padding(.leading, 10)
             if !allSelected {
-                Button("Select All", action: selectAll)
+                Button("Select all", action: selectAll)
                     .buttonStyle(.plain)
                     .font(.system(size: 13, weight: .medium))
-                    .foregroundStyle(Color.driftAccent)
+                    .foregroundStyle(Color.driftAccentInk)
                     .padding(.horizontal, 8)
             }
-            Divider().frame(height: 18).padding(.horizontal, 6)
-            IconButton(symbol: "folder", label: "Move to folder…", filled: false, action: move)
-            IconButton(symbol: "trash", label: "Delete", tint: .driftDanger, filled: false, action: delete)
-            IconButton(symbol: "xmark", label: "Clear selection", tint: .secondary, filled: false, action: clear)
+            Rectangle().fill(Color.driftLine).frame(width: 1, height: 18).padding(.horizontal, 4)
+            IconButton(symbol: "folder", label: "Move to folder…", tint: .driftMuted2, fill: .driftField, size: 34, action: move)
+            IconButton(symbol: "trash", label: "Delete", tint: .driftDanger, fill: .driftDangerWash, size: 34, action: delete)
+            IconButton(symbol: "xmark", label: "Clear selection", tint: .driftMuted, fill: .clear, size: 34, action: clear)
         }
         .padding(6)
-        .glassEffect(.regular, in: .capsule)
+        .padding(.leading, 6)
+        .background(Color.driftWindow, in: .capsule)
+        .overlay(Capsule().strokeBorder(Color.driftLine))
+        .shadow(color: .black.opacity(0.12), radius: 16, y: 10)
+        .shadow(color: .black.opacity(0.05), radius: 3, y: 1)
     }
 }
 
@@ -242,13 +265,17 @@ private struct ClipboardBanner: View {
     var body: some View {
         HStack(spacing: 12) {
             Image(systemName: "doc.on.clipboard")
+                .font(.system(size: 14, weight: .semibold))
                 .foregroundStyle(Color.driftAccent)
+                .frame(width: 34, height: 34)
+                .background(Color.driftAccentWash, in: .rect(cornerRadius: 10))
             VStack(alignment: .leading, spacing: 2) {
                 Text("Download link on your clipboard")
-                    .font(.callout.weight(.medium))
+                    .font(.system(size: 13, weight: .semibold))
+                    .foregroundStyle(Color.driftText)
                 Text(url.scheme == "magnet" ? "Magnet link" : url.absoluteString)
-                    .font(.caption)
-                    .foregroundStyle(.secondary)
+                    .font(.system(size: 12))
+                    .foregroundStyle(Color.driftMuted)
                     .lineLimit(1)
                     .truncationMode(.middle)
             }
@@ -261,9 +288,8 @@ private struct ClipboardBanner: View {
             }
             .buttonStyle(.driftPrimary)
         }
-        .padding(.horizontal, 16)
-        .padding(.vertical, 12)
-        .glassEffect(.regular, in: .rect(cornerRadius: 14))
+        .padding(12)
+        .background(Color.driftCard, in: .rect(cornerRadius: 14))
         .transition(.move(edge: .top).combined(with: .opacity))
     }
 }

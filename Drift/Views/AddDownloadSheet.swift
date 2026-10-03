@@ -15,6 +15,7 @@ struct AddDownloadSheet: View {
     @State private var category: FileCategory = .other
     @State private var folder: URL?
     @State private var openWhenDone = false
+    @State private var fromClipboard = false
     @FocusState private var addressFocused: Bool
 
     private var url: URL? {
@@ -36,14 +37,16 @@ struct AddDownloadSheet: View {
                 Image(systemName: "arrow.down")
                     .font(.system(size: 15, weight: .bold))
                     .foregroundStyle(Color.driftAccent)
-                    .frame(width: 36, height: 36)
-                    .background(Color.driftAccent.opacity(0.12), in: .rect(cornerRadius: 10))
+                    .frame(width: 38, height: 38)
+                    .background(Color.driftAccentWash, in: .rect(cornerRadius: 11))
+                    .overlay(RoundedRectangle(cornerRadius: 11).strokeBorder(Color.driftAccentTint))
                 VStack(alignment: .leading, spacing: 2) {
                     Text("New Download")
                         .font(.system(size: 17, weight: .semibold))
+                        .foregroundStyle(Color.driftText)
                     Text(subtitle)
                         .font(.system(size: 12))
-                        .foregroundStyle(.secondary)
+                        .foregroundStyle(Color.driftMuted)
                 }
             }
 
@@ -51,7 +54,7 @@ struct AddDownloadSheet: View {
                 HStack(spacing: 8) {
                     Image(systemName: "link")
                         .font(.system(size: 12, weight: .semibold))
-                        .foregroundStyle(.secondary)
+                        .foregroundStyle(Color.driftMuted)
                     TextField("https://… or magnet:?…", text: $address)
                         .textFieldStyle(.plain)
                         .font(.system(size: 13))
@@ -64,13 +67,13 @@ struct AddDownloadSheet: View {
                         }
                         .buttonStyle(.plain)
                         .font(.system(size: 12, weight: .semibold))
-                        .foregroundStyle(Color.driftAccent)
+                        .foregroundStyle(Color.driftAccentInk)
                     } else {
                         Button {
                             address = ""
                             addressFocused = true
                         } label: {
-                            Image(systemName: "xmark.circle.fill").foregroundStyle(.tertiary)
+                            Image(systemName: "xmark.circle.fill").foregroundStyle(Color.driftMuted.opacity(0.7))
                         }
                         .buttonStyle(.plain)
                         .accessibilityLabel("Clear link")
@@ -82,11 +85,11 @@ struct AddDownloadSheet: View {
             if url == nil {
                 Text("File details appear here once you paste a link.")
                     .font(.system(size: 12))
-                    .foregroundStyle(.secondary)
+                    .foregroundStyle(Color.driftMuted)
                     .frame(maxWidth: .infinity, minHeight: 76)
                     .overlay(
-                        RoundedRectangle(cornerRadius: 12)
-                            .strokeBorder(Color.driftStroke, style: StrokeStyle(lineWidth: 1, dash: [5, 4]))
+                        RoundedRectangle(cornerRadius: 14)
+                            .strokeBorder(Color.driftLine, style: StrokeStyle(lineWidth: 1.5, dash: [5, 4]))
                     )
             } else {
                 fileCard
@@ -101,12 +104,13 @@ struct AddDownloadSheet: View {
                                 .foregroundStyle(Color.driftAccent)
                             Text(folderLabel)
                                 .font(.system(size: 13))
+                                .foregroundStyle(Color.driftText)
                                 .lineLimit(1)
                                 .truncationMode(.head)
                             Spacer(minLength: 4)
                             Text("Change")
                                 .font(.system(size: 12, weight: .medium))
-                                .foregroundStyle(.secondary)
+                                .foregroundStyle(Color.driftMuted)
                         }
                         .fieldChrome()
                         .contentShape(.rect)
@@ -123,11 +127,11 @@ struct AddDownloadSheet: View {
                         } label: {
                             HStack(spacing: 8) {
                                 Circle().fill(category.color).frame(width: 8, height: 8)
-                                Text(category.title).font(.system(size: 13))
+                                Text(category.title).font(.system(size: 13)).foregroundStyle(Color.driftText)
                                 Spacer(minLength: 4)
                                 Image(systemName: "chevron.up.chevron.down")
                                     .font(.system(size: 10, weight: .semibold))
-                                    .foregroundStyle(.secondary)
+                                    .foregroundStyle(Color.driftMuted)
                             }
                             .fieldChrome()
                             .contentShape(.rect)
@@ -142,11 +146,13 @@ struct AddDownloadSheet: View {
 
             HStack(spacing: 10) {
                 if !isTorrent {
-                    Toggle("Open when finished", isOn: $openWhenDone)
-                        .toggleStyle(.switch)
-                        .controlSize(.mini)
-                        .font(.system(size: 12))
-                        .tint(.driftAccent)
+                    HStack(spacing: 8) {
+                        DriftSwitch(isOn: $openWhenDone, label: "Open when finished")
+                        Text("Open when finished")
+                            .font(.system(size: 13))
+                            .foregroundStyle(Color.driftMuted2)
+                            .onTapGesture { openWhenDone.toggle() }
+                    }
                 }
                 Spacer()
                 Button("Cancel") { dismiss() }
@@ -163,6 +169,7 @@ struct AddDownloadSheet: View {
         }
         .padding(24)
         .frame(width: 580)
+        .background(Color.driftWindow)
         .fixedSize(horizontal: false, vertical: true)
         .tint(.driftAccent)
         .task {
@@ -174,6 +181,7 @@ struct AddDownloadSheet: View {
             if address.isEmpty, let text = NSPasteboard.general.string(forType: .string),
                ClipboardWatcher.downloadLink(in: text) != nil {
                 address = text.trimmingCharacters(in: .whitespacesAndNewlines)
+                fromClipboard = true
             }
             addressFocused = address.isEmpty
         }
@@ -184,7 +192,7 @@ struct AddDownloadSheet: View {
         VStack(alignment: .leading, spacing: 6) {
             Text(title)
                 .font(.system(size: 12, weight: .medium))
-                .foregroundStyle(.secondary)
+                .foregroundStyle(Color.driftMuted2)
             content()
         }
         .frame(maxWidth: .infinity, alignment: .leading)
@@ -192,6 +200,7 @@ struct AddDownloadSheet: View {
 
     private var subtitle: String {
         if request.headers["Cookie"] != nil || request.headers["Referer"] != nil { return "From your browser" }
+        if fromClipboard { return "Link found on your clipboard" }
         if !request.url.isEmpty { return "Link detected" }
         return "Paste a link, magnet, or drop a .torrent file"
     }
@@ -204,11 +213,12 @@ struct AddDownloadSheet: View {
 
     @ViewBuilder private var fileCard: some View {
         HStack(spacing: 14) {
-            FileTile(fileName: fileName, tint: isTorrent ? .driftTorrent : category.color, isTorrent: isTorrent, size: 44)
+            FileTile(fileName: fileName, category: category, isTorrent: isTorrent, size: 46)
             VStack(alignment: .leading, spacing: 8) {
                 TextField("File name", text: $fileName)
                     .textFieldStyle(.plain)
                     .font(.system(size: 14, weight: .semibold))
+                    .foregroundStyle(Color.driftText)
                     .onChange(of: fileName) { _, new in
                         if new != autoName { nameEdited = true }
                         category = FileCategory.detect(fileName: new)
@@ -216,23 +226,24 @@ struct AddDownloadSheet: View {
                     .disabled(isTorrent)
                 HStack(spacing: 6) {
                     if let url, store.items.contains(where: { $0.url == url }) {
-                        Chip(text: "Already in your list", color: .driftPaused)
+                        Chip(text: "Already in your list", ink: .driftPausedInk, wash: Color.driftPaused.opacity(0.18))
                     }
                     if probing {
                         ProgressView().controlSize(.mini)
-                        Text("Checking link…").font(.system(size: 11)).foregroundStyle(.secondary)
+                        Text("Checking link…").font(.system(size: 11)).foregroundStyle(Color.driftMuted)
                     } else if let probeError {
-                        Chip(text: probeError, color: .driftDanger)
+                        Chip(text: probeError, ink: .driftDanger, wash: .driftDangerWash)
                     } else if isMagnet {
-                        Chip(text: "Magnet link", color: .driftTorrent)
+                        Chip(text: "Magnet link", ink: .driftSuccess, wash: .driftSuccessWash)
                     } else if isTorrent {
-                        Chip(text: "Torrent", color: .driftTorrent)
+                        Chip(text: "Torrent", ink: .driftSuccess, wash: .driftSuccessWash)
                     } else if let probe {
-                        Chip(text: probe.totalBytes.map(Format.bytes) ?? "Unknown size")
+                        Chip(text: probe.totalBytes.map(Format.bytes) ?? "Unknown size", ink: .driftText.opacity(0.8))
                         Chip(text: probe.supportsRanges ? "Resumable" : "Not resumable",
-                             color: probe.supportsRanges ? .driftSuccess : .driftPaused)
+                             ink: probe.supportsRanges ? .driftSuccess : .driftPausedInk,
+                             wash: probe.supportsRanges ? .driftSuccessWash : Color.driftPaused.opacity(0.18))
                         if probe.supportsRanges {
-                            Chip(text: "\(store.settings.connections) connections")
+                            Chip(text: "\(store.settings.connections) connections", ink: .driftAccentInk, wash: .driftAccentWash)
                         }
                     }
                 }
@@ -240,8 +251,7 @@ struct AddDownloadSheet: View {
             }
         }
         .padding(14)
-        .background(Color.primary.opacity(0.03), in: .rect(cornerRadius: 12))
-        .overlay(RoundedRectangle(cornerRadius: 12).strokeBorder(Color.driftStroke))
+        .background(Color.driftCard, in: .rect(cornerRadius: 14))
     }
 
     private func runProbe() async {
@@ -295,20 +305,5 @@ struct AddDownloadSheet: View {
         let ok = store.add(address, fileName: name.isEmpty ? nil : name, directory: targetFolder,
                            headers: request.headers, probe: probe, startNow: startNow, openWhenDone: openWhenDone)
         if ok { dismiss() }
-    }
-}
-
-private struct Chip: View {
-    let text: String
-    var color: Color?
-
-    var body: some View {
-        Text(text)
-            .font(.system(size: 11, weight: .medium))
-            .lineLimit(1)
-            .foregroundStyle(color ?? .primary)
-            .padding(.horizontal, 8)
-            .padding(.vertical, 3)
-            .background(color.map { $0.opacity(0.13) } ?? Color.driftFill, in: .rect(cornerRadius: 6))
     }
 }
