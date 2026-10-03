@@ -182,21 +182,15 @@ private struct RecentRow: View {
                         .lineLimit(1)
                         .truncationMode(.middle)
                     Spacer(minLength: 4)
-                    if item.state == .downloading {
-                        Text(Format.speed(item.speed))
-                            .font(.system(size: 11.5, weight: .medium).monospacedDigit())
-                            .foregroundStyle(Color.driftMuted2)
-                    } else {
-                        StatusPill(state: item.state, compact: true)
-                    }
+                    Text(sizeText)
+                        .font(.system(size: 11.5, weight: .medium).monospacedDigit())
+                        .foregroundStyle(Color.driftMuted2)
+                        .lineLimit(1)
+                        .fixedSize()
                 }
                 if !item.state.isFinished {
                     ProgressLine(fraction: item.progress, color: barColor, height: 4)
                 }
-                Text(detail)
-                    .font(.system(size: 11).monospacedDigit())
-                    .foregroundStyle(Color.driftMuted)
-                    .lineLimit(1)
             }
             action
         }
@@ -230,19 +224,11 @@ private struct RecentRow: View {
         }
     }
 
-    private var detail: String {
-        let size = Format.progress(item.receivedBytes, of: item.totalBytes)
-        let prefix = item.kind == .torrent ? "Torrent · " : ""
-        switch item.state {
-        case .completed:
-            let when = (item.completedAt ?? item.createdAt).formatted(.relative(presentation: .named))
-            return "\(prefix)\(Format.bytes(item.totalBytes ?? item.receivedBytes)) · \(when)"
-        case .downloading:
-            guard let eta = item.eta else { return prefix + size }
-            return "\(prefix)\(size) · \(Format.duration(eta)) left"
-        default:
-            return prefix + size
-        }
+    /// "43.2 of 225 MB" while unfinished, the full size once done.
+    private var sizeText: String {
+        if item.state.isFinished { return Format.bytes(item.totalBytes ?? item.receivedBytes) }
+        guard let total = item.totalBytes, total > 0 else { return Format.bytes(item.receivedBytes) }
+        return Format.progress(item.receivedBytes, of: total)
     }
 }
 
