@@ -14,6 +14,7 @@ struct DownloadSnapshot: Sendable {
 
 enum DownloadEvent: Sendable {
     case started
+    case renamed(fileName: String)
     case completed(fileName: String)
     case failed(String)
 }
@@ -49,6 +50,7 @@ final class HTTPDownload: NSObject, URLSessionDataDelegate, @unchecked Sendable 
     private var fd: Int32 = -1
     private var stopped = false
     private var sampled: Int64 = 0
+    private let adoptServerName: Bool
 
     init(item: DownloadItem, maxConnections: Int, onEvent: @escaping @Sendable (DownloadEvent) -> Void) {
         id = item.id
@@ -60,6 +62,7 @@ final class HTTPDownload: NSObject, URLSessionDataDelegate, @unchecked Sendable 
         totalBytes = item.totalBytes
         supportsRanges = item.supportsRanges
         validator = item.validator
+        adoptServerName = item.nameFromServer == true && item.segments.isEmpty
         self.maxConnections = max(1, maxConnections)
         connectionCap = max(1, maxConnections)
         self.onEvent = onEvent
@@ -124,6 +127,11 @@ final class HTTPDownload: NSObject, URLSessionDataDelegate, @unchecked Sendable 
                 validator = probe.validator
                 segments = Self.initialSegments(total: totalBytes, ranges: supportsRanges, connections: maxConnections)
                 sampled = 0
+            }
+            if adoptServerName, probe.fileName != fileName {
+                let name = FileNaming.unique(probe.fileName, in: directory)
+                lock.withLock { fileName = name }
+                onEvent(.renamed(fileName: name))
             }
             fresh = true
         } else if lock.withLock({ !supportsRanges }) {

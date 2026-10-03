@@ -135,6 +135,7 @@ final class DownloadStore {
         var item = DownloadItem(url: url, fileName: uniqueName(name, in: folder), directory: folder, category: category)
         item.headers = headers
         item.openWhenDone = openWhenDone
+        item.nameFromServer = fileName == nil && probe == nil
         if let probe {
             item.totalBytes = probe.totalBytes
         }
@@ -352,6 +353,12 @@ final class DownloadStore {
         case .started:
             if let engine = engines[id] { apply(engine.snapshot(), to: id) }
             mutate(id) { if $0.state == .connecting { $0.state = .downloading } }
+        case .renamed(let name):
+            mutate(id) {
+                $0.fileName = name
+                $0.category = FileCategory.detect(fileName: name)
+                $0.nameFromServer = false
+            }
         case .completed(let name):
             if let engine = engines.removeValue(forKey: id) { apply(engine.snapshot(), to: id) }
             mutate(id) {

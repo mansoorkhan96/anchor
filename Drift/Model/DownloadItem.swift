@@ -50,6 +50,8 @@ struct DownloadItem: Codable, Identifiable, Hashable, Sendable {
     var createdAt = Date()
     var completedAt: Date?
     var openWhenDone = false
+    /// Set when the name was guessed from the URL; the engine swaps in the server's filename on first probe.
+    var nameFromServer: Bool?
 
     /// Extra request headers forwarded from the browser (cookies, referer, user agent).
     var headers: [String: String] = [:]
@@ -66,7 +68,7 @@ struct DownloadItem: Codable, Identifiable, Hashable, Sendable {
 
     enum CodingKeys: String, CodingKey {
         case id, kind, url, fileName, directory, category, totalBytes, receivedBytes, segments
-        case supportsRanges, validator, state, createdAt, completedAt, openWhenDone, headers
+        case supportsRanges, validator, state, createdAt, completedAt, openWhenDone, headers, nameFromServer
         case torrentGID, torrentFile
     }
 
