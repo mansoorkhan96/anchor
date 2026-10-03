@@ -173,7 +173,6 @@ private struct RecentRow: View {
 
     var body: some View {
         HStack(spacing: 10) {
-            FileTile(item: item, size: 30)
             VStack(alignment: .leading, spacing: 5) {
                 HStack(spacing: 10) {
                     Text(item.fileName)
