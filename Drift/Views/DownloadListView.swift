@@ -25,7 +25,9 @@ struct DownloadListView: View {
                 if let link = store.clipboardSuggestion {
                     ClipboardBanner(url: link)
                 }
-                ThroughputCard()
+                if store.settings.showSpeedStrip {
+                    ThroughputCard()
+                }
                 if items.isEmpty {
                     EmptyState(filter: filter, searching: !search.isEmpty)
                 } else {
@@ -363,7 +365,6 @@ struct ThroughputCard: View {
             }
             HStack(spacing: 4) {
                 KeyHint("⌘N").help("New download")
-                KeyHint("Space").help("Pause or resume the selected downloads")
             }
         }
         .padding(.horizontal, 18)

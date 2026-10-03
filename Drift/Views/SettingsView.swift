@@ -97,7 +97,7 @@ struct SettingsView: View {
             }
             .background(Color.driftWindow)
         }
-        .frame(width: 760, height: 660)
+        .frame(width: 760, height: 740)
         .tint(.driftAccent)
     }
 }
@@ -206,6 +206,11 @@ private struct GeneralPage: View {
             SettingsCard {
                 SettingsRow(title: "Open Drift at login", detail: "Stays in the menu bar so browser downloads always work") {
                     DriftSwitch(isOn: $launchAtLogin, label: "Open Drift at login")
+                }
+            }
+            SettingsCard {
+                SettingsRow(title: "Show speed bar", detail: "Live speed and time left above the download list") {
+                    DriftSwitch(isOn: $settings.showSpeedStrip, label: "Show speed bar")
                 }
             }
             SettingsCard {
