@@ -26,7 +26,9 @@ final class AppSettings {
     var downloadFolder: URL { didSet { defaults.set(downloadFolder.path, forKey: "downloadFolder") } }
     var maxConcurrent: Int { didSet { defaults.set(maxConcurrent, forKey: "maxConcurrent") } }
     var connections: Int { didSet { defaults.set(connections, forKey: "connections") } }
-    /// KB/s, 0 = unlimited.
+    /// Whether downloads are throttled at all.
+    var speedLimitEnabled: Bool { didSet { defaults.set(speedLimitEnabled, forKey: "speedLimitEnabled") } }
+    /// The chosen limit in KB/s (1 KB = 1000 bytes), kept while the limit is switched off.
     var speedLimitKB: Int { didSet { defaults.set(speedLimitKB, forKey: "speedLimitKB") } }
     var categorySubfolders: Bool { didSet { defaults.set(categorySubfolders, forKey: "categorySubfolders") } }
     var clipboardMonitoring: Bool { didSet { defaults.set(clipboardMonitoring, forKey: "clipboardMonitoring") } }
@@ -44,7 +46,9 @@ final class AppSettings {
         downloadFolder = defaults.string(forKey: "downloadFolder").map { URL(filePath: $0) } ?? URL.downloadsDirectory
         maxConcurrent = defaults.integer(forKey: "maxConcurrent")
         connections = defaults.integer(forKey: "connections")
-        speedLimitKB = defaults.integer(forKey: "speedLimitKB")
+        let savedLimit = defaults.integer(forKey: "speedLimitKB")
+        speedLimitEnabled = defaults.object(forKey: "speedLimitEnabled") as? Bool ?? (savedLimit > 0)
+        speedLimitKB = savedLimit > 0 ? savedLimit : 2000
         categorySubfolders = defaults.bool(forKey: "categorySubfolders")
         clipboardMonitoring = defaults.bool(forKey: "clipboardMonitoring")
         browserIntegration = defaults.bool(forKey: "browserIntegration")
@@ -52,6 +56,9 @@ final class AppSettings {
         notifications = defaults.bool(forKey: "notifications")
         sortOrder = SortOrder(rawValue: defaults.string(forKey: "sortOrder") ?? "") ?? .newest
     }
+
+    /// Bytes per second actually applied to downloads; 0 means unlimited.
+    var effectiveSpeedLimit: Int64 { speedLimitEnabled ? Int64(speedLimitKB) * 1000 : 0 }
 
     func folder(for category: FileCategory) -> URL {
         categorySubfolders ? downloadFolder.appending(path: category.title, directoryHint: .isDirectory) : downloadFolder

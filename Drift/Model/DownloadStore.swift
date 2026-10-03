@@ -209,7 +209,7 @@ final class DownloadStore {
                 gid = try await Aria2.shared.addMagnet(item.url.absoluteString, directory: item.directory)
             }
             liveGIDs.insert(gid)
-            await Aria2.shared.setSpeedLimit(Int64(settings.speedLimitKB) * 1000)
+            await Aria2.shared.setSpeedLimit(settings.effectiveSpeedLimit)
             mutate(item.id) {
                 $0.torrentGID = gid
                 $0.state = .downloading
@@ -340,7 +340,7 @@ final class DownloadStore {
     }
 
     func applySpeedLimit() {
-        let bytes = Int64(settings.speedLimitKB) * 1000
+        let bytes = settings.effectiveSpeedLimit
         RateLimiter.shared.limit = bytes
         Task { await Aria2.shared.setSpeedLimit(bytes) }
     }
