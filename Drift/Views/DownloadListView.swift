@@ -232,6 +232,8 @@ private struct HeaderBar: View {
                 .help(anyRunning ? "Pause all downloads" : "Resume all downloads")
                 .accessibilityLabel(anyRunning ? "Pause All" : "Resume All")
 
+                SpeedMenu()
+
                 Menu {
                     Picker("Sort By", selection: $settings.sortOrder) {
                         ForEach(SortOrder.allCases) { order in
@@ -298,6 +300,59 @@ private struct HeaderBar: View {
         .padding(.bottom, 16)
         .background(Color.driftWindow)
         .gesture(WindowDragGesture())
+    }
+}
+
+/// Quick speed modes (FDM's traffic modes).
+private struct SpeedMenu: View {
+    @Environment(DownloadStore.self) private var store
+    @Environment(\.openSettings) private var openSettings
+
+    private static let modes: [(title: String, kb: Int?)] = [
+        ("Full Speed", nil), ("High · 10 MB/s", 10_000), ("Medium · 2 MB/s", 2_000), ("Low · 512 KB/s", 512),
+    ]
+
+    var body: some View {
+        let settings = store.settings
+        let limited = settings.speedLimitEnabled
+        Menu {
+            Section("Speed") {
+                ForEach(Self.modes, id: \.title) { mode in
+                    Button {
+                        if let kb = mode.kb {
+                            settings.speedLimitKB = kb
+                            settings.speedLimitEnabled = true
+                        } else {
+                            settings.speedLimitEnabled = false
+                        }
+                        store.applySpeedLimit()
+                    } label: {
+                        if isCurrent(mode.kb) { Label(mode.title, systemImage: "checkmark") } else { Text(mode.title) }
+                    }
+                }
+                if limited, !Self.modes.contains(where: { $0.kb == settings.speedLimitKB }) {
+                    Label("Custom · \(Format.speed(Double(settings.effectiveSpeedLimit)))", systemImage: "checkmark")
+                }
+                Button("Speed Settings…") { openSettings() }
+            }
+        } label: {
+            Image(systemName: "gauge.with.dots.needle.67percent")
+                .font(.system(size: 13, weight: .semibold))
+                .foregroundStyle(limited ? Color.driftPausedInk : Color.driftText)
+                .frame(width: 32, height: 28)
+                .contentShape(.capsule)
+        }
+        .menuStyle(.button)
+        .buttonStyle(.plain)
+        .menuIndicator(.hidden)
+        .fixedSize()
+        .help(limited ? "Speed limited to \(Format.speed(Double(settings.effectiveSpeedLimit)))" : "Speed options")
+        .accessibilityLabel("Speed")
+    }
+
+    private func isCurrent(_ kb: Int?) -> Bool {
+        guard let kb else { return !store.settings.speedLimitEnabled }
+        return store.settings.speedLimitEnabled && store.settings.speedLimitKB == kb
     }
 }
 

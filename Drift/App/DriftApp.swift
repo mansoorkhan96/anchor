@@ -28,6 +28,11 @@ struct DriftApp: App {
                     .keyboardShortcut("p", modifiers: [.command, .shift])
                 Button("Resume All") { store.resumeAll() }
                     .keyboardShortcut("r", modifiers: [.command, .shift])
+                Divider()
+                Picker("Speed", selection: Binding(get: { SpeedMode.current(store.settings) },
+                                                   set: { $0.apply(to: store.settings); store.applySpeedLimit() })) {
+                    ForEach(SpeedMode.allCases) { Text($0.title).tag($0) }
+                }
             }
         }
 
