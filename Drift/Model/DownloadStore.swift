@@ -568,6 +568,22 @@ final class DownloadStore {
         }
     }
 
+    // MARK: Links
+
+    /// Points a download at a fresh link (e.g. after the old one expired) and keeps the bytes already downloaded.
+    /// If the server reports a different file size, the next start begins again from zero.
+    func updateLink(_ id: UUID, to url: URL) {
+        guard let item = item(id), item.kind == .http, !item.state.isFinished else { return }
+        let resumeAfter = item.state.isActive || item.state == .queued || item.state.isFailed
+        if engines[id] != nil { pause(id) }
+        mutate(id) {
+            $0.url = url
+            $0.validator = nil
+            if $0.state.isFailed { $0.state = .paused }
+        }
+        if resumeAfter { resume(id) }
+    }
+
     /// Starts queued downloads while there are free slots.
     func schedule() {
         var active = activeCount

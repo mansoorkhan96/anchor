@@ -113,6 +113,11 @@ struct DownloadRow: View {
             NSPasteboard.general.clearContents()
             NSPasteboard.general.setString(item.url.absoluteString, forType: .string)
         }
+        if item.kind == .http, !item.state.isFinished {
+            Button("Update Link…") {
+                if let url = LinkPrompt.ask(for: item) { store.updateLink(item.id, to: url) }
+            }
+        }
         Divider()
         switch item.state {
         case .downloading, .connecting, .queued: Button("Pause") { store.pause(item.id) }
@@ -276,5 +281,27 @@ struct ProgressLine: View {
         .accessibilityElement()
         .accessibilityLabel("Progress")
         .accessibilityValue("\(Int(fraction * 100)) percent")
+    }
+}
+
+/// Asks for a replacement link for a download whose old link expired.
+@MainActor
+enum LinkPrompt {
+    static func ask(for item: DownloadItem) -> URL? {
+        let alert = NSAlert()
+        alert.messageText = "Update Link"
+        alert.informativeText = "Paste a new link for \(item.fileName). Drift keeps what's already downloaded if the file is the same size."
+        alert.addButton(withTitle: "Update")
+        alert.addButton(withTitle: "Cancel")
+        let field = NSTextField(frame: NSRect(x: 0, y: 0, width: 360, height: 24))
+        field.placeholderString = "https://…"
+        let clip = NSPasteboard.general.string(forType: .string)?.trimmingCharacters(in: .whitespacesAndNewlines) ?? ""
+        field.stringValue = clip.hasPrefix("http") ? clip : item.url.absoluteString
+        alert.accessoryView = field
+        alert.window.initialFirstResponder = field
+        guard alert.runModal() == .alertFirstButtonReturn,
+              let url = URL(string: field.stringValue.trimmingCharacters(in: .whitespacesAndNewlines)),
+              let scheme = url.scheme?.lowercased(), scheme == "http" || scheme == "https" else { return nil }
+        return url
     }
 }
