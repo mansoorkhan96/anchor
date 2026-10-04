@@ -197,6 +197,9 @@ private struct GeneralPage: View {
                 SettingsRow(title: "Open Drift at login", detail: "Stays in the menu bar so browser downloads always work", divider: true) {
                     DriftSwitch(isOn: $launchAtLogin, label: "Open Drift at login")
                 }
+                SettingsRow(title: "Keep Mac awake while downloading", detail: "Stops idle sleep until downloads finish; the screen can still turn off", divider: true) {
+                    DriftSwitch(isOn: $settings.keepAwake, label: "Keep Mac awake while downloading")
+                }
                 SettingsRow(title: "Notify when downloads finish", detail: "Also tells you when a download fails", divider: true) {
                     DriftSwitch(isOn: $settings.notifications, label: "Notify when downloads finish")
                 }

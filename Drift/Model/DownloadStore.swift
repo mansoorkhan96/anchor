@@ -572,6 +572,7 @@ final class DownloadStore {
     // MARK: Ticking
 
     private func update() {
+        Power.keepAwake(settings.keepAwake && activeCount > 0)
         var total: Double = 0
         for (id, engine) in engines {
             let snap = engine.snapshot()

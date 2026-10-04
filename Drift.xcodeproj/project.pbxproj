@@ -32,6 +32,7 @@
 		C1FD69F439DDE81D3068F2E4 /* AddDownloadSheet.swift in Sources */ = {isa = PBXBuildFile; fileRef = C7B3FC8C4FC2009B7357229E /* AddDownloadSheet.swift */; };
 		D157E3910D791CACE24F4E0F /* TorrentFile.swift in Sources */ = {isa = PBXBuildFile; fileRef = 702ACAAD294E992E87F5D010 /* TorrentFile.swift */; };
 		D1CB1248290929C96699FF6E /* DownloadListView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 7F65ECECD58388A0D3920E7D /* DownloadListView.swift */; };
+		D9021C6CCE69C86713A668F7 /* Power.swift in Sources */ = {isa = PBXBuildFile; fileRef = 031FF77326075F145E24119B /* Power.swift */; };
 		D912BFECD3DD9378437EB5F1 /* AddDownloadPanel.swift in Sources */ = {isa = PBXBuildFile; fileRef = AB4D7473D92AA02FE334D442 /* AddDownloadPanel.swift */; };
 		DC1A50CCECF5B8BFED3F829A /* Formatters.swift in Sources */ = {isa = PBXBuildFile; fileRef = F3AABE81BC4F1F133E1CBD78 /* Formatters.swift */; };
 		EA74697FF32067E760E1BA60 /* RateLimiter.swift in Sources */ = {isa = PBXBuildFile; fileRef = 46FF34950EC60FE0BF896F2A /* RateLimiter.swift */; };
@@ -52,6 +53,7 @@
 /* End PBXContainerItemProxy section */
 
 /* Begin PBXFileReference section */
+		031FF77326075F145E24119B /* Power.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Power.swift; sourceTree = "<group>"; };
 		08E33CA6BE80D735A37ED745 /* Assets.xcassets */ = {isa = PBXFileReference; lastKnownFileType = folder.assetcatalog; path = Assets.xcassets; sourceTree = "<group>"; };
 		0E34BD7081042061DD730EA9 /* ClipboardWatcher.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ClipboardWatcher.swift; sourceTree = "<group>"; };
 		1838DE170DA877B6F676AFA2 /* AppSettings.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AppSettings.swift; sourceTree = "<group>"; };
@@ -162,6 +164,7 @@
 			children = (
 				B8DA68BA96D8381013FF15C2 /* FileNaming.swift */,
 				506CB9D922F640D2B265D5B0 /* HTTPDownload.swift */,
+				031FF77326075F145E24119B /* Power.swift */,
 				2A614D70A1860749FC6DA7CB /* Probe.swift */,
 				46FF34950EC60FE0BF896F2A /* RateLimiter.swift */,
 				4CCDB5352B78FDF102FC53C3 /* SegmentPlanner.swift */,
@@ -351,6 +354,7 @@
 				14FB89A5D3475CA779C218A1 /* HTTPDownload.swift in Sources */,
 				B457446FCA430088B7876BD4 /* MainView.swift in Sources */,
 				709057788D8DABCAF3989C3C /* MenuBarView.swift in Sources */,
+				D9021C6CCE69C86713A668F7 /* Power.swift in Sources */,
 				17149684C587FD904D019427 /* Probe.swift in Sources */,
 				EA74697FF32067E760E1BA60 /* RateLimiter.swift in Sources */,
 				6408F051A917ED30515EF783 /* SegmentPlanner.swift in Sources */,

@@ -62,6 +62,7 @@ final class AppSettings {
     var menuBarCount: Int { didSet { defaults.set(menuBarCount, forKey: "menuBarCount") } }
     var showMenuBarIcon: Bool { didSet { defaults.set(showMenuBarIcon, forKey: "showMenuBarIcon") } }
     var showSpeedStrip: Bool { didSet { defaults.set(showSpeedStrip, forKey: "showSpeedStrip") } }
+    var keepAwake: Bool { didSet { defaults.set(keepAwake, forKey: "keepAwake") } }
     var existingFileAction: ExistingFileAction { didSet { defaults.set(existingFileAction.rawValue, forKey: "existingFileAction") } }
 
     private init() {
@@ -70,7 +71,7 @@ final class AppSettings {
             "clipboardMonitoring": true, "browserIntegration": true, "confirmBrowserDownloads": true,
             "notifications": true, "sortOrder": SortOrder.newest.rawValue,
             "menuBarOrder": MenuBarOrder.unfinishedFirst.rawValue, "menuBarCount": 5,
-            "showMenuBarIcon": true, "showSpeedStrip": true, "existingFileAction": ExistingFileAction.ask.rawValue,
+            "showMenuBarIcon": true, "showSpeedStrip": true, "keepAwake": true, "existingFileAction": ExistingFileAction.ask.rawValue,
         ])
         downloadFolder = defaults.string(forKey: "downloadFolder").map { URL(filePath: $0) } ?? URL.downloadsDirectory
         maxConcurrent = defaults.integer(forKey: "maxConcurrent")
@@ -88,6 +89,7 @@ final class AppSettings {
         menuBarCount = defaults.integer(forKey: "menuBarCount")
         showMenuBarIcon = defaults.bool(forKey: "showMenuBarIcon")
         showSpeedStrip = defaults.bool(forKey: "showSpeedStrip")
+        keepAwake = defaults.bool(forKey: "keepAwake")
         existingFileAction = ExistingFileAction(rawValue: defaults.string(forKey: "existingFileAction") ?? "") ?? .ask
     }
 
