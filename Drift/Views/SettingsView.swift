@@ -262,7 +262,86 @@ private struct SpeedPage: View {
                         .onChange(of: settings.maxConcurrent) { store.schedule() }
                 }
             }
+            TorrentCard()
         }
+    }
+}
+
+/// Torrent seeding: share back after downloading, until a ratio, with an upload cap.
+private struct TorrentCard: View {
+    @Environment(DownloadStore.self) private var store
+    private static let uploadOptions = [0, 100, 500, 1_000, 5_000]
+
+    var body: some View {
+        @Bindable var settings = store.settings
+        SettingsCard {
+            SettingsRow(title: "Seed torrents after downloading",
+                        detail: "Keep sharing finished torrents with other people", divider: settings.seedTorrents) {
+                DriftSwitch(isOn: $settings.seedTorrents, label: "Seed torrents after downloading")
+            }
+            if settings.seedTorrents {
+                SettingsRow(title: "Stop seeding at ratio",
+                            detail: "Uploaded ÷ size. 1.0 means you've shared back as much as you took", divider: true) {
+                    RatioStepper(value: $settings.seedRatio)
+                }
+                SettingsRow(title: "Upload limit", detail: "Caps how much bandwidth seeding uses") {
+                    Menu {
+                        ForEach(Self.uploadOptions, id: \.self) { kb in
+                            Button(kb == 0 ? "Unlimited" : Format.speed(Double(kb * 1000))) { settings.uploadLimitKB = kb }
+                        }
+                    } label: {
+                        HStack(spacing: 6) {
+                            Text(settings.uploadLimitKB == 0 ? "Unlimited" : Format.speed(Double(settings.uploadLimitKB * 1000)))
+                                .font(.system(size: 12.5, weight: .medium).monospacedDigit())
+                            Image(systemName: "chevron.up.chevron.down").font(.system(size: 9, weight: .semibold))
+                        }
+                        .foregroundStyle(Color.driftText)
+                        .padding(.horizontal, 10)
+                        .frame(height: 30)
+                        .background(Color.driftWindow, in: .rect(cornerRadius: 9))
+                        .overlay(RoundedRectangle(cornerRadius: 9).strokeBorder(Color.driftLine))
+                    }
+                    .menuStyle(.button)
+                    .buttonStyle(.plain)
+                    .menuIndicator(.hidden)
+                    .fixedSize()
+                }
+            }
+        }
+        .animation(.snappy(duration: 0.2), value: settings.seedTorrents)
+        .onChange(of: settings.seedTorrents) { store.applySeeding() }
+        .onChange(of: settings.seedRatio) { store.applySeeding() }
+        .onChange(of: settings.uploadLimitKB) { store.applySeeding() }
+    }
+}
+
+private struct RatioStepper: View {
+    @Binding var value: Double
+
+    var body: some View {
+        HStack(spacing: 0) {
+            step("minus") { value = max(0.5, value - 0.5) }
+            Text(String(format: "%.1f", value))
+                .font(.system(size: 13, weight: .bold).monospacedDigit())
+                .foregroundStyle(Color.driftText)
+                .frame(width: 42, height: 30)
+                .overlay(alignment: .leading) { Rectangle().fill(Color.driftLine).frame(width: 1) }
+                .overlay(alignment: .trailing) { Rectangle().fill(Color.driftLine).frame(width: 1) }
+            step("plus") { value = min(10, value + 0.5) }
+        }
+        .background(Color.driftWindow, in: .rect(cornerRadius: 9))
+        .overlay(RoundedRectangle(cornerRadius: 9).strokeBorder(Color.driftLine))
+    }
+
+    private func step(_ symbol: String, action: @escaping () -> Void) -> some View {
+        Button(action: action) {
+            Image(systemName: symbol)
+                .font(.system(size: 11, weight: .bold))
+                .foregroundStyle(Color.driftMuted2)
+                .frame(width: 32, height: 30)
+                .contentShape(.rect)
+        }
+        .buttonStyle(.plain)
     }
 }
 

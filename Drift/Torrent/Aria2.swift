@@ -10,6 +10,8 @@ struct TorrentStatus: Sendable {
     var seeders: Int
     var errorMessage: String?
     var followedBy: String?
+    var uploadSpeed: Double = 0
+    var uploadedBytes: Int64 = 0
 }
 
 /// A torrent added to aria2 in a paused state so its files can be reviewed before downloading.
@@ -42,6 +44,9 @@ actor Aria2 {
     private var port = 0
     private let secret = UUID().uuidString
     private var nextID = 0
+    /// Per-torrent seeding options added to every new torrent.
+    private var seedOptions: [String: String] = ["seed-time": "0"]
+    private var uploadLimit: Int64 = 0
 
     private var binary: URL? {
         let bundled = Bundle.main.bundleURL.appending(path: "Contents/Helpers/aria2c")
@@ -68,6 +73,7 @@ actor Aria2 {
             "--dht-file-path=\(support.appending(path: "dht.dat").path)",
             "--quiet=true",
         ]
+        proc.arguments?.append("--max-overall-upload-limit=\(uploadLimit)")
         proc.standardOutput = FileHandle.nullDevice
         proc.standardError = FileHandle.nullDevice
         try proc.run()
@@ -87,7 +93,7 @@ actor Aria2 {
 
     func addMagnet(_ uri: String, directory: URL) async throws -> String {
         try await ensureRunning()
-        let result = try await call("aria2.addUri", [[uri], ["dir": directory.path]])
+        let result = try await call("aria2.addUri", [[uri], seedOptions.merging(["dir": directory.path]) { $1 }])
         guard let gid = result as? String else { throw Aria2Error.rpc("No id returned") }
         return gid
     }
@@ -95,7 +101,7 @@ actor Aria2 {
     func addTorrent(_ file: URL, directory: URL, select: [Int]? = nil, checkIntegrity: Bool = false) async throws -> String {
         try await ensureRunning()
         let data = try Data(contentsOf: file).base64EncodedString()
-        var options = ["dir": directory.path]
+        var options = seedOptions.merging(["dir": directory.path]) { $1 }
         if let select, !select.isEmpty { options["select-file"] = select.map(String.init).joined(separator: ",") }
         if checkIntegrity { options["check-integrity"] = "true" }
         let result = try await call("aria2.addTorrent", [data, [String](), options])
@@ -106,7 +112,7 @@ actor Aria2 {
     /// Fetches a magnet's metadata and leaves the real download paused, returning its file list.
     func prepareMagnet(_ uri: String, directory: URL) async throws -> PreparedTorrent {
         try await ensureRunning()
-        let result = try await call("aria2.addUri", [[uri], ["dir": directory.path, "pause-metadata": "true"]])
+        let result = try await call("aria2.addUri", [[uri], seedOptions.merging(["dir": directory.path, "pause-metadata": "true"]) { $1 }])
         guard let meta = result as? String else { throw Aria2Error.rpc("No id returned") }
         do {
             for _ in 0..<180 {
@@ -131,7 +137,7 @@ actor Aria2 {
     func prepareTorrent(_ file: URL, directory: URL) async throws -> PreparedTorrent {
         try await ensureRunning()
         let data = try Data(contentsOf: file).base64EncodedString()
-        let result = try await call("aria2.addTorrent", [data, [String](), ["dir": directory.path, "pause": "true"]])
+        let result = try await call("aria2.addTorrent", [data, [String](), seedOptions.merging(["dir": directory.path, "pause": "true"]) { $1 }])
         guard let gid = result as? String else { throw Aria2Error.rpc("No id returned") }
         return try await prepared(gid, directory: directory)
     }
@@ -185,7 +191,7 @@ actor Aria2 {
 
     func status(_ gid: String) async throws -> TorrentStatus {
         let keys = ["status", "totalLength", "completedLength", "downloadSpeed", "connections",
-                    "numSeeders", "errorMessage", "followedBy", "bittorrent"]
+                    "numSeeders", "errorMessage", "followedBy", "bittorrent", "uploadSpeed", "uploadLength"]
         guard let json = try await call("aria2.tellStatus", [gid, keys]) as? [String: Any] else {
             throw Aria2Error.rpc("Bad status")
         }
@@ -199,7 +205,9 @@ actor Aria2 {
             connections: Int(json["connections"] as? String ?? "") ?? 0,
             seeders: Int(json["numSeeders"] as? String ?? "") ?? 0,
             errorMessage: json["errorMessage"] as? String,
-            followedBy: (json["followedBy"] as? [String])?.first
+            followedBy: (json["followedBy"] as? [String])?.first,
+            uploadSpeed: Double(json["uploadSpeed"] as? String ?? "") ?? 0,
+            uploadedBytes: Int64(json["uploadLength"] as? String ?? "") ?? 0
         )
     }
 
@@ -214,6 +222,17 @@ actor Aria2 {
     func remove(_ gid: String) async {
         _ = try? await call("aria2.forceRemove", [gid])
         _ = try? await call("aria2.removeDownloadResult", [gid])
+    }
+
+    /// Seeding: keep uploading after a torrent finishes until `ratio` (uploaded ÷ size) is reached, or stop at once.
+    /// Applies to new torrents and to the given running ones.
+    func configureSeeding(enabled: Bool, ratio: Double, uploadLimit bytesPerSecond: Int64, live gids: [String]) async {
+        // seed-time is in minutes; a year means "until the ratio is reached".
+        seedOptions = enabled ? ["seed-ratio": String(format: "%.1f", ratio), "seed-time": "525600"] : ["seed-time": "0"]
+        uploadLimit = bytesPerSecond
+        guard isRunning else { return }
+        _ = try? await call("aria2.changeGlobalOption", [["max-overall-upload-limit": "\(bytesPerSecond)"]])
+        for gid in gids { _ = try? await call("aria2.changeOption", [gid, seedOptions]) }
     }
 
     /// Caps one torrent's download speed; 0 removes the cap.

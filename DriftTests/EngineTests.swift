@@ -171,3 +171,28 @@ import Testing
         #expect(TorrentSelection.phase(files) == [1, 2])
     }
 }
+
+@Suite struct PersistenceTests {
+    /// Items saved by older versions (missing newer fields) must still load.
+    @Test func decodesItemsSavedByOlderVersions() throws {
+        let old = """
+        {"id":"7E1B68C6-35D8-44D6-8C12-B179B025D8BD","kind":"http","url":"https://a.com/x.zip","fileName":"x.zip",
+         "directory":"file:///tmp/","category":"archives","receivedBytes":10,"segments":[],"supportsRanges":true,
+         "state":{"paused":{}},"createdAt":800000000,"openWhenDone":false,"headers":{}}
+        """
+        let item = try JSONDecoder().decode(DownloadItem.self, from: Data(old.utf8))
+        #expect(item.fileName == "x.zip")
+        #expect(item.state == .paused)
+        #expect(item.speedLimitKB == nil)
+    }
+
+    @Test func roundTripsCurrentItems() throws {
+        var item = DownloadItem(url: URL(string: "https://a.com/x.zip")!, fileName: "x.zip",
+                                directory: URL(filePath: "/tmp"), category: .archives)
+        item.speedLimitKB = 500
+        item.uploadedBytes = 99
+        let back = try JSONDecoder().decode(DownloadItem.self, from: JSONEncoder().encode(item))
+        #expect(back.speedLimitKB == 500)
+        #expect(back.uploadedBytes == 0)
+    }
+}

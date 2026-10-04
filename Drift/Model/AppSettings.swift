@@ -63,6 +63,10 @@ final class AppSettings {
     var showMenuBarIcon: Bool { didSet { defaults.set(showMenuBarIcon, forKey: "showMenuBarIcon") } }
     var showSpeedStrip: Bool { didSet { defaults.set(showSpeedStrip, forKey: "showSpeedStrip") } }
     var keepAwake: Bool { didSet { defaults.set(keepAwake, forKey: "keepAwake") } }
+    var seedTorrents: Bool { didSet { defaults.set(seedTorrents, forKey: "seedTorrents") } }
+    var seedRatio: Double { didSet { defaults.set(seedRatio, forKey: "seedRatio") } }
+    /// KB/s, 0 = unlimited.
+    var uploadLimitKB: Int { didSet { defaults.set(uploadLimitKB, forKey: "uploadLimitKB") } }
     /// One-shot: resets to `.nothing` after it runs, like FDM's "when done" option.
     var whenDone: WhenDoneAction = .nothing
     var existingFileAction: ExistingFileAction { didSet { defaults.set(existingFileAction.rawValue, forKey: "existingFileAction") } }
@@ -73,7 +77,7 @@ final class AppSettings {
             "clipboardMonitoring": true, "browserIntegration": true, "confirmBrowserDownloads": true,
             "notifications": true, "sortOrder": SortOrder.newest.rawValue,
             "menuBarOrder": MenuBarOrder.unfinishedFirst.rawValue, "menuBarCount": 5,
-            "showMenuBarIcon": true, "showSpeedStrip": true, "keepAwake": true, "existingFileAction": ExistingFileAction.ask.rawValue,
+            "showMenuBarIcon": true, "showSpeedStrip": true, "keepAwake": true, "seedTorrents": false, "seedRatio": 1.0, "uploadLimitKB": 0, "existingFileAction": ExistingFileAction.ask.rawValue,
         ])
         downloadFolder = defaults.string(forKey: "downloadFolder").map { URL(filePath: $0) } ?? URL.downloadsDirectory
         maxConcurrent = defaults.integer(forKey: "maxConcurrent")
@@ -92,6 +96,9 @@ final class AppSettings {
         showMenuBarIcon = defaults.bool(forKey: "showMenuBarIcon")
         showSpeedStrip = defaults.bool(forKey: "showSpeedStrip")
         keepAwake = defaults.bool(forKey: "keepAwake")
+        seedTorrents = defaults.bool(forKey: "seedTorrents")
+        seedRatio = defaults.double(forKey: "seedRatio")
+        uploadLimitKB = defaults.integer(forKey: "uploadLimitKB")
         existingFileAction = ExistingFileAction(rawValue: defaults.string(forKey: "existingFileAction") ?? "") ?? .ask
     }
 

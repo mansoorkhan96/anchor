@@ -36,9 +36,10 @@ struct DownloadRow: View {
 
             CategoryTag(item: item)
 
-            Text(item.state == .downloading ? Format.speed(item.speed) : "")
+            Text(item.seeding == true ? "↑ \(Format.speed(item.uploadSpeed))" : item.state == .downloading ? Format.speed(item.speed) : "")
                 .font(.system(size: 12, weight: .semibold).monospacedDigit())
-                .foregroundStyle(Color.driftAccentStrong)
+                .foregroundStyle(item.seeding == true ? Color.driftSuccess : Color.driftAccentStrong)
+                .help(item.seeding == true ? "Seeding · \(Format.bytes(item.uploadedBytes)) uploaded" : "")
                 .frame(width: 80, alignment: .trailing)
                 .contentTransition(.numericText())
             Text(percentText)
@@ -134,6 +135,9 @@ struct DownloadRow: View {
             Button("Retry") { store.retry(item.id) }
             Button("Add to Queue") { store.queue([item.id]) }
         case .completed: EmptyView()
+        }
+        if item.seeding == true {
+            Button("Stop Seeding") { store.stopSeeding(item.id) }
         }
         if !item.state.isFinished {
             Menu("Speed Limit") {

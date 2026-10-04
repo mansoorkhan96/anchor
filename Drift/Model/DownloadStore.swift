@@ -68,6 +68,7 @@ final class DownloadStore {
     private init() {
         load()
         applySpeedLimit()
+        applySeeding()
         timer = Timer.scheduledTimer(withTimeInterval: Self.tick, repeats: true) { _ in
             MainActor.assumeIsolated { DownloadStore.shared.update() }
         }
@@ -523,6 +524,28 @@ final class DownloadStore {
         Task { await Aria2.shared.setSpeedLimit(bytes) }
     }
 
+    /// Sends the seeding settings to aria2 for new and running torrents.
+    func applySeeding() {
+        let live = items.filter { $0.kind == .torrent && ($0.state.isActive || $0.seeding == true) }.compactMap(\.torrentGID)
+        let (enabled, ratio, upload) = (settings.seedTorrents, settings.seedRatio, Int64(settings.uploadLimitKB) * 1000)
+        Task { await Aria2.shared.configureSeeding(enabled: enabled, ratio: ratio, uploadLimit: upload, live: live) }
+        if !enabled {
+            for item in items where item.seeding == true { stopSeeding(item.id) }
+        }
+    }
+
+    func stopSeeding(_ id: UUID) {
+        guard let item = item(id), item.seeding == true else { return }
+        if let gid = item.torrentGID {
+            liveGIDs.remove(gid)
+            Task { await Aria2.shared.remove(gid) }
+        }
+        mutate(id) {
+            $0.seeding = nil
+            $0.uploadSpeed = 0
+        }
+    }
+
     // MARK: Engine events
 
     private func handle(_ id: UUID, _ event: DownloadEvent) {
@@ -651,7 +674,7 @@ final class DownloadStore {
     }
 
     private func pollTorrents() {
-        let running = items.filter { $0.kind == .torrent && $0.state.isActive }.compactMap { item in
+        let running = items.filter { $0.kind == .torrent && ($0.state.isActive || $0.seeding == true) }.compactMap { item in
             item.torrentGID.map { (item.id, $0, item.directory) }
         }
         guard !running.isEmpty, !pollingTorrents else { return }
@@ -687,9 +710,34 @@ final class DownloadStore {
             $0.connections = status.connections
             $0.peers = status.connections
             $0.seeders = status.seeders
+            $0.uploadSpeed = status.uploadSpeed
+            $0.uploadedBytes = status.uploadedBytes
         }
-        switch status.state {
+        // Seeding: aria2 keeps the torrent "active" after the download finishes, until the ratio is reached.
+        if item(id)?.state == .completed {
+            if status.state != "active" {
+                mutate(id) {
+                    $0.seeding = nil
+                    $0.uploadSpeed = 0
+                }
+                liveGIDs.remove(gid)
+            }
+            return
+        }
+        let downloaded = status.state == "active" && status.totalBytes > 0 && status.completedBytes >= status.totalBytes
+        switch downloaded ? "complete" : status.state {
         case "complete":
+            if downloaded, status.state == "active" {
+                // Finished but still seeding: hand over the file now, keep uploading in the background.
+                if let item = item(id), let files = item.files,
+                   TorrentSelection.hasLaterPhase(files, selected: item.appliedSelection ?? TorrentSelection.phase(files)) {
+                    applySelection(id)
+                    break
+                }
+                mutate(id) { $0.seeding = true }
+                complete(id)
+                break
+            }
             if let item = item(id), let files = item.files,
                TorrentSelection.hasLaterPhase(files, selected: item.appliedSelection ?? TorrentSelection.phase(files)) {
                 startNextPhase(id, finishedGID: gid)
@@ -791,6 +839,7 @@ final class DownloadStore {
                 continue
             }
             if item.state.isActive { item.state = .queued }
+            item.seeding = nil
             loaded.append(item)
         }
         if skipped > 0 { preserveUnreadable(url) }

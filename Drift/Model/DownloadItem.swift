@@ -64,6 +64,10 @@ struct DownloadItem: Codable, Identifiable, Hashable, Sendable {
     var appliedSelection: [Int]?
     /// This download's own speed cap in KB/s (on top of the global limit); nil = no cap.
     var speedLimitKB: Int?
+    /// Torrent: keeps uploading after finishing, until the seed ratio is reached.
+    var seeding: Bool?
+    var uploadSpeed: Double = 0
+    var uploadedBytes: Int64 = 0
 
     /// Extra request headers forwarded from the browser (cookies, referer, user agent).
     var headers: [String: String] = [:]
@@ -80,7 +84,7 @@ struct DownloadItem: Codable, Identifiable, Hashable, Sendable {
 
     enum CodingKeys: String, CodingKey {
         case id, kind, url, fileName, directory, category, totalBytes, receivedBytes, segments
-        case supportsRanges, validator, state, createdAt, completedAt, openWhenDone, headers, nameFromServer, overwrite, queuedAt, priority, files, appliedSelection, speedLimitKB
+        case supportsRanges, validator, state, createdAt, completedAt, openWhenDone, headers, nameFromServer, overwrite, queuedAt, priority, files, appliedSelection, speedLimitKB, seeding
         case torrentGID, torrentFile
     }
 
