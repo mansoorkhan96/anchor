@@ -33,6 +33,7 @@ targets:
         LSApplicationCategoryType: public.app-category.utilities
         LSMinimumSystemVersion: "26.0"
         NSHumanReadableCopyright: ""
+        NSAppleEventsUsageDescription: Drift asks System Events to shut down your Mac when you choose "Shut Down" after downloads finish.
         CFBundleURLTypes:
           - CFBundleURLName: Magnet link
             CFBundleURLSchemes: [magnet]

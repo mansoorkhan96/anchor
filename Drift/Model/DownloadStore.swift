@@ -552,6 +552,20 @@ final class DownloadStore {
         notify(title: "Download complete", body: item.fileName)
         if item.openWhenDone { NSWorkspace.shared.open(item.destination) }
         schedule()
+        runWhenDoneIfFinished()
+    }
+
+    /// After the last download completes, runs the chosen "when done" action (with a chance to cancel).
+    private func runWhenDoneIfFinished() {
+        let action = settings.whenDone
+        guard action != .nothing, activeCount + queuedCount == 0 else { return }
+        settings.whenDone = .nothing
+        FloatingPanels.present { close in
+            WhenDoneView(action: action) { confirmed in
+                close()
+                if confirmed { Power.perform(action) }
+            }
+        }
     }
 
     /// Starts queued downloads while there are free slots.

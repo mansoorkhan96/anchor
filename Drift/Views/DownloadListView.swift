@@ -125,6 +125,7 @@ struct DownloadListView: View {
         if store.activeCount > 0 { parts.append("\(store.activeCount) downloading") }
         if paused > 0 { parts.append("\(paused) paused") }
         if store.queuedCount > 0 { parts.append("\(store.queuedCount) queued") }
+        if store.settings.whenDone != .nothing { parts.append("then \(store.settings.whenDone.title.lowercased())") }
         return parts.joined(separator: " · ")
     }
 
@@ -303,7 +304,7 @@ private struct HeaderBar: View {
     }
 }
 
-/// Quick speed modes (FDM's traffic modes).
+/// Quick speed modes (FDM's traffic modes) and the one-shot "when all downloads finish" action.
 private struct SpeedMenu: View {
     @Environment(DownloadStore.self) private var store
     @Environment(\.openSettings) private var openSettings
@@ -335,6 +336,15 @@ private struct SpeedMenu: View {
                 }
                 Button("Speed Settings…") { openSettings() }
             }
+            Section("When All Downloads Finish") {
+                ForEach(WhenDoneAction.allCases) { action in
+                    Button {
+                        settings.whenDone = action
+                    } label: {
+                        if settings.whenDone == action { Label(action.title, systemImage: "checkmark") } else { Text(action.title) }
+                    }
+                }
+            }
         } label: {
             Image(systemName: "gauge.with.dots.needle.67percent")
                 .font(.system(size: 13, weight: .semibold))
@@ -346,7 +356,7 @@ private struct SpeedMenu: View {
         .buttonStyle(.plain)
         .menuIndicator(.hidden)
         .fixedSize()
-        .help(limited ? "Speed limited to \(Format.speed(Double(settings.effectiveSpeedLimit)))" : "Speed options")
+        .help(limited ? "Speed limited to \(Format.speed(Double(settings.effectiveSpeedLimit)))" : "Speed and when-done options")
         .accessibilityLabel("Speed")
     }
 

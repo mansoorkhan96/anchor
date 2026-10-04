@@ -63,6 +63,8 @@ final class AppSettings {
     var showMenuBarIcon: Bool { didSet { defaults.set(showMenuBarIcon, forKey: "showMenuBarIcon") } }
     var showSpeedStrip: Bool { didSet { defaults.set(showSpeedStrip, forKey: "showSpeedStrip") } }
     var keepAwake: Bool { didSet { defaults.set(keepAwake, forKey: "keepAwake") } }
+    /// One-shot: resets to `.nothing` after it runs, like FDM's "when done" option.
+    var whenDone: WhenDoneAction = .nothing
     var existingFileAction: ExistingFileAction { didSet { defaults.set(existingFileAction.rawValue, forKey: "existingFileAction") } }
 
     private init() {

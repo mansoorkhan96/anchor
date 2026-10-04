@@ -7,6 +7,7 @@
 	objects = {
 
 /* Begin PBXBuildFile section */
+		0A0047585B0BE8724634DF5E /* WhenDoneView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 9A3D54BF360215659317A62F /* WhenDoneView.swift */; };
 		1127165D918D734766B9A24E /* DownloadRow.swift in Sources */ = {isa = PBXBuildFile; fileRef = A0278368CA85399B466A2078 /* DownloadRow.swift */; };
 		14FB89A5D3475CA779C218A1 /* HTTPDownload.swift in Sources */ = {isa = PBXBuildFile; fileRef = 506CB9D922F640D2B265D5B0 /* HTTPDownload.swift */; };
 		16B67EDEA20F5FD512F9B90C /* FileNaming.swift in Sources */ = {isa = PBXBuildFile; fileRef = B8DA68BA96D8381013FF15C2 /* FileNaming.swift */; };
@@ -78,6 +79,7 @@
 		80473000068BB96DF392A468 /* DriftApp.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = DriftApp.swift; sourceTree = "<group>"; };
 		847D80793840446CEC52C5D3 /* FileCategory.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = FileCategory.swift; sourceTree = "<group>"; };
 		9888F14F62828F61E272BB06 /* Aria2.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Aria2.swift; sourceTree = "<group>"; };
+		9A3D54BF360215659317A62F /* WhenDoneView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = WhenDoneView.swift; sourceTree = "<group>"; };
 		A0278368CA85399B466A2078 /* DownloadRow.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = DownloadRow.swift; sourceTree = "<group>"; };
 		A0875D4A3B85B50C9FFE45C8 /* Theme.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Theme.swift; sourceTree = "<group>"; };
 		A331546982DA568F2F096A59 /* DetailsPanel.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = DetailsPanel.swift; sourceTree = "<group>"; };
@@ -155,6 +157,7 @@
 				2422888F84E23778A8427069 /* SettingsView.swift */,
 				A0875D4A3B85B50C9FFE45C8 /* Theme.swift */,
 				2BF9FFE56F0166CDE01AC25F /* TorrentFileList.swift */,
+				9A3D54BF360215659317A62F /* WhenDoneView.swift */,
 			);
 			path = Views;
 			sourceTree = "<group>";
@@ -362,6 +365,7 @@
 				B6080A9BA9846FB427A0E18C /* Theme.swift in Sources */,
 				D157E3910D791CACE24F4E0F /* TorrentFile.swift in Sources */,
 				573CEC74A2C02CE4AFF79B38 /* TorrentFileList.swift in Sources */,
+				0A0047585B0BE8724634DF5E /* WhenDoneView.swift in Sources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};

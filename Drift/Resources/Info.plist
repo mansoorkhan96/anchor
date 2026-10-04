@@ -58,6 +58,8 @@
 	<string>public.app-category.utilities</string>
 	<key>LSMinimumSystemVersion</key>
 	<string>26.0</string>
+	<key>NSAppleEventsUsageDescription</key>
+	<string>Drift asks System Events to shut down your Mac when you choose "Shut Down" after downloads finish.</string>
 	<key>NSHumanReadableCopyright</key>
 	<string></string>
 	<key>UTImportedTypeDeclarations</key>

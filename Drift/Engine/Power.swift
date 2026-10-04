@@ -2,7 +2,32 @@ import Foundation
 import IOKit.pwr_mgt
 import AppKit
 
-/// System power helpers: keeping the Mac awake.
+/// What to do once every download has finished.
+enum WhenDoneAction: String, CaseIterable, Identifiable {
+    case nothing, quit, sleep, shutDown
+
+    var id: String { rawValue }
+
+    var title: String {
+        switch self {
+        case .nothing: "Do Nothing"
+        case .quit: "Quit Drift"
+        case .sleep: "Sleep"
+        case .shutDown: "Shut Down"
+        }
+    }
+
+    var symbol: String {
+        switch self {
+        case .nothing: "minus.circle"
+        case .quit: "xmark.circle"
+        case .sleep: "moon"
+        case .shutDown: "power"
+        }
+    }
+}
+
+/// System power helpers: keeping the Mac awake, and sleeping or shutting it down.
 @MainActor
 enum Power {
     private static var assertion: IOPMAssertionID = 0
@@ -20,6 +45,22 @@ enum Power {
         }
     }
 
+    static func perform(_ action: WhenDoneAction) {
+        switch action {
+        case .nothing:
+            break
+        case .quit:
+            NSApp.terminate(nil)
+        case .sleep:
+            let task = Process()
+            task.executableURL = URL(filePath: "/usr/bin/pmset")
+            task.arguments = ["sleepnow"]
+            try? task.run()
+        case .shutDown:
+            // Asks System Events, which shows the normal shut-down flow (apps get to save their work).
+            NSAppleScript(source: "tell application \"System Events\" to shut down")?.executeAndReturnError(nil)
+        }
+    }
 }
 
 /// Quick speed presets (FDM's traffic modes), shared by the header menu and the app menu.

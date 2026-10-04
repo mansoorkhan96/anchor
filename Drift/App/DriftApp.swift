@@ -33,6 +33,10 @@ struct DriftApp: App {
                                                    set: { $0.apply(to: store.settings); store.applySpeedLimit() })) {
                     ForEach(SpeedMode.allCases) { Text($0.title).tag($0) }
                 }
+                Picker("When All Downloads Finish", selection: Binding(get: { store.settings.whenDone },
+                                                                      set: { store.settings.whenDone = $0 })) {
+                    ForEach(WhenDoneAction.allCases) { Text($0.title).tag($0) }
+                }
             }
         }
 
