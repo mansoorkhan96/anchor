@@ -20,6 +20,12 @@ struct DownloadRow: View {
                         .foregroundStyle(priority == .high ? Color.driftAccentInk : Color.driftMuted)
                         .help("\(priority.title) priority")
                 }
+                if let kb = item.speedLimitKB, !item.state.isFinished {
+                    Image(systemName: "gauge.with.dots.needle.33percent")
+                        .font(.system(size: 10, weight: .semibold))
+                        .foregroundStyle(Color.driftPausedInk)
+                        .help("Limited to \(Format.speed(Double(kb * 1000)))")
+                }
                 Text(item.fileName)
                     .font(.system(size: 13, weight: .medium))
                     .foregroundStyle(Color.driftText)
@@ -128,6 +134,11 @@ struct DownloadRow: View {
             Button("Retry") { store.retry(item.id) }
             Button("Add to Queue") { store.queue([item.id]) }
         case .completed: EmptyView()
+        }
+        if !item.state.isFinished {
+            Menu("Speed Limit") {
+                SpeedLimitMenuItems(current: item.speedLimitKB) { store.setSpeedLimit([item.id], kb: $0) }
+            }
         }
         Menu("Priority") {
             ForEach(Priority.allCases.reversed()) { option in
@@ -303,5 +314,23 @@ enum LinkPrompt {
               let url = URL(string: field.stringValue.trimmingCharacters(in: .whitespacesAndNewlines)),
               let scheme = url.scheme?.lowercased(), scheme == "http" || scheme == "https" else { return nil }
         return url
+    }
+}
+
+/// Per-download speed cap choices, used in the row's context menu and the details panel.
+struct SpeedLimitMenuItems: View {
+    static let options: [Int?] = [nil, 256, 512, 1_000, 2_000, 5_000, 10_000]
+    let current: Int?
+    let choose: (Int?) -> Void
+
+    var body: some View {
+        ForEach(Self.options, id: \.self) { kb in
+            Button {
+                choose(kb)
+            } label: {
+                let title = kb.map { Format.speed(Double($0 * 1000)) } ?? "No Limit"
+                if current == kb { Label(title, systemImage: "checkmark") } else { Text(title) }
+            }
+        }
     }
 }

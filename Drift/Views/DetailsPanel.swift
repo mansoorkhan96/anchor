@@ -171,6 +171,27 @@ private struct GeneralDetails: View {
                 row("Priority") {
                     PriorityMenu(priority: item.priority ?? .normal) { store.setPriority([item.id], to: $0) }
                 }
+                if !item.state.isFinished {
+                    row("Speed limit") {
+                        Menu {
+                            SpeedLimitMenuItems(current: item.speedLimitKB) { store.setSpeedLimit([item.id], kb: $0) }
+                        } label: {
+                            HStack(spacing: 6) {
+                                Text(item.speedLimitKB.map { Format.speed(Double($0 * 1000)) } ?? "No limit")
+                                    .font(.system(size: 12.5).monospacedDigit())
+                                Image(systemName: "chevron.up.chevron.down").font(.system(size: 9, weight: .semibold))
+                            }
+                            .foregroundStyle(item.speedLimitKB == nil ? Color.driftText : Color.driftPausedInk)
+                            .padding(.horizontal, 10)
+                            .frame(height: 26)
+                            .background(Color.driftField, in: .rect(cornerRadius: 7))
+                        }
+                        .menuStyle(.button)
+                        .buttonStyle(.plain)
+                        .menuIndicator(.hidden)
+                        .fixedSize()
+                    }
+                }
             }
             .frame(maxWidth: .infinity, alignment: .leading)
             .padding(16)

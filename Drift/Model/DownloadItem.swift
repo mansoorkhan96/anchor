@@ -62,6 +62,8 @@ struct DownloadItem: Codable, Identifiable, Hashable, Sendable {
     var files: [TorrentFile]?
     /// The file indexes last sent to aria2.
     var appliedSelection: [Int]?
+    /// This download's own speed cap in KB/s (on top of the global limit); nil = no cap.
+    var speedLimitKB: Int?
 
     /// Extra request headers forwarded from the browser (cookies, referer, user agent).
     var headers: [String: String] = [:]
@@ -78,7 +80,7 @@ struct DownloadItem: Codable, Identifiable, Hashable, Sendable {
 
     enum CodingKeys: String, CodingKey {
         case id, kind, url, fileName, directory, category, totalBytes, receivedBytes, segments
-        case supportsRanges, validator, state, createdAt, completedAt, openWhenDone, headers, nameFromServer, overwrite, queuedAt, priority, files, appliedSelection
+        case supportsRanges, validator, state, createdAt, completedAt, openWhenDone, headers, nameFromServer, overwrite, queuedAt, priority, files, appliedSelection, speedLimitKB
         case torrentGID, torrentFile
     }
 

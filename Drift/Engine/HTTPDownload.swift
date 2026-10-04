@@ -51,6 +51,8 @@ final class HTTPDownload: NSObject, URLSessionDataDelegate, @unchecked Sendable 
     private var stopped = false
     private var sampled: Int64 = 0
     private let adoptServerName: Bool
+    /// Per-download cap, applied on top of the global limiter.
+    private let ownLimiter = RateLimiter()
     private let overwrite: Bool
 
     init(item: DownloadItem, maxConnections: Int, onEvent: @escaping @Sendable (DownloadEvent) -> Void) {
@@ -64,6 +66,7 @@ final class HTTPDownload: NSObject, URLSessionDataDelegate, @unchecked Sendable 
         supportsRanges = item.supportsRanges
         validator = item.validator
         adoptServerName = item.nameFromServer == true && item.segments.isEmpty
+        ownLimiter.limit = Int64(item.speedLimitKB ?? 0) * 1000
         overwrite = item.overwrite == true
         self.maxConnections = max(1, maxConnections)
         connectionCap = max(1, maxConnections)
@@ -105,6 +108,11 @@ final class HTTPDownload: NSObject, URLSessionDataDelegate, @unchecked Sendable 
             return sessions
         }
         toCancel.forEach { $0.invalidateAndCancel() }
+    }
+
+    /// Changes this download's own cap while it runs; 0 removes it.
+    func setSpeedLimit(_ bytesPerSecond: Int64) {
+        ownLimiter.limit = bytesPerSecond
     }
 
     func snapshot() -> DownloadSnapshot {
@@ -319,6 +327,7 @@ final class HTTPDownload: NSObject, URLSessionDataDelegate, @unchecked Sendable 
         }
         if let diskError { fail(diskError); return }
         RateLimiter.shared.throttle(written)
+        ownLimiter.throttle(written)
     }
 
     func urlSession(_ session: URLSession, task: URLSessionTask, didCompleteWithError error: Error?) {

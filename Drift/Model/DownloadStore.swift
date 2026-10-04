@@ -267,6 +267,9 @@ final class DownloadStore {
             }
             liveGIDs.insert(gid)
             await Aria2.shared.setSpeedLimit(settings.effectiveSpeedLimit)
+            if let kb = item.speedLimitKB {
+                await Aria2.shared.setDownloadLimit(gid, bytesPerSecond: Int64(kb) * 1000)
+            }
             mutate(item.id) {
                 $0.torrentGID = gid
                 $0.state = .downloading
@@ -321,6 +324,18 @@ final class DownloadStore {
     func setFilePriority(_ index: Int, of id: UUID, to priority: Priority) {
         updateFiles(id) { files in
             if let i = files.firstIndex(where: { $0.index == index }) { files[i].priority = priority }
+        }
+    }
+
+    /// Caps (or uncaps, with nil) the speed of individual downloads, live.
+    func setSpeedLimit(_ ids: Set<UUID>, kb: Int?) {
+        for id in ids {
+            mutate(id) { $0.speedLimitKB = kb }
+            let bytes = Int64(kb ?? 0) * 1000
+            engines[id]?.setSpeedLimit(bytes)
+            if let item = item(id), item.kind == .torrent, let gid = item.torrentGID, liveGIDs.contains(gid) {
+                Task { await Aria2.shared.setDownloadLimit(gid, bytesPerSecond: bytes) }
+            }
         }
     }
 

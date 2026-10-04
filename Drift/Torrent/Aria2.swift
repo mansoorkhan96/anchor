@@ -216,6 +216,12 @@ actor Aria2 {
         _ = try? await call("aria2.removeDownloadResult", [gid])
     }
 
+    /// Caps one torrent's download speed; 0 removes the cap.
+    func setDownloadLimit(_ gid: String, bytesPerSecond: Int64) async {
+        guard isRunning else { return }
+        _ = try? await call("aria2.changeOption", [gid, ["max-download-limit": "\(bytesPerSecond)"]])
+    }
+
     func setSpeedLimit(_ bytesPerSecond: Int64) async {
         guard isRunning else { return }
         _ = try? await call("aria2.changeGlobalOption", [["max-overall-download-limit": "\(bytesPerSecond)"]])
