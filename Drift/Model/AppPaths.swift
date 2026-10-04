@@ -14,4 +14,6 @@ enum AppPaths {
     }
 
     static var library: URL { support.appending(path: "downloads.json") }
+    /// Copy of the list as it was last loaded successfully.
+    static var libraryBackup: URL { support.appending(path: "downloads.backup.json") }
 }

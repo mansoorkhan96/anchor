@@ -726,14 +726,36 @@ final class DownloadStore {
 
     private func markDirty() { dirty = true }
 
+    /// Reads the saved list one item at a time, so a single unreadable entry can't wipe the rest. If the file
+    /// can't be read at all it is kept aside (never overwritten) and a backup of every good load is kept too.
     private func load() {
-        guard let data = try? Data(contentsOf: AppPaths.library),
-              let saved = try? JSONDecoder().decode([DownloadItem].self, from: data) else { return }
-        items = saved.map { item in
-            var item = item
-            if item.state.isActive { item.state = .queued }
-            return item
+        let url = AppPaths.library
+        guard let data = try? Data(contentsOf: url) else { return }
+        guard let raw = try? JSONSerialization.jsonObject(with: data) as? [Any] else {
+            preserveUnreadable(url)
+            return
         }
+        let decoder = JSONDecoder()
+        var loaded: [DownloadItem] = []
+        var skipped = 0
+        for entry in raw {
+            guard let itemData = try? JSONSerialization.data(withJSONObject: entry),
+                  var item = try? decoder.decode(DownloadItem.self, from: itemData) else {
+                skipped += 1
+                continue
+            }
+            if item.state.isActive { item.state = .queued }
+            loaded.append(item)
+        }
+        if skipped > 0 { preserveUnreadable(url) }
+        items = loaded
+        try? FileManager.default.removeItem(at: AppPaths.libraryBackup)
+        try? FileManager.default.copyItem(at: url, to: AppPaths.libraryBackup)
+    }
+
+    private func preserveUnreadable(_ url: URL) {
+        let stamp = Int(Date().timeIntervalSince1970)
+        try? FileManager.default.copyItem(at: url, to: url.deletingLastPathComponent().appending(path: "downloads-unreadable-\(stamp).json"))
     }
 
     func save() {
