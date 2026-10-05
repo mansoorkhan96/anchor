@@ -179,6 +179,16 @@ private struct HeaderBar: View {
 
     private var anyRunning: Bool { store.activeCount + store.queuedCount > 0 }
 
+    private func sortMenu() -> NSMenu {
+        let menu = NSMenu()
+        menu.addItem(.sectionHeader(title: "Sort By"))
+        let settings = store.settings
+        for order in SortOrder.allCases {
+            menu.addItem(ActionMenuItem(order.title, checked: settings.sortOrder == order) { settings.sortOrder = order })
+        }
+        return menu
+    }
+
     var body: some View {
         @Bindable var settings = store.settings
         HStack(spacing: 12) {
@@ -235,26 +245,15 @@ private struct HeaderBar: View {
 
                 SpeedMenu()
 
-                Menu {
-                    Picker("Sort By", selection: $settings.sortOrder) {
-                        ForEach(SortOrder.allCases) { order in
-                            Text(order.title).tag(order)
-                        }
-                    }
-                    .pickerStyle(.inline)
-                } label: {
-                    SlidersIcon()
-                        .stroke(style: StrokeStyle(lineWidth: 1.5, lineCap: .round))
-                        .frame(width: 15, height: 15)
-                        .frame(width: 32, height: 28)
-                        .contentShape(.capsule)
-                }
-                .menuStyle(.button)
-                .buttonStyle(.plain)
-                .menuIndicator(.hidden)
-                .fixedSize()
-                .help("Sort downloads")
-                .accessibilityLabel("Sort")
+                SlidersIcon()
+                    .stroke(style: StrokeStyle(lineWidth: 1.5, lineCap: .round))
+                    .frame(width: 15, height: 15)
+                    .frame(width: 32, height: 28)
+                    .contentShape(.capsule)
+                    .overlay(TrailingMenu(makeMenu: sortMenu))
+                    .help("Sort downloads")
+                    .accessibilityAddTraits(.isButton)
+                    .accessibilityLabel("Sort")
             }
             .foregroundStyle(Color.driftText)
             .padding(3)
@@ -364,6 +363,42 @@ private struct SpeedMenu: View {
         guard let kb else { return !store.settings.speedLimitEnabled }
         return store.settings.speedLimitEnabled && store.settings.speedLimitKB == kb
     }
+}
+
+/// Opens a native menu under the view, lined up with its right edge so it never runs past the window
+/// (a SwiftUI `Menu` always opens from the left edge).
+struct TrailingMenu: NSViewRepresentable {
+    let makeMenu: () -> NSMenu
+
+    func makeNSView(context: Context) -> AnchorView { AnchorView() }
+    func updateNSView(_ view: AnchorView, context: Context) { view.makeMenu = makeMenu }
+
+    final class AnchorView: NSView {
+        var makeMenu: (() -> NSMenu)?
+
+        override func mouseDown(with event: NSEvent) {
+            guard let menu = makeMenu?() else { return }
+            let x = bounds.maxX - menu.size.width
+            let y = isFlipped ? bounds.maxY + 4 : bounds.minY - 4
+            menu.popUp(positioning: nil, at: NSPoint(x: x, y: y), in: self)
+        }
+    }
+}
+
+/// Menu item that runs a closure.
+final class ActionMenuItem: NSMenuItem {
+    private let handler: () -> Void
+
+    init(_ title: String, checked: Bool = false, handler: @escaping () -> Void) {
+        self.handler = handler
+        super.init(title: title, action: #selector(run), keyEquivalent: "")
+        target = self
+        state = checked ? .on : .off
+    }
+
+    required init(coder: NSCoder) { fatalError("init(coder:) is not supported") }
+
+    @objc private func run() { handler() }
 }
 
 /// The sort icon from the design: two horizontal sliders with knobs.
