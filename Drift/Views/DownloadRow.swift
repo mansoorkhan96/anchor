@@ -14,6 +14,8 @@ struct DownloadRow: View {
                 .padding(.horizontal, -4)
             StatusPie(item: item)
             HStack(spacing: 5) {
+                FileThumbnail(item: item)
+                    .padding(.trailing, 4)
                 if let priority = item.priority, priority != .normal {
                     Image(systemName: priority.symbol)
                         .font(.system(size: 9, weight: .bold))

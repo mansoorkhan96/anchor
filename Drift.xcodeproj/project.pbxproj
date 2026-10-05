@@ -24,6 +24,7 @@
 		709057788D8DABCAF3989C3C /* MenuBarView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 4DDFCFCACB8DE2E0A21E6CBB /* MenuBarView.swift */; };
 		7619F7D321D1A28767406202 /* AppRouter.swift in Sources */ = {isa = PBXBuildFile; fileRef = 76FBA2E4B76DF68225E9E00A /* AppRouter.swift */; };
 		83CDF23601F5B9E57739B518 /* ClipboardWatcher.swift in Sources */ = {isa = PBXBuildFile; fileRef = 0E34BD7081042061DD730EA9 /* ClipboardWatcher.swift */; };
+		936725D9A1B7314D2966938A /* FileThumbnail.swift in Sources */ = {isa = PBXBuildFile; fileRef = 899274C1F596D4057AC6DF8E /* FileThumbnail.swift */; };
 		94B70FB2E41B8F0CC04BEAD9 /* EngineTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = DCF2B3E8EF7CFDC15797547E /* EngineTests.swift */; };
 		A0CA07AFF1CB03DA508338C3 /* DownloadItem.swift in Sources */ = {isa = PBXBuildFile; fileRef = 6734B5CBCB8F8662A7DA34EE /* DownloadItem.swift */; };
 		A68F62707CAD1A2DD18A68C3 /* DownloadStore.swift in Sources */ = {isa = PBXBuildFile; fileRef = 7397CA07E3EA469ED813F06A /* DownloadStore.swift */; };
@@ -78,6 +79,7 @@
 		7F65ECECD58388A0D3920E7D /* DownloadListView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = DownloadListView.swift; sourceTree = "<group>"; };
 		80473000068BB96DF392A468 /* DriftApp.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = DriftApp.swift; sourceTree = "<group>"; };
 		847D80793840446CEC52C5D3 /* FileCategory.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = FileCategory.swift; sourceTree = "<group>"; };
+		899274C1F596D4057AC6DF8E /* FileThumbnail.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = FileThumbnail.swift; sourceTree = "<group>"; };
 		9888F14F62828F61E272BB06 /* Aria2.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Aria2.swift; sourceTree = "<group>"; };
 		9A3D54BF360215659317A62F /* WhenDoneView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = WhenDoneView.swift; sourceTree = "<group>"; };
 		A0278368CA85399B466A2078 /* DownloadRow.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = DownloadRow.swift; sourceTree = "<group>"; };
@@ -152,6 +154,7 @@
 				7F65ECECD58388A0D3920E7D /* DownloadListView.swift */,
 				A0278368CA85399B466A2078 /* DownloadRow.swift */,
 				270FBD82479F9E786F86C760 /* FileConflictView.swift */,
+				899274C1F596D4057AC6DF8E /* FileThumbnail.swift */,
 				7BA320BD8958CE11B587CDD0 /* MainView.swift */,
 				4DDFCFCACB8DE2E0A21E6CBB /* MenuBarView.swift */,
 				2422888F84E23778A8427069 /* SettingsView.swift */,
@@ -353,6 +356,7 @@
 				5D111814D3870637BD6EF7A9 /* FileCategory.swift in Sources */,
 				68BA2D46EFD8326563369ED8 /* FileConflictView.swift in Sources */,
 				16B67EDEA20F5FD512F9B90C /* FileNaming.swift in Sources */,
+				936725D9A1B7314D2966938A /* FileThumbnail.swift in Sources */,
 				DC1A50CCECF5B8BFED3F829A /* Formatters.swift in Sources */,
 				14FB89A5D3475CA779C218A1 /* HTTPDownload.swift in Sources */,
 				B457446FCA430088B7876BD4 /* MainView.swift in Sources */,
