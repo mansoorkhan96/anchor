@@ -20,6 +20,8 @@ struct PreparedTorrent: Sendable, Equatable {
     var name: String
     var files: [TorrentFile]
     var directory: URL
+    /// The local copy of a .torrent file it came from (nil for a magnet).
+    var torrentFile: URL?
 }
 
 enum Aria2Error: LocalizedError {
@@ -128,6 +130,9 @@ actor Aria2 {
             }
             throw Aria2Error.rpc("Couldn't fetch the file list: no peers responded")
         } catch {
+            // The metadata may have just arrived, so drop the paused download it created too.
+            let status = try? await call("aria2.tellStatus", [meta, ["followedBy"]]) as? [String: Any]
+            for next in status?["followedBy"] as? [String] ?? [] { await remove(next) }
             await remove(meta)
             throw error
         }
@@ -222,6 +227,21 @@ actor Aria2 {
     func remove(_ gid: String) async {
         _ = try? await call("aria2.forceRemove", [gid])
         _ = try? await call("aria2.removeDownloadResult", [gid])
+    }
+
+    /// Removes downloads of the same torrent that nothing owns any more (e.g. left by a cancelled file-list fetch),
+    /// since aria2 refuses to add a torrent it already has.
+    func removeOrphans(infoHash: String, keeping owned: Set<String>) async {
+        guard isRunning else { return }
+        let keys = ["gid", "infoHash"]
+        var found: [[String: Any]] = []
+        for (method, params) in [("aria2.tellActive", [keys] as [Any]), ("aria2.tellWaiting", [0, 1000, keys]),
+                                 ("aria2.tellStopped", [0, 1000, keys])] {
+            found += (try? await call(method, params)) as? [[String: Any]] ?? []
+        }
+        for entry in found where (entry["infoHash"] as? String)?.lowercased() == infoHash.lowercased() {
+            if let gid = entry["gid"] as? String, !owned.contains(gid) { await remove(gid) }
+        }
     }
 
     /// Seeding: keep uploading after a torrent finishes until `ratio` (uploaded ÷ size) is reached, or stop at once.

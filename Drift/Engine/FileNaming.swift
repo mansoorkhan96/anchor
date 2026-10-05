@@ -34,6 +34,12 @@ enum FileNaming {
         return name.isEmpty ? nil : sanitize(name)
     }
 
+    /// The info hash (`xt=urn:btih:<hash>`) of a magnet link, lowercased.
+    static func magnetHash(_ url: URL) -> String? {
+        URLComponents(url: url, resolvingAgainstBaseURL: false)?.queryItems?
+            .first { $0.name == "xt" }?.value?.split(separator: ":").last?.lowercased()
+    }
+
     static func sanitize(_ name: String) -> String {
         let cleaned = name
             .replacingOccurrences(of: "/", with: "-")

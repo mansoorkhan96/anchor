@@ -21,6 +21,7 @@ struct AddDownloadSheet: View {
     // Torrents: added to aria2 paused so the file list can be reviewed first.
     @State private var prepared: PreparedTorrent?
     @State private var preparing = false
+    @State private var prepareTask: Task<PreparedTorrent, Error>?
     @State private var prepareError: String?
     @State private var localTorrent: URL?
     @State private var torrentPriority: Priority = .normal
@@ -194,11 +195,11 @@ struct AddDownloadSheet: View {
                     .keyboardShortcut(.cancelAction)
                 Button("Add to Queue") { add(startNow: false) }
                     .buttonStyle(.driftSecondary)
-                    .disabled(!canAdd || preparing)
+                    .disabled(!canAdd)
                 Button("Download") { add(startNow: true) }
                     .buttonStyle(.driftPrimary)
                     .keyboardShortcut(.defaultAction)
-                    .disabled(!canAdd || preparing)
+                    .disabled(!canAdd)
             }
         }
         .padding(24)
@@ -341,55 +342,69 @@ struct AddDownloadSheet: View {
                                    : (url.lastPathComponent as NSString).deletingPathExtension)
         try? await Task.sleep(for: .milliseconds(250))
         guard !Task.isCancelled else { return }
-        preparing = true
-        defer { preparing = false }
-        do {
-            let result: PreparedTorrent
+        let directory = targetFolder
+        let headers = request.headers
+        // Its own task, so pressing Download before it finishes can hand it to the list to finish there.
+        let task = Task { () async throws -> PreparedTorrent in
             if scheme == "magnet" {
-                result = try await Aria2.shared.prepareMagnet(url.absoluteString, directory: targetFolder)
-            } else {
-                let local = AppPaths.torrents.appending(path: "\(UUID().uuidString).torrent")
+                return try await Aria2.shared.prepareMagnet(url.absoluteString, directory: directory)
+            }
+            let local = AppPaths.torrents.appending(path: "\(UUID().uuidString).torrent")
+            do {
                 if url.isFileURL {
                     try FileManager.default.copyItem(at: url, to: local)
                 } else {
                     var request = URLRequest(url: url)
-                    self.request.headers.forEach { request.setValue($1, forHTTPHeaderField: $0) }
+                    headers.forEach { request.setValue($1, forHTTPHeaderField: $0) }
                     try await URLSession.shared.data(for: request).0.write(to: local)
                 }
-                localTorrent = local
-                result = try await Aria2.shared.prepareTorrent(local, directory: targetFolder)
+                var result = try await Aria2.shared.prepareTorrent(local, directory: directory)
+                result.torrentFile = local
+                return result
+            } catch {
+                try? FileManager.default.removeItem(at: local)
+                throw error
             }
-            guard !Task.isCancelled else {
+        }
+        prepareTask = task
+        preparing = true
+        defer { preparing = false }
+        let outcome = await task.result
+        if added { return } // handed to the list
+        guard !Task.isCancelled else {
+            if case .success(let result) = outcome {
                 await Aria2.shared.remove(result.gid)
-                return
+                if let file = result.torrentFile { try? FileManager.default.removeItem(at: file) }
             }
+            return
+        }
+        switch outcome {
+        case .success(let result):
             prepared = result
+            localTorrent = result.torrentFile
             nameEdited = false
             setName(result.name)
-        } catch is CancellationError {
-        } catch {
-            if !Task.isCancelled { prepareError = (error as? LocalizedError)?.errorDescription ?? "Couldn't read the torrent" }
+        case .failure(let error):
+            if !(error is CancellationError) {
+                prepareError = (error as? LocalizedError)?.errorDescription ?? "Couldn't read the torrent"
+            }
         }
     }
 
     /// Drops a prepared torrent the user didn't add, plus the files fetched for it.
     private func releasePrepared() {
         prepareError = nil
+        prepareTask?.cancel()
+        prepareTask = nil
         if let gid = prepared?.gid {
             Task { await Aria2.shared.remove(gid) }
-            if isMagnet, let hash = magnetHash {
+            if isMagnet, let url, let hash = FileNaming.magnetHash(url) {
                 try? FileManager.default.removeItem(at: (prepared?.directory ?? targetFolder).appending(path: "\(hash).torrent"))
             }
         }
         if let localTorrent { try? FileManager.default.removeItem(at: localTorrent) }
         prepared = nil
         localTorrent = nil
-    }
-
-    private var magnetHash: String? {
-        guard let url else { return nil }
-        return URLComponents(url: url, resolvingAgainstBaseURL: false)?.queryItems?
-            .first { $0.name == "xt" }?.value?.split(separator: ":").last?.lowercased()
     }
 
     private func setName(_ name: String) {
@@ -415,8 +430,18 @@ struct AddDownloadSheet: View {
             close()
             return
         }
+        if preparing, let prepareTask, let url {
+            added = true
+            store.addPreparingTorrent(prepareTask, source: url, name: fileName, directory: targetFolder,
+                                      priority: torrentPriority, startNow: startNow)
+            close()
+            return
+        }
+        // Like FDM, adding doesn't wait for the link check: without a server answer yet (and no name typed),
+        // the download takes the name the server sends.
         let name = fileName.trimmingCharacters(in: .whitespaces)
-        let ok = store.add(address, fileName: name.isEmpty ? nil : name, directory: targetFolder,
+        let useName = !name.isEmpty && (nameEdited || probe != nil || !probing)
+        let ok = store.add(address, fileName: useName ? name : nil, directory: targetFolder,
                            headers: request.headers, probe: probe, startNow: startNow, openWhenDone: openWhenDone)
         if ok { close() }
     }

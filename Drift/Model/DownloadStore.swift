@@ -60,6 +60,8 @@ final class DownloadStore {
     let settings = AppSettings.shared
     private var engines: [UUID: HTTPDownload] = [:]
     private var liveGIDs: Set<String> = []
+    /// Torrents added before the New Download window finished loading their files; they start once it has.
+    private var preparing: [UUID: Task<PreparedTorrent, Error>] = [:]
     private var pollingTorrents = false
     private var timer: Timer?
     private var dirty = false
@@ -236,6 +238,8 @@ final class DownloadStore {
     func start(_ id: UUID) {
         guard let index = items.firstIndex(where: { $0.id == id }), !items[index].state.isActive else { return }
         items[index].state = .connecting
+        // Still loading its files: it starts as soon as they arrive.
+        guard preparing[id] == nil else { return markDirty() }
         let item = items[index]
         try? FileManager.default.createDirectory(at: item.directory, withIntermediateDirectories: true)
 
@@ -264,6 +268,9 @@ final class DownloadStore {
                 gid = try await Aria2.shared.addTorrent(file, directory: item.directory, select: selection,
                                                         checkIntegrity: item.files?.contains { $0.completed > 0 } == true)
             } else {
+                if let hash = FileNaming.magnetHash(item.url) {
+                    await Aria2.shared.removeOrphans(infoHash: hash, keeping: liveGIDs)
+                }
                 gid = try await Aria2.shared.addMagnet(item.url.absoluteString, directory: item.directory)
             }
             liveGIDs.insert(gid)
@@ -300,6 +307,55 @@ final class DownloadStore {
         } else {
             mutate(item.id) { $0.state = .queued; $0.queuedAt = Date() }
             schedule()
+        }
+    }
+
+    /// Adds a torrent whose files are still loading in the New Download window (FDM lets you add without waiting).
+    /// It shows in the list right away and picks up the files, then starts, when they arrive.
+    func addPreparingTorrent(_ task: Task<PreparedTorrent, Error>, source: URL, name: String, directory: URL,
+                             priority: Priority, startNow: Bool) {
+        var item = DownloadItem(url: source, fileName: FileNaming.sanitize(name), directory: directory,
+                                category: FileCategory.detect(fileName: name), kind: .torrent)
+        item.priority = priority == .normal ? nil : priority
+        let id = item.id
+        preparing[id] = task
+        items.insert(item, at: 0)
+        markDirty()
+        if startNow { startOrQueue(id) } else { queue([id]) }
+
+        Task {
+            let result = await task.result
+            preparing[id] = nil
+            switch result {
+            case .success(let prepared):
+                guard let current = self.item(id) else {
+                    // Removed from the list while loading.
+                    await Aria2.shared.remove(prepared.gid)
+                    if let file = prepared.torrentFile { try? FileManager.default.removeItem(at: file) }
+                    return
+                }
+                liveGIDs.insert(prepared.gid)
+                if prepared.directory != current.directory {
+                    await Aria2.shared.setDirectory(prepared.gid, to: current.directory)
+                }
+                mutate(id) {
+                    $0.torrentGID = prepared.gid
+                    $0.torrentFile = prepared.torrentFile
+                    $0.files = prepared.files
+                    $0.fileName = FileNaming.sanitize(prepared.name)
+                    $0.category = FileCategory.detect(fileName: prepared.name)
+                    $0.totalBytes = prepared.files.filter(\.included).reduce(0) { $0 + $1.length }
+                }
+                if prepared.torrentFile == nil { adoptSavedMetadata(for: id) }
+                if self.item(id)?.state == .connecting {
+                    mutate(id) { $0.state = .paused }
+                    start(id)
+                }
+            case .failure(let error):
+                guard !(error is CancellationError), let current = self.item(id), current.state.isActive else { return }
+                mutate(id) { $0.state = .failed((error as? LocalizedError)?.errorDescription ?? error.localizedDescription) }
+                schedule()
+            }
         }
     }
 
@@ -434,6 +490,7 @@ final class DownloadStore {
         for id in ids {
             guard let item = item(id) else { continue }
             engines.removeValue(forKey: id)?.pause()
+            preparing.removeValue(forKey: id)?.cancel()
             let trash = {
                 let fm = FileManager.default
                 let candidates = [item.destination, item.partialFile,
@@ -796,9 +853,7 @@ final class DownloadStore {
     /// aria2 writes `<infohash>.torrent` next to the download once a magnet's metadata arrives. Move it into
     /// Application Support so the download folder stays clean and a restart can resume without re-fetching it.
     private func adoptSavedMetadata(for id: UUID) {
-        guard let item = item(id), item.torrentFile == nil,
-              let hash = URLComponents(url: item.url, resolvingAgainstBaseURL: false)?.queryItems?
-                .first(where: { $0.name == "xt" })?.value?.split(separator: ":").last?.lowercased() else { return }
+        guard let item = item(id), item.torrentFile == nil, let hash = FileNaming.magnetHash(item.url) else { return }
         let saved = item.directory.appending(path: "\(hash).torrent")
         Task {
             for _ in 0..<10 where !FileManager.default.fileExists(atPath: saved.path) {
