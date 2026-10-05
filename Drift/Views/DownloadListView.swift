@@ -9,6 +9,8 @@ struct DownloadListView: View {
 
     @State private var search = ""
     @State private var selection: Set<UUID> = []
+    /// The last row checked or unchecked without Shift; Shift-click selects from here.
+    @State private var selectionAnchor: UUID?
     @State private var confirmDelete = false
     @State private var panelWidth: CGFloat = 440
     @State private var spaceMonitor: Any?
@@ -35,6 +37,11 @@ struct DownloadListView: View {
                         ForEach(items) { item in
                             DownloadRow(item: item, isSelected: selectionBinding(item.id),
                                         isFocused: store.focusedID == item.id) {
+                                // Shift-click on the row works like Shift-click on its checkbox.
+                                if NSApp.currentEvent?.modifierFlags.contains(.shift) == true {
+                                    setSelected(item.id, !selection.contains(item.id))
+                                    return
+                                }
                                 withAnimation(.snappy(duration: 0.22)) { store.focusedID = store.focusedID == item.id ? nil : item.id }
                             }
                         }
@@ -132,8 +139,27 @@ struct DownloadListView: View {
     private func selectionBinding(_ id: UUID) -> Binding<Bool> {
         Binding(
             get: { selection.contains(id) },
-            set: { if $0 { selection.insert(id) } else { selection.remove(id) } }
+            set: { setSelected(id, $0) }
         )
+    }
+
+    /// Checks or unchecks a row. With Shift, checking selects everything from the anchor to this row, and
+    /// unchecking clears this row plus the selected rows directly below it.
+    private func setSelected(_ id: UUID, _ selected: Bool) {
+        let ids = visible.map(\.id)
+        guard NSApp.currentEvent?.modifierFlags.contains(.shift) == true, let index = ids.firstIndex(of: id) else {
+            if selected { selection.insert(id) } else { selection.remove(id) }
+            selectionAnchor = id
+            return
+        }
+        if selected {
+            let anchor = selectionAnchor.flatMap { ids.firstIndex(of: $0) } ?? index
+            selection.formUnion(ids[min(anchor, index)...max(anchor, index)])
+        } else {
+            var end = index
+            while end + 1 < ids.count, selection.contains(ids[end + 1]) { end += 1 }
+            selection.subtract(ids[index...end])
+        }
     }
 
     private var selectionRunning: Bool {
