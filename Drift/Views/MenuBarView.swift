@@ -135,24 +135,18 @@ private struct RecentRow: View {
 
     var body: some View {
         HStack(spacing: 10) {
-            VStack(alignment: .leading, spacing: 5) {
-                HStack(spacing: 10) {
-                    Text(item.fileName)
-                        .font(.system(size: 12.5, weight: .semibold))
-                        .foregroundStyle(Color.driftText)
-                        .lineLimit(1)
-                        .truncationMode(.middle)
-                    Spacer(minLength: 4)
-                    Text(sizeText)
-                        .font(.system(size: 11.5, weight: .medium).monospacedDigit())
-                        .foregroundStyle(Color.driftMuted2)
-                        .lineLimit(1)
-                        .fixedSize()
-                }
-                if !item.state.isFinished {
-                    ProgressLine(fraction: item.progress, color: barColor, height: 4)
-                }
-            }
+            StatusPie(item: item)
+            Text(item.fileName)
+                .font(.system(size: 12.5, weight: .semibold))
+                .foregroundStyle(Color.driftText)
+                .lineLimit(1)
+                .truncationMode(.middle)
+            Spacer(minLength: 4)
+            Text(sizeText)
+                .font(.system(size: 11.5, weight: .medium).monospacedDigit())
+                .foregroundStyle(Color.driftMuted2)
+                .lineLimit(1)
+                .fixedSize()
             action
         }
         .padding(.horizontal, 6)
@@ -174,14 +168,6 @@ private struct RecentRow: View {
             IconButton(symbol: "arrow.clockwise", label: "Retry", tint: .driftDanger, fill: .driftDangerWash, size: 26) { store.retry(item.id) }
         case .completed:
             RevealButton(size: 26) { store.reveal(item.id) }
-        }
-    }
-
-    private var barColor: Color {
-        switch item.state {
-        case .paused: .driftPaused
-        case .failed: .driftDanger
-        default: item.kind == .torrent ? .driftTorrent : .driftAccent
         }
     }
 
