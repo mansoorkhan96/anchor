@@ -55,7 +55,7 @@ struct MenuBarView: View {
             .overlay(alignment: .top) { Rectangle().fill(Color.driftLine).frame(height: 1) }
         }
         .padding(16)
-        .frame(width: 340)
+        .frame(width: 480)
         .background(Color.driftWindow)
     }
 
@@ -148,6 +148,7 @@ private struct RecentRow: View {
                 .lineLimit(1)
                 .fixedSize()
             action
+            DeleteButton(label: "Delete \(item.fileName)", makeMenu: deleteMenu)
         }
         .padding(.horizontal, 6)
         .padding(.vertical, 7)
@@ -171,11 +172,36 @@ private struct RecentRow: View {
         }
     }
 
+    /// Same choices as Delete in the main window; a menu works inside the menu bar popover where a dialog can't.
+    private func deleteMenu() -> NSMenu {
+        let menu = NSMenu()
+        let store = store, id = item.id
+        menu.addItem(ActionMenuItem("Move Files to Trash") { store.remove([id], deleteFiles: true) })
+        menu.addItem(ActionMenuItem("Remove from List Only") { store.remove([id], deleteFiles: false) })
+        return menu
+    }
+
     /// "43.2 of 225 MB" while unfinished, the full size once done.
     private var sizeText: String {
         if item.state.isFinished { return Format.bytes(item.totalBytes ?? item.receivedBytes) }
         guard let total = item.totalBytes, total > 0 else { return Format.bytes(item.receivedBytes) }
         return Format.progress(item.receivedBytes, of: total)
+    }
+}
+
+/// Trash icon that turns red on hover and opens the delete choices.
+private struct DeleteButton: View {
+    let label: String
+    let makeMenu: () -> NSMenu
+    @State private var hovering = false
+
+    var body: some View {
+        IconButton(symbol: "trash", label: label, tint: hovering ? .driftDanger : .driftMuted2,
+                   fill: hovering ? .driftDangerWash : .driftText.opacity(0.07), size: 26) {}
+            .overlay(TrailingMenu(makeMenu: makeMenu))
+            .onHover { hovering = $0 }
+            .animation(.easeOut(duration: 0.12), value: hovering)
+            .help("Delete")
     }
 }
 
