@@ -138,6 +138,15 @@ private struct GeneralDetails: View {
                         }
                     }
                 }
+                if case .failed(let message) = item.state {
+                    row("Error") {
+                        Text(message)
+                            .font(.system(size: 12.5))
+                            .foregroundStyle(Color.driftDanger)
+                            .fixedSize(horizontal: false, vertical: true)
+                            .textSelection(.enabled)
+                    }
+                }
                 row("Address") {
                     Text(item.url.absoluteString)
                         .font(.system(size: 12.5))
