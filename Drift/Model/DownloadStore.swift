@@ -56,6 +56,8 @@ final class DownloadStore {
     /// The download whose details slide-over is open in the main window.
     var focusedID: UUID?
     var alert: String?
+    /// A sidebar list the main window should switch to (e.g. Cleanup, from the menu bar).
+    var pendingFilter: SidebarFilter?
     /// Bumped by every change that can affect cleanup eligibility (not by progress ticks).
     private(set) var cleanupRevision = 0
     /// Called after each bump; set by `CleanupStore` to schedule a rescan.
@@ -88,13 +90,24 @@ final class DownloadStore {
     func item(_ id: UUID) -> DownloadItem? { items.first { $0.id == id } }
 
     func items(for filter: SidebarFilter, search: String = "") -> [DownloadItem] {
-        let query = search.trimmingCharacters(in: .whitespaces)
-        let filtered = items.filter {
-            filter.matches($0) && (query.isEmpty || $0.fileName.localizedCaseInsensitiveContains(query)
-                || $0.url.absoluteString.localizedCaseInsensitiveContains(query))
-        }
+        let filtered = items.filter { filter.matches($0) && Self.matches($0, search: search) }
         return filtered.sorted(by: settings.sortOrder)
     }
+
+    nonisolated static func matches(_ item: DownloadItem, search: String) -> Bool {
+        let query = search.trimmingCharacters(in: .whitespaces)
+        return query.isEmpty || item.fileName.localizedCaseInsensitiveContains(query)
+            || item.url.absoluteString.localizedCaseInsensitiveContains(query)
+    }
+
+    /// The Archive list: archived items, newest first.
+    func archivedItems(search: String = "") -> [DownloadItem] {
+        items.filter { $0.archivedAt != nil && Self.matches($0, search: search) }
+            .sorted { ($0.archivedAt ?? .distantPast) > ($1.archivedAt ?? .distantPast) }
+    }
+
+    /// Mid archive or restore: every action that touches the file or entry is unavailable.
+    func isLocked(_ id: UUID) -> Bool { item(id)?.pendingMove != nil }
 
     func count(_ filter: SidebarFilter) -> Int { items.count { filter.matches($0) } }
 
@@ -167,6 +180,7 @@ final class DownloadStore {
             item.overwrite = canOverwrite ? true : nil
             if let probe { item.totalBytes = probe.totalBytes }
             self.items.insert(item, at: 0)
+            self.bumpCleanupRevision()
             self.markDirty()
             if startNow { self.startOrQueue(item.id) } else { self.schedule() }
         }
@@ -226,6 +240,7 @@ final class DownloadStore {
                                 category: FileCategory.detect(fileName: name), kind: .torrent)
         item.torrentFile = file
         items.insert(item, at: 0)
+        bumpCleanupRevision()
         markDirty()
         if startNow { startOrQueue(item.id) } else { schedule() }
     }
@@ -305,6 +320,7 @@ final class DownloadStore {
         item.totalBytes = included.reduce(0) { $0 + $1.length }
         liveGIDs.insert(prepared.gid)
         items.insert(item, at: 0)
+        bumpCleanupRevision()
         markDirty()
         if torrentFile == nil { adoptSavedMetadata(for: item.id) }
         if startNow {
@@ -325,6 +341,7 @@ final class DownloadStore {
         let id = item.id
         preparing[id] = task
         items.insert(item, at: 0)
+        bumpCleanupRevision()
         markDirty()
         if startNow { startOrQueue(id) } else { queue([id]) }
 
@@ -492,6 +509,7 @@ final class DownloadStore {
     }
 
     func remove(_ ids: Set<UUID>, deleteFiles: Bool) {
+        let ids = CleanupRules.unlocked(ids, in: items)
         for id in ids {
             guard let item = item(id) else { continue }
             engines.removeValue(forKey: id)?.pause()
@@ -521,14 +539,29 @@ final class DownloadStore {
         }
         items.removeAll { ids.contains($0.id) }
         markDirty()
+        bumpCleanupRevision()
         schedule()
+    }
+
+    /// Removes finished downloads from the list without touching their files.
+    func removeEntries(_ ids: Set<UUID>) {
+        let finished = CleanupRules.unlocked(ids, in: items).filter { item($0)?.state.isFinished == true }
+        guard !finished.isEmpty else { return }
+        remove(finished, deleteFiles: false)
+    }
+
+    /// Keep: never suggested in Cleanup and never archived.
+    func setKeep(_ ids: Set<UUID>, _ keep: Bool) {
+        for id in CleanupRules.unlocked(ids, in: items) { mutate(id) { $0.keep = keep ? true : nil } }
+        bumpCleanupRevision()
     }
 
     /// Moves downloads (finished files or in-progress partials) to another folder.
     func move(_ ids: Set<UUID>, to folder: URL) {
         let fm = FileManager.default
         var skipped: [String] = []
-        for id in ids {
+        defer { bumpCleanupRevision() }
+        for id in CleanupRules.unlocked(ids, in: items) {
             guard let item = item(id), item.directory.standardizedFileURL != folder.standardizedFileURL else { continue }
             if item.kind == .torrent, !item.state.isFinished {
                 skipped.append(item.fileName)
@@ -576,8 +609,10 @@ final class DownloadStore {
     }
 
     func open(_ id: UUID) {
-        guard let item = item(id), item.state.isFinished else { return }
+        guard let item = item(id), item.state.isFinished, item.pendingMove == nil else { return }
         NSWorkspace.shared.open(item.destination)
+        mutate(id) { $0.openedAt = Date() }
+        bumpCleanupRevision()
     }
 
     func applySpeedLimit() {
@@ -606,6 +641,7 @@ final class DownloadStore {
             $0.seeding = nil
             $0.uploadSpeed = 0
         }
+        bumpCleanupRevision()
     }
 
     // MARK: Engine events
@@ -649,6 +685,8 @@ final class DownloadStore {
             $0.connections = 0
         }
         guard let item = item(id) else { return }
+        bumpCleanupRevision()
+        recordStamp(of: item)
         notify(title: "Download complete", body: item.fileName)
         if item.openWhenDone { NSWorkspace.shared.open(item.destination) }
         schedule()
@@ -783,6 +821,7 @@ final class DownloadStore {
                     $0.uploadSpeed = 0
                 }
                 liveGIDs.remove(gid)
+                bumpCleanupRevision()
             }
             return
         }
@@ -875,6 +914,29 @@ final class DownloadStore {
     func bumpCleanupRevision() {
         cleanupRevision += 1
         cleanupObserver?()
+    }
+
+    /// Applies a cleanup result to one item (baseline stamps, inspections, pending moves, archive, restore).
+    func cleanupMutate(_ id: UUID, bump: Bool = true, _ change: (inout DownloadItem) -> Void) {
+        mutate(id, change)
+        if bump { bumpCleanupRevision() }
+    }
+
+    /// Records the finished file's identity, read off the main actor. Replaces a baseline but never a real stamp.
+    private func recordStamp(of item: DownloadItem) {
+        let (id, destination) = (item.id, item.destination)
+        Task.detached(priority: .utility) {
+            guard let stamp = FileStamp.read(destination) else { return }
+            await MainActor.run {
+                let store = DownloadStore.shared
+                guard let current = store.item(id), current.destination == destination,
+                      current.stamp == nil || current.stampIsBaseline == true else { return }
+                store.cleanupMutate(id) {
+                    $0.stamp = stamp
+                    $0.stampIsBaseline = nil
+                }
+            }
+        }
     }
 
     // MARK: Persistence
