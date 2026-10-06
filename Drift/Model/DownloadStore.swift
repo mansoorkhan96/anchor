@@ -665,6 +665,7 @@ final class DownloadStore {
                 $0.category = FileCategory.detect(fileName: name)
                 $0.nameFromServer = false
             }
+            bumpCleanupRevision()
         case .completed(let name):
             if let engine = engines.removeValue(forKey: id) { apply(engine.snapshot(), to: id) }
             mutate(id) {
