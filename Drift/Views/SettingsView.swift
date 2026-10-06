@@ -3,7 +3,7 @@ import UniformTypeIdentifiers
 import ServiceManagement
 
 private enum SettingsSection: String, CaseIterable, Identifiable {
-    case general, speed, browser, about
+    case general, speed, browser, cleanup, about
 
     var id: String { rawValue }
 
@@ -12,6 +12,7 @@ private enum SettingsSection: String, CaseIterable, Identifiable {
         case .general: "General"
         case .speed: "Speed"
         case .browser: "Browser"
+        case .cleanup: "Cleanup"
         case .about: "About"
         }
     }
@@ -21,6 +22,7 @@ private enum SettingsSection: String, CaseIterable, Identifiable {
         case .general: "Where downloads go and how Drift behaves."
         case .speed: "How hard Drift pushes your connection."
         case .browser: "Send downloads from Chrome, Arc, Brave and Edge to Drift."
+        case .cleanup: "Files show up in Cleanup when Drift has seen no use of them for this long. Nothing is removed until you choose to."
         case .about: ""
         }
     }
@@ -30,6 +32,7 @@ private enum SettingsSection: String, CaseIterable, Identifiable {
         case .general: "gearshape.fill"
         case .speed: "gauge.with.dots.needle.67percent"
         case .browser: "globe"
+        case .cleanup: "sparkles"
         case .about: "info"
         }
     }
@@ -39,12 +42,14 @@ private enum SettingsSection: String, CaseIterable, Identifiable {
         case .general: .adaptive(light: 0x5E5E63, dark: 0x6E6E73)
         case .speed: .adaptive(light: 0x2F7AE0, dark: 0x3D85F5)
         case .browser: .adaptive(light: 0x2F6BC0, dark: 0x4A82D6)
+        case .cleanup: .adaptive(light: 0x46902E, dark: 0x5BA845)
         case .about: .adaptive(light: 0x737378, dark: 0x7C7C81)
         }
     }
 }
 
 struct SettingsView: View {
+    @Environment(DownloadStore.self) private var store
     @State private var section: SettingsSection = .general
 
     var body: some View {
@@ -78,6 +83,7 @@ struct SettingsView: View {
                     case .general: GeneralPage()
                     case .speed: SpeedPage()
                     case .browser: BrowserPage()
+                    case .cleanup: CleanupPage()
                     case .about: AboutPage()
                     }
                 }
@@ -89,6 +95,15 @@ struct SettingsView: View {
         }
         .frame(width: 760, height: 740)
         .tint(.driftAccent)
+        .onAppear(perform: openRequestedPage)
+        .onChange(of: store.settings.requestedSettingsPage) { openRequestedPage() }
+    }
+
+    /// Another part of the app (e.g. the empty Cleanup list) asked for a specific page.
+    private func openRequestedPage() {
+        guard let page = store.settings.requestedSettingsPage else { return }
+        store.settings.requestedSettingsPage = nil
+        if let requested = SettingsSection(rawValue: page) { section = requested }
     }
 }
 
@@ -498,6 +513,72 @@ private struct NumberStepper: View {
         .buttonStyle(.plain)
         .accessibilityLabel(label)
     }
+}
+
+private struct CleanupPage: View {
+    @Environment(DownloadStore.self) private var store
+
+    var body: some View {
+        @Bindable var settings = store.settings
+        let categories = FileCategory.allCases
+        VStack(alignment: .leading, spacing: 16) {
+            Text("Clean up after")
+                .font(.system(size: 12, weight: .semibold))
+                .foregroundStyle(Color.driftMuted)
+                .padding(.horizontal, 4)
+                .padding(.bottom, -8)
+            SettingsCard {
+                ForEach(categories) { category in
+                    SettingsRow(title: category.title, divider: category != categories.last) {
+                        DaysMenu(days: Binding(get: { settings.cleanupDays(for: category) },
+                                               set: { settings.cleanupDays[category] = $0 > 0 ? $0 : nil }))
+                    }
+                }
+            }
+            SettingsCard {
+                SettingsRow(title: "Archive installers once installed",
+                            detail: "Moves a dmg to Downloads/Drift Archive once the same or a newer version of its app is installed. Restore puts it back.") {
+                    DriftSwitch(isOn: $settings.archiveInstallers, label: "Archive installers once installed")
+                }
+            }
+        }
+    }
+}
+
+/// Never, or a number of days without recorded use.
+private struct DaysMenu: View {
+    static let options = [0, 7, 14, 30, 60, 90]
+    @Binding var days: Int
+
+    var body: some View {
+        Menu {
+            ForEach(Self.options, id: \.self) { option in
+                Button {
+                    days = option
+                } label: {
+                    if option == days { Label(title(option), systemImage: "checkmark") } else { Text(title(option)) }
+                }
+            }
+        } label: {
+            HStack(spacing: 6) {
+                Text(title(days))
+                    .font(.system(size: 12.5, weight: .medium).monospacedDigit())
+                Image(systemName: "chevron.up.chevron.down").font(.system(size: 9, weight: .semibold))
+            }
+            .foregroundStyle(days == 0 ? Color.driftMuted2 : Color.driftText)
+            .padding(.horizontal, 10)
+            .frame(height: 30)
+            .background(Color.driftWindow, in: .rect(cornerRadius: 9))
+            .overlay(RoundedRectangle(cornerRadius: 9).strokeBorder(Color.driftLine))
+        }
+        .menuStyle(.button)
+        .buttonStyle(.plain)
+        .menuIndicator(.hidden)
+        .fixedSize()
+        .accessibilityLabel("Clean up after")
+    }
+
+    private func title(_ days: Int) -> String { days == 0 ? "Never" : "\(days) days" }
 }
 
 private struct BrowserPage: View {
