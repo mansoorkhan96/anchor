@@ -56,6 +56,10 @@ final class DownloadStore {
     /// The download whose details slide-over is open in the main window.
     var focusedID: UUID?
     var alert: String?
+    /// Bumped by every change that can affect cleanup eligibility (not by progress ticks).
+    private(set) var cleanupRevision = 0
+    /// Called after each bump; set by `CleanupStore` to schedule a rescan.
+    var cleanupObserver: (@MainActor () -> Void)?
 
     let settings = AppSettings.shared
     private var engines: [UUID: HTTPDownload] = [:]
@@ -864,6 +868,13 @@ final class DownloadStore {
             guard (try? FileManager.default.moveItem(at: saved, to: target)) != nil else { return }
             mutate(id) { $0.torrentFile = target }
         }
+    }
+
+    // MARK: Cleanup hooks
+
+    func bumpCleanupRevision() {
+        cleanupRevision += 1
+        cleanupObserver?()
     }
 
     // MARK: Persistence

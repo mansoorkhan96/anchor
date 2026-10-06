@@ -70,6 +70,24 @@ final class AppSettings {
     /// One-shot: resets to `.nothing` after it runs, like FDM's "when done" option.
     var whenDone: WhenDoneAction = .nothing
     var existingFileAction: ExistingFileAction { didSet { defaults.set(existingFileAction.rawValue, forKey: "existingFileAction") } }
+    /// Days without recorded use before a file shows up in Cleanup, per category. Missing or 0 means Never.
+    var cleanupDays: [FileCategory: Int] {
+        didSet {
+            Self.storeCleanupDays(cleanupDays, in: defaults)
+            DownloadStore.shared.bumpCleanupRevision()
+        }
+    }
+    /// Move dmg installers whose app is installed into the Drift Archive folder.
+    var archiveInstallers: Bool {
+        didSet {
+            defaults.set(archiveInstallers, forKey: "archiveInstallers")
+            DownloadStore.shared.bumpCleanupRevision()
+        }
+    }
+    /// The cleanup total when the user last closed the banner; it comes back once the total grows by 500 MB.
+    var cleanupBannerDismissedBytes: Int64 { didSet { defaults.set(cleanupBannerDismissedBytes, forKey: "cleanupBannerDismissedBytes") } }
+    /// One-shot: the Settings window opens on this page (e.g. "cleanup") next time it appears.
+    var requestedSettingsPage: String?
 
     private init() {
         defaults.register(defaults: [
@@ -78,6 +96,7 @@ final class AppSettings {
             "notifications": true, "sortOrder": SortOrder.newest.rawValue,
             "menuBarOrder": MenuBarOrder.unfinishedFirst.rawValue, "menuBarCount": 5,
             "showMenuBarIcon": true, "showSpeedStrip": true, "keepAwake": true, "seedTorrents": false, "seedRatio": 1.0, "uploadLimitKB": 0, "existingFileAction": ExistingFileAction.ask.rawValue,
+            "archiveInstallers": true, "cleanupBannerDismissedBytes": 0,
         ])
         downloadFolder = defaults.string(forKey: "downloadFolder").map { URL(filePath: $0) } ?? URL.downloadsDirectory
         maxConcurrent = defaults.integer(forKey: "maxConcurrent")
@@ -100,6 +119,27 @@ final class AppSettings {
         seedRatio = defaults.double(forKey: "seedRatio")
         uploadLimitKB = defaults.integer(forKey: "uploadLimitKB")
         existingFileAction = ExistingFileAction(rawValue: defaults.string(forKey: "existingFileAction") ?? "") ?? .ask
+        cleanupDays = Self.loadCleanupDays(from: defaults)
+        archiveInstallers = defaults.bool(forKey: "archiveInstallers")
+        cleanupBannerDismissedBytes = (defaults.object(forKey: "cleanupBannerDismissedBytes") as? NSNumber)?.int64Value ?? 0
+    }
+
+    func cleanupDays(for category: FileCategory) -> Int { cleanupDays[category] ?? 0 }
+
+    /// Stored as `[String: Int]` (category raw value to days); unknown keys and non-positive days are dropped.
+    nonisolated static func loadCleanupDays(from defaults: UserDefaults) -> [FileCategory: Int] {
+        let raw = defaults.dictionary(forKey: "cleanupDays") as? [String: Int] ?? [:]
+        var days: [FileCategory: Int] = [:]
+        for (key, value) in raw where value > 0 {
+            if let category = FileCategory(rawValue: key) { days[category] = value }
+        }
+        return days
+    }
+
+    nonisolated static func storeCleanupDays(_ days: [FileCategory: Int], in defaults: UserDefaults) {
+        var raw: [String: Int] = [:]
+        for (category, value) in days where value > 0 { raw[category.rawValue] = value }
+        defaults.set(raw, forKey: "cleanupDays")
     }
 
     /// Bytes per second actually applied to downloads; 0 means unlimited.

@@ -177,3 +177,16 @@ func makeTempDir() throws -> URL {
         #expect(!tracker.isDirty)
     }
 }
+
+@Suite struct CleanupSettingsTests {
+    @Test func cleanupDaysRoundTripThroughDefaults() throws {
+        let name = "DriftCleanupTests-\(UUID().uuidString)"
+        let defaults = try #require(UserDefaults(suiteName: name))
+        defer { defaults.removePersistentDomain(forName: name) }
+        #expect(AppSettings.loadCleanupDays(from: defaults).isEmpty)
+        AppSettings.storeCleanupDays([.video: 30, .apps: 7, .music: 0], in: defaults)
+        #expect(AppSettings.loadCleanupDays(from: defaults) == [.video: 30, .apps: 7])
+        defaults.set(["video": 14, "bogus": 3, "other": -5], forKey: "cleanupDays")
+        #expect(AppSettings.loadCleanupDays(from: defaults) == [.video: 14])
+    }
+}
