@@ -64,7 +64,8 @@ final class DownloadStore {
     private var preparing: [UUID: Task<PreparedTorrent, Error>] = [:]
     private var pollingTorrents = false
     private var timer: Timer?
-    private var dirty = false
+    private var tracker = SaveTracker()
+    private let writer = LibraryWriter(url: AppPaths.library)
     private var ticksSinceSave = 0
 
     private init() {
@@ -716,7 +717,7 @@ final class DownloadStore {
         pollTorrents()
 
         ticksSinceSave += 1
-        if dirty, ticksSinceSave >= 4 { save() }
+        if tracker.isDirty, ticksSinceSave >= 4 { save() }
     }
 
     private func apply(_ snap: DownloadSnapshot, to id: UUID) {
@@ -804,7 +805,7 @@ final class DownloadStore {
         case "error", "removed": mutate(id) { $0.state = .failed(status.errorMessage ?? "Torrent stopped") }
         default: break
         }
-        dirty = true
+        tracker.changed()
     }
 
     /// Merges aria2's per-file progress with the user's include and priority choices.
@@ -870,10 +871,10 @@ final class DownloadStore {
     private func mutate(_ id: UUID, dirty markDirty: Bool = true, _ change: (inout DownloadItem) -> Void) {
         guard let index = items.firstIndex(where: { $0.id == id }) else { return }
         change(&items[index])
-        if markDirty { dirty = true }
+        if markDirty { tracker.changed() }
     }
 
-    private func markDirty() { dirty = true }
+    private func markDirty() { tracker.changed() }
 
     /// Reads the saved list one item at a time, so a single unreadable entry can't wipe the rest. If the file
     /// can't be read at all it is kept aside (never overwritten) and a backup of every good load is kept too.
@@ -908,14 +909,27 @@ final class DownloadStore {
         try? FileManager.default.copyItem(at: url, to: url.deletingLastPathComponent().appending(path: "downloads-unreadable-\(stamp).json"))
     }
 
+    /// Encodes now and writes in order on the library writer; the store stays dirty until a write lands.
     func save() {
         ticksSinceSave = 0
-        dirty = false
-        let snapshot = items
-        Task.detached(priority: .utility) {
-            guard let data = try? JSONEncoder().encode(snapshot) else { return }
-            try? data.write(to: AppPaths.library, options: .atomic)
+        guard let data = try? JSONEncoder().encode(items) else { return }
+        let save = tracker.beginSave()
+        writer.enqueue(data, seq: save.seq) { ok in
+            Task { @MainActor in DownloadStore.shared.tracker.finished(save, success: ok) }
         }
+    }
+
+    /// Like `save()`, but waits for the write and throws if it failed.
+    func saveNow() async throws {
+        ticksSinceSave = 0
+        let data = try JSONEncoder().encode(items)
+        let save = tracker.beginSave()
+        let writer = writer
+        let ok = await withCheckedContinuation { continuation in
+            writer.enqueue(data, seq: save.seq) { continuation.resume(returning: $0) }
+        }
+        tracker.finished(save, success: ok)
+        if !ok { throw CocoaError(.fileWriteUnknown) }
     }
 
     /// Called on quit: stop engines so partial progress is captured, then save synchronously.
@@ -926,8 +940,9 @@ final class DownloadStore {
             mutate(id) { $0.state = .queued }
         }
         engines.removeAll()
+        // Drains queued writes first, so the newest state is the last one on disk.
         if let data = try? JSONEncoder().encode(items) {
-            try? data.write(to: AppPaths.library, options: .atomic)
+            _ = writer.writeNowSync(data, seq: tracker.beginSave().seq)
         }
         Task { await Aria2.shared.shutdown() }
     }

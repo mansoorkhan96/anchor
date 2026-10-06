@@ -109,3 +109,71 @@ func makeTempDir() throws -> URL {
         #expect(back.installer == item.installer)
     }
 }
+
+@Suite struct LibraryWriterTests {
+    @Test func lowerSeqAfterHigherIsIgnored() throws {
+        let dir = try makeTempDir()
+        defer { try? FileManager.default.removeItem(at: dir) }
+        let url = dir.appending(path: "lib.json")
+        let writer = LibraryWriter(url: url)
+        writer.enqueue(Data("new".utf8), seq: 2) { _ in }
+        writer.enqueue(Data("old".utf8), seq: 1) { _ in }
+        #expect(writer.writeNowSync(Data("old again".utf8), seq: 1))
+        #expect(try String(contentsOf: url, encoding: .utf8) == "new")
+    }
+
+    @Test func writeNowSyncLandsAfterQueuedWrites() throws {
+        let dir = try makeTempDir()
+        defer { try? FileManager.default.removeItem(at: dir) }
+        let url = dir.appending(path: "lib.json")
+        let writer = LibraryWriter(url: url) { data, url in
+            Thread.sleep(forTimeInterval: 0.05)
+            try data.write(to: url, options: .atomic)
+        }
+        for seq in 1...3 { writer.enqueue(Data("queued \(seq)".utf8), seq: seq) { _ in } }
+        #expect(writer.writeNowSync(Data("final".utf8), seq: 4))
+        #expect(try String(contentsOf: url, encoding: .utf8) == "final")
+    }
+
+    @Test func failedWriteReportsFalse() throws {
+        let writer = LibraryWriter(url: URL(filePath: "/nonexistent/lib.json")) { _, _ in
+            throw CocoaError(.fileWriteNoPermission)
+        }
+        #expect(!writer.writeNowSync(Data("x".utf8), seq: 1))
+    }
+}
+
+@Suite struct SaveTrackerTests {
+    @Test func olderSaveFinishingLateLeavesStoreDirty() {
+        var tracker = SaveTracker()
+        tracker.changed()
+        let first = tracker.beginSave()
+        tracker.changed()
+        tracker.finished(first, success: true)
+        #expect(tracker.isDirty)
+        let second = tracker.beginSave()
+        #expect(second.seq > first.seq)
+        tracker.finished(second, success: true)
+        #expect(!tracker.isDirty)
+        tracker.finished(first, success: true)
+        #expect(!tracker.isDirty)
+    }
+
+    @Test func failedSaveLeavesStoreDirty() {
+        var tracker = SaveTracker()
+        tracker.changed()
+        let save = tracker.beginSave()
+        tracker.finished(save, success: false)
+        #expect(tracker.isDirty)
+    }
+
+    @Test func successfulSaveCleans() {
+        var tracker = SaveTracker()
+        #expect(!tracker.isDirty)
+        tracker.changed()
+        #expect(tracker.isDirty)
+        let save = tracker.beginSave()
+        tracker.finished(save, success: true)
+        #expect(!tracker.isDirty)
+    }
+}
