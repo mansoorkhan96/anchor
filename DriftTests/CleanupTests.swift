@@ -431,3 +431,98 @@ enum Fixture {
         #expect(CleanupRules.sharedPaths([a, b, c]) == [a.destination.standardizedFileURL.path])
     }
 }
+
+@Suite struct CleanupScanTests {
+    func write(_ name: String, in dir: URL, age: TimeInterval = 0, now: Date = Date()) throws -> URL {
+        let url = dir.appending(path: name)
+        try Data(repeating: 1, count: 2048).write(to: url)
+        if age > 0 {
+            try FileManager.default.setAttributes([.modificationDate: now.addingTimeInterval(-age)], ofItemAtPath: url.path)
+        }
+        return url
+    }
+
+    func item(_ name: String, in dir: URL, state: DownloadState = .completed, completed: Date? = nil) -> DownloadItem {
+        var item = DownloadItem(url: URL(string: "https://a.com/\(name)")!, fileName: name, directory: dir,
+                                category: FileCategory.detect(fileName: name))
+        item.state = state
+        item.completedAt = completed
+        if let completed { item.createdAt = completed }
+        return item
+    }
+
+    @Test func leftoversSkipOwnedFreshAndOtherFiles() throws {
+        let dir = try makeTempDir()
+        defer { try? FileManager.default.removeItem(at: dir) }
+        let now = Date()
+        _ = try write("owned.mp4.drift-part", in: dir, age: 7200, now: now)
+        let orphan = try write("orphan.zip.drift-part", in: dir, age: 7200, now: now)
+        _ = try write("fresh.zip.drift-part", in: dir, now: now)
+        _ = try write("notes.txt", in: dir, age: 7200, now: now)
+        let sub = dir.appending(path: "sub", directoryHint: .isDirectory)
+        try FileManager.default.createDirectory(at: sub, withIntermediateDirectories: true)
+        _ = try write("deep.zip.drift-part", in: sub, age: 7200, now: now)
+
+        let owner = item("owned.mp4", in: dir, state: .paused)
+        let found = Leftovers.find(in: [dir, dir], owned: [owner.partialFile.standardizedFileURL.path], now: now)
+        #expect(found.map(\.path) == [orphan.standardizedFileURL.path])
+        #expect(found.first?.stamp == FileStamp.read(orphan))
+        #expect((found.first?.bytes ?? 0) > 0)
+    }
+
+    @Test func scanAdoptsBaselinesFindsCandidatesAndMissing() throws {
+        let dir = try makeTempDir()
+        defer { try? FileManager.default.removeItem(at: dir) }
+        let now = Date()
+        let old = now.addingTimeInterval(-100 * Fixture.day)
+        _ = try write("legacy.mp4", in: dir, age: 100 * Fixture.day, now: now)
+        _ = try write("recent.mp4", in: dir, now: now)
+        _ = try write("orphan.mp4.drift-part", in: dir, age: 7200, now: now)
+
+        let legacy = item("legacy.mp4", in: dir, completed: old)
+        let recent = item("recent.mp4", in: dir, completed: old)
+        let gone = item("gone.mp4", in: dir, completed: old)
+        let unmounted = item("away.mp4", in: dir.appending(path: "not-mounted"), completed: old)
+        var moving = item("moving.mp4", in: dir, completed: old)
+        moving.pendingMove = PendingMove(kind: .archive, from: "/a", to: "/b", stamp: Fixture.stamp)
+
+        let snapshot = CleanupSnapshot(items: [legacy, recent, gone, unmounted, moving], days: [.video: 30],
+                                       revision: 3, now: now, folders: [dir])
+        let result = CleanupScanner.scan(snapshot) { _ in nil }
+
+        #expect(result.revision == 3)
+        #expect(Set(result.baselines.keys) == [legacy.id, recent.id])
+        #expect(result.baselines[legacy.id] == FileStamp.read(dir.appending(path: "legacy.mp4")))
+        #expect(Array(result.candidates.keys) == [legacy.id])
+        #expect(result.candidates[legacy.id]?.reason.days == 100)
+        #expect(result.candidates[legacy.id]?.path == legacy.destination.standardizedFileURL.path)
+        #expect(result.missing == [gone.id])
+        #expect(result.leftovers.count == 1)
+
+        // A baseline stamp never makes an item archivable.
+        var adopted = legacy
+        adopted.stamp = result.baselines[legacy.id]
+        adopted.stampIsBaseline = true
+        adopted.category = .apps
+        adopted.fileName = "legacy.dmg"
+        #expect(!CleanupRules.archiveCandidate(adopted, now: now, enabled: true))
+    }
+
+    @Test func spotlightDateBlocksAndCategoryNeverIsSkipped() throws {
+        let dir = try makeTempDir()
+        defer { try? FileManager.default.removeItem(at: dir) }
+        let now = Date()
+        _ = try write("old.mp4", in: dir, age: 100 * Fixture.day, now: now)
+        let old = item("old.mp4", in: dir, completed: now.addingTimeInterval(-100 * Fixture.day))
+        let used = CleanupScanner.scan(CleanupSnapshot(items: [old], days: [.video: 30], revision: 0, now: now, folders: [])) { _ in now }
+        #expect(used.candidates.isEmpty)
+        let never = CleanupScanner.scan(CleanupSnapshot(items: [old], days: [:], revision: 0, now: now, folders: [])) { _ in nil }
+        #expect(never.candidates.isEmpty)
+    }
+
+    @Test func staleScanIsDiscarded() {
+        let result = CleanupScanResult(revision: 4, candidates: [:], leftovers: [], missing: [], baselines: [:])
+        #expect(result.isCurrent(revision: 4))
+        #expect(!result.isCurrent(revision: 5), "an add during the scan bumped the revision")
+    }
+}

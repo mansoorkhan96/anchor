@@ -31,6 +31,7 @@
 		A615B290735B9548946012DD /* LibraryWriter.swift in Sources */ = {isa = PBXBuildFile; fileRef = 72A3BDC18912464644C30402 /* LibraryWriter.swift */; };
 		A68F62707CAD1A2DD18A68C3 /* DownloadStore.swift in Sources */ = {isa = PBXBuildFile; fileRef = 7397CA07E3EA469ED813F06A /* DownloadStore.swift */; };
 		AA43792497E2FC36FF55F58C /* Assets.xcassets in Resources */ = {isa = PBXBuildFile; fileRef = 08E33CA6BE80D735A37ED745 /* Assets.xcassets */; };
+		AD3D37B54E4F29D7A1B11797 /* CleanupSnapshot.swift in Sources */ = {isa = PBXBuildFile; fileRef = 51C181C8F0D3447604BD7D89 /* CleanupSnapshot.swift */; };
 		B457446FCA430088B7876BD4 /* MainView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 7BA320BD8958CE11B587CDD0 /* MainView.swift */; };
 		B6080A9BA9846FB427A0E18C /* Theme.swift in Sources */ = {isa = PBXBuildFile; fileRef = A0875D4A3B85B50C9FFE45C8 /* Theme.swift */; };
 		BE35DAFDF67CF758DE98EC5E /* CleanupTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = FC47876FA53A92B2ABCCEDA4 /* CleanupTests.swift */; };
@@ -74,6 +75,7 @@
 		4DDFCFCACB8DE2E0A21E6CBB /* MenuBarView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = MenuBarView.swift; sourceTree = "<group>"; };
 		500742F0D5ED50753FFBB4AE /* DebugSnapshot.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = DebugSnapshot.swift; sourceTree = "<group>"; };
 		506CB9D922F640D2B265D5B0 /* HTTPDownload.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = HTTPDownload.swift; sourceTree = "<group>"; };
+		51C181C8F0D3447604BD7D89 /* CleanupSnapshot.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = CleanupSnapshot.swift; sourceTree = "<group>"; };
 		552F5AE6789DA294DDB91E8B /* Drift.app */ = {isa = PBXFileReference; explicitFileType = wrapper.application; includeInIndex = 0; path = Drift.app; sourceTree = BUILT_PRODUCTS_DIR; };
 		668D8D5951EB119A1624DDB2 /* DriftTests.xctest */ = {isa = PBXFileReference; explicitFileType = wrapper.cfbundle; includeInIndex = 0; path = DriftTests.xctest; sourceTree = BUILT_PRODUCTS_DIR; };
 		6734B5CBCB8F8662A7DA34EE /* DownloadItem.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = DownloadItem.swift; sourceTree = "<group>"; };
@@ -179,6 +181,7 @@
 			isa = PBXGroup;
 			children = (
 				28820D56F7D75FAA822B715E /* CleanupRules.swift */,
+				51C181C8F0D3447604BD7D89 /* CleanupSnapshot.swift */,
 				A0F45C12F2E66C9D88629DA1 /* FileStamp.swift */,
 			);
 			path = Cleanup;
@@ -366,6 +369,7 @@
 				3AFB631E68FC2FA8FA7ED2D5 /* Aria2.swift in Sources */,
 				2BB7278F0A4287D54828B694 /* BrowserBridge.swift in Sources */,
 				F12BCA9D3982F377FF605A56 /* CleanupRules.swift in Sources */,
+				AD3D37B54E4F29D7A1B11797 /* CleanupSnapshot.swift in Sources */,
 				83CDF23601F5B9E57739B518 /* ClipboardWatcher.swift in Sources */,
 				56268192EDB3D4839E59695F /* DebugSnapshot.swift in Sources */,
 				FA56AD964523695BCCB5EAC3 /* DetailsPanel.swift in Sources */,
