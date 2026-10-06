@@ -555,3 +555,105 @@ enum Fixture {
         #expect(result.status != 0)
     }
 }
+
+@Suite struct InstallerInspectorTests {
+    static let apfsContainer = "EF57347C-0000-11AA-AA11-00306543ECAC"
+
+    func plist(_ object: Any) throws -> Data {
+        try PropertyListSerialization.data(fromPropertyList: object, format: .xml, options: 0)
+    }
+
+    func makeApp(_ name: String, in dir: URL, info: [String: String]) throws {
+        let contents = dir.appending(path: "\(name).app/Contents", directoryHint: .isDirectory)
+        try FileManager.default.createDirectory(at: contents, withIntermediateDirectories: true)
+        try plist(info).write(to: contents.appending(path: "Info.plist"))
+    }
+
+    @Test func picksTheImageDiskAndMountPoints() throws {
+        let data = try plist(["system-entities": [
+            ["dev-entry": "/dev/disk18s1", "content-hint": "Apple_APFS"],
+            ["dev-entry": "/dev/disk19s1", "content-hint": "41504653-0000-11AA-AA11-00306543ECAC", "mount-point": "/tmp/m/dmg.1"],
+            ["dev-entry": "/dev/disk19", "content-hint": Self.apfsContainer],
+            ["dev-entry": "/dev/disk18", "content-hint": "GUID_partition_scheme"],
+        ]])
+        let info = try #require(InstallerInspector.parseAttach(data))
+        #expect(info.root == "/dev/disk18")
+        #expect(info.mountPoints == ["/tmp/m/dmg.1"])
+
+        let hfs = try plist(["system-entities": [
+            ["dev-entry": "/dev/disk7s1", "mount-point": "/tmp/m/dmg.2"], ["dev-entry": "/dev/disk7"],
+        ]])
+        #expect(InstallerInspector.parseAttach(hfs)?.root == "/dev/disk7")
+        #expect(InstallerInspector.parseAttach(Data("junk".utf8)) == nil)
+    }
+
+    @Test func mapsAttachedImagesToTheirDisk() throws {
+        let data = try plist(["images": [
+            ["image-path": "/Users/x/Downloads/A.dmg", "system-entities": [["dev-entry": "/dev/disk5s1"], ["dev-entry": "/dev/disk5"]]],
+            ["image-path": "/Users/x/B.dmg", "system-entities": [["dev-entry": "/dev/disk6"]]],
+        ]])
+        let images = try #require(InstallerInspector.attachedImages(infoPlist: data))
+        #expect(images["/Users/x/Downloads/A.dmg"] == "/dev/disk5")
+        #expect(images["/Users/x/B.dmg"] == "/dev/disk6")
+        #expect(InstallerInspector.attachedImages(infoPlist: Data("junk".utf8)) == nil)
+    }
+
+    @Test func findsExactlyOneTopLevelApp() throws {
+        let dir = try makeTempDir()
+        defer { try? FileManager.default.removeItem(at: dir) }
+        try makeApp("Foo", in: dir, info: ["CFBundleIdentifier": "com.x.foo", "CFBundleShortVersionString": "1.2"])
+        try FileManager.default.createSymbolicLink(at: dir.appending(path: "Applications"), withDestinationURL: URL(filePath: "/Applications"))
+        let found = InstallerInspector.findApp(in: [dir])
+        #expect(found.bundleID == "com.x.foo")
+        #expect(found.version == "1.2")
+
+        // A symlinked app (like an alias into /Applications) does not count.
+        let other = try makeTempDir()
+        defer { try? FileManager.default.removeItem(at: other) }
+        try makeApp("Bar", in: other, info: ["CFBundleIdentifier": "com.x.bar", "CFBundleVersion": "77"])
+        try FileManager.default.createSymbolicLink(at: dir.appending(path: "Bar.app"), withDestinationURL: other.appending(path: "Bar.app"))
+        #expect(InstallerInspector.findApp(in: [dir]).bundleID == "com.x.foo")
+        // CFBundleVersion fallback.
+        #expect(InstallerInspector.findApp(in: [other]).version == "77")
+        // Two apps across the image: unknown.
+        #expect(InstallerInspector.findApp(in: [dir, other]).bundleID == nil)
+        #expect(InstallerInspector.findApp(in: []).bundleID == nil)
+    }
+
+    /// Builds a small image in a temp folder (never a user's dmg), inspects it, and checks it is detached after.
+    @Test(.timeLimit(.minutes(2))) func inspectsASyntheticImage() async throws {
+        let dir = try makeTempDir()
+        defer { try? FileManager.default.removeItem(at: dir) }
+        let source = dir.appending(path: "src", directoryHint: .isDirectory)
+        try makeApp("Foo", in: source, info: ["CFBundleIdentifier": "com.x.foo", "CFBundleShortVersionString": "2.5"])
+        let dmg = dir.appending(path: "Foo.dmg")
+        let created = await ProcessRunner.run("/usr/bin/hdiutil", ["create", "-srcfolder", source.path, "-volname", "DriftTest",
+                                                                  "-format", "UDZO", "-ov", "-quiet", dmg.path], timeout: 60)
+        try #require(created.status == 0)
+        let stamp = try #require(FileStamp.read(dmg))
+
+        let info = try #require(await InstallerInspector.inspect(dmg, expected: stamp))
+        #expect(!info.failed)
+        #expect(info.bundleID == "com.x.foo")
+        #expect(info.version == "2.5")
+        #expect(info.stamp == stamp)
+        let attached = try #require(await InstallerInspector.attachedImages())
+        #expect(attached[InstallerInspector.normalized(dmg.path)] == nil, "detached after inspection")
+        #expect(await InstallerInspector.isMounted(dmg) == false)
+
+        var other = stamp
+        other.fileID += 1
+        #expect(await InstallerInspector.inspect(dmg, expected: other) == nil, "changed file is skipped")
+    }
+
+    @Test func notAnImageFails() async throws {
+        let dir = try makeTempDir()
+        defer { try? FileManager.default.removeItem(at: dir) }
+        let fake = dir.appending(path: "Fake.dmg")
+        try Data("not a disk image".utf8).write(to: fake)
+        let stamp = try #require(FileStamp.read(fake))
+        let info = try #require(await InstallerInspector.inspect(fake, expected: stamp))
+        #expect(info.failed)
+        #expect(info.bundleID == nil)
+    }
+}
