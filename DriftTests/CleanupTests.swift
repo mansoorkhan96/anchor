@@ -774,3 +774,69 @@ enum Fixture {
         #expect(Archiver.monthFolderName(date) == "2026-10 October")
     }
 }
+
+@Suite struct CleanupTrashTests {
+    @Test func fileReplacedAfterTheScanIsSkipped() throws {
+        let dir = try makeTempDir()
+        defer { try? FileManager.default.removeItem(at: dir) }
+        let now = Date()
+        func make(_ name: String) throws -> (DownloadItem, TrashEntry) {
+            let url = dir.appending(path: name)
+            try Data("original".utf8).write(to: url)
+            try FileManager.default.setAttributes([.modificationDate: now.addingTimeInterval(-90 * Fixture.day)], ofItemAtPath: url.path)
+            var item = DownloadItem(url: URL(string: "https://a.com/\(name)")!, fileName: name, directory: dir, category: .video)
+            item.state = .completed
+            item.completedAt = now.addingTimeInterval(-90 * Fixture.day)
+            item.stamp = FileStamp.read(url)
+            let entry = TrashEntry(id: item.id, name: name, path: item.destination.standardizedFileURL.path, stamp: try #require(item.stamp),
+                                   rule: TrashEntry.Rule(item: item, days: 30, sharedPath: false))
+            return (item, entry)
+        }
+        let (_, keep) = try make("replaced.mp4")
+        let (unchangedItem, unchanged) = try make("unchanged.mp4")
+        // Replaced after the scan: same name, new file.
+        try Data("replacement".utf8).write(to: dir.appending(path: "replaced.mp4"), options: .atomic)
+
+        var trashed: [String] = []
+        let outcome = CleanupTrasher.trash([keep, unchanged], now: now, lastUsed: { _ in nil }) { trashed.append($0.lastPathComponent) }
+        #expect(trashed == ["unchanged.mp4"])
+        #expect(outcome.trashedIDs == [unchangedItem.id])
+        #expect(outcome.problems.map(\.name) == ["replaced.mp4"])
+        #expect(outcome.problems.first?.reason == "changed since the last scan")
+    }
+
+    @Test func recentUseSinceTheScanIsSkipped() throws {
+        let dir = try makeTempDir()
+        defer { try? FileManager.default.removeItem(at: dir) }
+        let now = Date()
+        let url = dir.appending(path: "a.mp4")
+        try Data("a".utf8).write(to: url)
+        try FileManager.default.setAttributes([.modificationDate: now.addingTimeInterval(-90 * Fixture.day)], ofItemAtPath: url.path)
+        var item = DownloadItem(url: URL(string: "https://a.com/a.mp4")!, fileName: "a.mp4", directory: dir, category: .video)
+        item.state = .completed
+        item.completedAt = now.addingTimeInterval(-90 * Fixture.day)
+        item.stamp = FileStamp.read(url)
+        let entry = TrashEntry(id: item.id, name: "a.mp4", path: url.standardizedFileURL.path, stamp: try #require(item.stamp),
+                               rule: TrashEntry.Rule(item: item, days: 30, sharedPath: false))
+        var calls = 0
+        let outcome = CleanupTrasher.trash([entry], now: now, lastUsed: { _ in now }) { _ in calls += 1 }
+        #expect(calls == 0)
+        #expect(outcome.trashedIDs.isEmpty)
+        #expect(outcome.problems.count == 1)
+    }
+
+    @Test func trashFailureIsReported() throws {
+        let dir = try makeTempDir()
+        defer { try? FileManager.default.removeItem(at: dir) }
+        let url = dir.appending(path: "x.drift-part")
+        try Data("x".utf8).write(to: url)
+        let entry = TrashEntry(id: nil, name: "x.drift-part", path: url.standardizedFileURL.path, stamp: try #require(FileStamp.read(url)), rule: nil)
+        let outcome = CleanupTrasher.trash([entry], now: Date(), lastUsed: { _ in nil }) { _ in throw CocoaError(.fileWriteNoPermission) }
+        #expect(outcome.trashedPaths.isEmpty)
+        #expect(outcome.problems.map(\.name) == ["x.drift-part"])
+    }
+
+    @Test func cleanupDoesNotRunInTheTestHost() {
+        #expect(AppEnvironment.isRunningTests)
+    }
+}

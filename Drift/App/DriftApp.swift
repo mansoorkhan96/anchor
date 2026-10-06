@@ -4,11 +4,13 @@ import SwiftUI
 struct DriftApp: App {
     @NSApplicationDelegateAdaptor(AppDelegate.self) private var delegate
     @State private var store = DownloadStore.shared
+    @State private var cleanup = CleanupStore.shared
 
     var body: some Scene {
         Window("Drift", id: "main") {
             MainView()
                 .environment(store)
+                .environment(cleanup)
                 .frame(minWidth: 860, minHeight: 520)
         }
         .defaultSize(width: 1180, height: 760)
@@ -44,6 +46,7 @@ struct DriftApp: App {
                                          set: { store.settings.showMenuBarIcon = $0 })) {
             MenuBarView()
                 .environment(store)
+                .environment(cleanup)
         } label: {
             MenuBarLabel(store: store)
         }
@@ -52,6 +55,7 @@ struct DriftApp: App {
         Settings {
             SettingsView()
                 .environment(store)
+                .environment(cleanup)
         }
     }
 }
@@ -79,6 +83,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
     func applicationDidFinishLaunching(_ notification: Notification) {
         MainActor.assumeIsolated {
             _ = DownloadStore.shared
+            CleanupStore.shared.start()
             BrowserBridge.shared.start()
             ClipboardWatcher.shared.start()
             // Switching to another app (⌘-Tab, Dock, clicking a window) closes the menu bar popover.
