@@ -12,6 +12,7 @@
 		14FB89A5D3475CA779C218A1 /* HTTPDownload.swift in Sources */ = {isa = PBXBuildFile; fileRef = 506CB9D922F640D2B265D5B0 /* HTTPDownload.swift */; };
 		16B67EDEA20F5FD512F9B90C /* FileNaming.swift in Sources */ = {isa = PBXBuildFile; fileRef = B8DA68BA96D8381013FF15C2 /* FileNaming.swift */; };
 		17149684C587FD904D019427 /* Probe.swift in Sources */ = {isa = PBXBuildFile; fileRef = 2A614D70A1860749FC6DA7CB /* Probe.swift */; };
+		23C43182F1F069780FBF83C2 /* Archiver.swift in Sources */ = {isa = PBXBuildFile; fileRef = 142B65657B445BDEA014D970 /* Archiver.swift */; };
 		2BB7278F0A4287D54828B694 /* BrowserBridge.swift in Sources */ = {isa = PBXBuildFile; fileRef = A7AE282971614E3AA76CED2D /* BrowserBridge.swift */; };
 		3545320D4913B9036217BF36 /* FileStamp.swift in Sources */ = {isa = PBXBuildFile; fileRef = A0F45C12F2E66C9D88629DA1 /* FileStamp.swift */; };
 		3AFB631E68FC2FA8FA7ED2D5 /* Aria2.swift in Sources */ = {isa = PBXBuildFile; fileRef = 9888F14F62828F61E272BB06 /* Aria2.swift */; };
@@ -65,6 +66,7 @@
 		031FF77326075F145E24119B /* Power.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Power.swift; sourceTree = "<group>"; };
 		08E33CA6BE80D735A37ED745 /* Assets.xcassets */ = {isa = PBXFileReference; lastKnownFileType = folder.assetcatalog; path = Assets.xcassets; sourceTree = "<group>"; };
 		0E34BD7081042061DD730EA9 /* ClipboardWatcher.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ClipboardWatcher.swift; sourceTree = "<group>"; };
+		142B65657B445BDEA014D970 /* Archiver.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Archiver.swift; sourceTree = "<group>"; };
 		1838DE170DA877B6F676AFA2 /* AppSettings.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AppSettings.swift; sourceTree = "<group>"; };
 		1926BBD3575AD4DC05AA01AF /* BrowserExtension */ = {isa = PBXFileReference; lastKnownFileType = folder; path = BrowserExtension; sourceTree = SOURCE_ROOT; };
 		2422888F84E23778A8427069 /* SettingsView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SettingsView.swift; sourceTree = "<group>"; };
@@ -184,6 +186,7 @@
 		4F09636EF8033F1C6996693D /* Cleanup */ = {
 			isa = PBXGroup;
 			children = (
+				142B65657B445BDEA014D970 /* Archiver.swift */,
 				28820D56F7D75FAA822B715E /* CleanupRules.swift */,
 				51C181C8F0D3447604BD7D89 /* CleanupSnapshot.swift */,
 				A0F45C12F2E66C9D88629DA1 /* FileStamp.swift */,
@@ -372,6 +375,7 @@
 				3F979552F5462569BD9AEDB6 /* AppPaths.swift in Sources */,
 				7619F7D321D1A28767406202 /* AppRouter.swift in Sources */,
 				EE676C212B8A4113373438A5 /* AppSettings.swift in Sources */,
+				23C43182F1F069780FBF83C2 /* Archiver.swift in Sources */,
 				3AFB631E68FC2FA8FA7ED2D5 /* Aria2.swift in Sources */,
 				2BB7278F0A4287D54828B694 /* BrowserBridge.swift in Sources */,
 				F12BCA9D3982F377FF605A56 /* CleanupRules.swift in Sources */,

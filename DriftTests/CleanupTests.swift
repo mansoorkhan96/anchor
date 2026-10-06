@@ -657,3 +657,120 @@ enum Fixture {
         #expect(info.bundleID == nil)
     }
 }
+
+@Suite struct ArchiverTests {
+    struct Setup {
+        let dir: URL, source: URL, archive: URL
+        var item: DownloadItem
+    }
+
+    func setup() throws -> Setup {
+        let dir = try makeTempDir()
+        let source = dir.appending(path: "Downloads", directoryHint: .isDirectory)
+        let archive = dir.appending(path: "Drift Archive/2026-10 October", directoryHint: .isDirectory)
+        try FileManager.default.createDirectory(at: source, withIntermediateDirectories: true)
+        try FileManager.default.createDirectory(at: archive, withIntermediateDirectories: true)
+        try Data("installer".utf8).write(to: source.appending(path: "App.dmg"))
+        var item = Fixture.installer()
+        item.directory = source
+        item.stamp = FileStamp.read(source.appending(path: "App.dmg"))
+        return Setup(dir: dir, source: source, archive: archive, item: item)
+    }
+
+    func archive(_ s: inout Setup) throws {
+        let target = Archiver.target(for: s.item.fileName, in: s.archive)
+        let move = PendingMove(kind: .archive, from: s.item.destination.path, to: target.path, stamp: try #require(s.item.stamp))
+        try Archiver.move(move).get()
+        CleanupRules.applyMove(move, to: &s.item, now: Date())
+    }
+
+    @Test func archiveAndRestoreRoundTripWithCollision() throws {
+        var s = try setup()
+        defer { try? FileManager.default.removeItem(at: s.dir) }
+        try Data("someone else".utf8).write(to: s.archive.appending(path: "App.dmg"))
+        let stamp = s.item.stamp
+
+        try archive(&s)
+        #expect(s.item.fileName == "App (2).dmg")
+        #expect(s.item.directory.standardizedFileURL == s.archive.standardizedFileURL)
+        #expect(FileStamp.read(s.item.destination) == stamp, "a rename keeps the identity")
+        #expect(!FileManager.default.fileExists(atPath: s.source.appending(path: "App.dmg").path))
+
+        let plan = Archiver.planRestore(s.item, revision: 1, fallback: s.dir)
+        let move = try #require(plan.move)
+        #expect(move.to == s.source.appending(path: "App.dmg").path)
+        try Archiver.move(move).get()
+        CleanupRules.applyMove(move, to: &s.item, now: Date())
+        #expect(s.item.fileName == "App.dmg")
+        #expect(s.item.directory.standardizedFileURL.path == s.source.standardizedFileURL.path)
+        #expect(s.item.keep == true)
+        #expect(s.item.archivedAt == nil)
+        #expect(FileStamp.read(s.item.destination) == stamp)
+    }
+
+    @Test func restoreAddsASuffixWhenTheNameIsTaken() throws {
+        var s = try setup()
+        defer { try? FileManager.default.removeItem(at: s.dir) }
+        try archive(&s)
+        try Data("new download".utf8).write(to: s.source.appending(path: "App.dmg"))
+        let move = try #require(Archiver.planRestore(s.item, revision: 1, fallback: s.dir).move)
+        #expect(URL(filePath: move.to).lastPathComponent == "App (2).dmg")
+    }
+
+    @Test func restoreFallsBackToTheDefaultFolder() throws {
+        var s = try setup()
+        defer { try? FileManager.default.removeItem(at: s.dir) }
+        try archive(&s)
+        s.item.archivedFrom = s.dir.appending(path: "gone").path
+        let move = try #require(Archiver.planRestore(s.item, revision: 1, fallback: s.dir).move)
+        #expect(move.to == s.dir.appending(path: "App.dmg").path)
+    }
+
+    @Test func restoreRefusesAMissingOrChangedFile() throws {
+        var s = try setup()
+        defer { try? FileManager.default.removeItem(at: s.dir) }
+        try archive(&s)
+        try Data("edited".utf8).write(to: s.item.destination, options: .atomic)
+        let changed = Archiver.planRestore(s.item, revision: 1, fallback: s.dir)
+        #expect(changed.move == nil && changed.failure != nil)
+        try FileManager.default.removeItem(at: s.item.destination)
+        let missing = Archiver.planRestore(s.item, revision: 1, fallback: s.dir)
+        #expect(missing.move == nil && missing.failure != nil)
+    }
+
+    @Test func moveRefusesChangedSourceOrTakenTarget() throws {
+        let s = try setup()
+        defer { try? FileManager.default.removeItem(at: s.dir) }
+        let stamp = try #require(s.item.stamp)
+        let from = s.item.destination.path
+        var other = stamp
+        other.fileID += 1
+        let changed = PendingMove(kind: .archive, from: from, to: s.archive.appending(path: "App.dmg").path, stamp: other)
+        #expect(throws: ArchiveError.changed) { try Archiver.move(changed).get() }
+        try Data("taken".utf8).write(to: s.archive.appending(path: "App.dmg"))
+        let taken = PendingMove(kind: .archive, from: from, to: s.archive.appending(path: "App.dmg").path, stamp: stamp)
+        #expect(throws: ArchiveError.targetExists) { try Archiver.move(taken).get() }
+        #expect(FileStamp.read(s.item.destination) == stamp, "source untouched")
+    }
+
+    @Test func reconcilesRecordedMovesAgainstTheDisk() throws {
+        var s = try setup()
+        defer { try? FileManager.default.removeItem(at: s.dir) }
+        let stamp = try #require(s.item.stamp)
+        let target = s.archive.appending(path: "App.dmg").path
+        s.item.pendingMove = PendingMove(kind: .archive, from: s.item.destination.path, to: target, stamp: stamp)
+        #expect(Archiver.reconcile([s.item]) == [s.item.id: .notMoved])
+        try FileManager.default.moveItem(atPath: s.item.destination.path, toPath: target)
+        try Data("different".utf8).write(to: s.item.destination)
+        #expect(Archiver.reconcile([s.item]) == [s.item.id: .completed])
+        try FileManager.default.removeItem(atPath: target)
+        #expect(Archiver.reconcile([s.item]) == [s.item.id: .unknown])
+    }
+
+    @Test func monthFolderName() {
+        var calendar = Calendar(identifier: .gregorian)
+        calendar.timeZone = .current
+        let date = calendar.date(from: DateComponents(year: 2026, month: 10, day: 6, hour: 12))!
+        #expect(Archiver.monthFolderName(date) == "2026-10 October")
+    }
+}
