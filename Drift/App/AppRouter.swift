@@ -39,6 +39,12 @@ final class AppRouter {
         activate()
     }
 
+    /// Brings up the main window on the Cleanup list.
+    func showCleanup() {
+        store.pendingFilter = .cleanup
+        activate()
+    }
+
     func present(_ request: AddRequest) {
         if NSApp.isActive {
             store.addRequest = request

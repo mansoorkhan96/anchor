@@ -2,6 +2,7 @@ import SwiftUI
 
 struct MenuBarView: View {
     @Environment(DownloadStore.self) private var store
+    @Environment(CleanupStore.self) private var cleanup
     @Environment(\.openWindow) private var openWindow
 
     private var anyRunning: Bool { store.activeCount + store.queuedCount > 0 }
@@ -12,6 +13,9 @@ struct MenuBarView: View {
         let recent = store.recentItems(order: settings.menuBarOrder, limit: settings.menuBarCount)
         VStack(alignment: .leading, spacing: 14) {
             header
+            if cleanup.attentionBytes > 0 {
+                CleanupLine(bytes: cleanup.attentionBytes)
+            }
 
             VStack(alignment: .leading, spacing: 10) {
                 HStack(spacing: 8) {
@@ -81,6 +85,38 @@ struct MenuBarView: View {
         openWindow(id: "main")
         NSApp.activate()
         AppRouter.shared.closeMenuBarPanel()
+    }
+}
+
+/// "4.2 GB ready for cleanup ›": opens the main window on the Cleanup list.
+private struct CleanupLine: View {
+    let bytes: Int64
+    @State private var hovering = false
+
+    var body: some View {
+        Button {
+            AppRouter.shared.showCleanup()
+        } label: {
+            HStack(spacing: 6) {
+                Image(systemName: "sparkles")
+                    .font(.system(size: 11, weight: .semibold))
+                    .foregroundStyle(Color.driftSuccess)
+                Text("\(Format.bytes(bytes)) ready for cleanup")
+                    .font(.system(size: 12.5, weight: .medium).monospacedDigit())
+                    .foregroundStyle(Color.driftText)
+                Image(systemName: "chevron.right")
+                    .font(.system(size: 9.5, weight: .bold))
+                    .foregroundStyle(Color.driftMuted)
+                Spacer()
+            }
+            .padding(.horizontal, 8)
+            .frame(height: 30)
+            .background(hovering ? Color.driftField : Color.driftCard, in: .rect(cornerRadius: 8))
+            .contentShape(.rect)
+        }
+        .buttonStyle(.plain)
+        .onHover { hovering = $0 }
+        .help("Review downloads you may not need")
     }
 }
 

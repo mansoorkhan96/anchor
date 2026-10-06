@@ -48,7 +48,7 @@ struct DriftApp: App {
                 .environment(store)
                 .environment(cleanup)
         } label: {
-            MenuBarLabel(store: store)
+            MenuBarLabel(store: store, cleanup: cleanup)
         }
         .menuBarExtraStyle(.window)
 
@@ -62,20 +62,70 @@ struct DriftApp: App {
 
 private struct MenuBarLabel: View {
     let store: DownloadStore
+    let cleanup: CleanupStore
     @Environment(\.openWindow) private var openWindow
 
     var body: some View {
+        // A dot on the icon once at least 1 GB is ready for cleanup.
+        let dot = cleanup.attentionBytes >= 1_000_000_000
         Group {
             if store.activeCount > 0 {
-                Text("\(Image(systemName: "arrow.down.circle.fill")) \(Format.speed(store.totalSpeed))")
+                Text("\(Image(nsImage: MenuBarIcon.image(filled: true, dot: dot))) \(Format.speed(store.totalSpeed))")
             } else {
-                Image(systemName: "arrow.down.circle")
+                Image(nsImage: MenuBarIcon.image(filled: false, dot: dot))
             }
         }
         .task {
             // The menu bar label lives for the whole session, so it can reopen the main window for the router.
             AppRouter.shared.openMainWindow = { openWindow(id: "main") }
         }
+    }
+}
+
+/// The status item glyph, optionally with a small dot cut into its top-right corner. Template images, so the
+/// menu bar tints them (the dot takes the icon's color).
+@MainActor
+private enum MenuBarIcon {
+    private static var cache: [String: NSImage] = [:]
+
+    static func image(filled: Bool, dot: Bool) -> NSImage {
+        let name = filled ? "arrow.down.circle.fill" : "arrow.down.circle"
+        let key = "\(name)-\(dot)"
+        if let cached = cache[key] { return cached }
+        let config = NSImage.SymbolConfiguration(pointSize: 14, weight: .regular)
+        guard let symbol = NSImage(systemSymbolName: name, accessibilityDescription: "Drift")?.withSymbolConfiguration(config) else {
+            return NSImage()
+        }
+        let image = dot ? dotted(symbol) : symbol
+        image.isTemplate = true
+        cache[key] = image
+        return image
+    }
+
+    private static func dotted(_ symbol: NSImage) -> NSImage {
+        let size = NSSize(width: symbol.size.width + 2, height: symbol.size.height)
+        let scale: CGFloat = 2
+        guard let rep = NSBitmapImageRep(bitmapDataPlanes: nil, pixelsWide: Int(size.width * scale), pixelsHigh: Int(size.height * scale),
+                                         bitsPerSample: 8, samplesPerPixel: 4, hasAlpha: true, isPlanar: false,
+                                         colorSpaceName: .deviceRGB, bytesPerRow: 0, bitsPerPixel: 0) else { return symbol }
+        // Points, not pixels: the size must be set before the context is made.
+        rep.size = size
+        guard let context = NSGraphicsContext(bitmapImageRep: rep) else { return symbol }
+        NSGraphicsContext.saveGraphicsState()
+        NSGraphicsContext.current = context
+        symbol.draw(in: NSRect(origin: .zero, size: symbol.size))
+        let diameter: CGFloat = 6
+        let dot = NSRect(x: size.width - diameter, y: size.height - diameter, width: diameter, height: diameter)
+        // Clear a ring around the dot so it reads as a badge, not part of the circle.
+        context.compositingOperation = .clear
+        NSBezierPath(ovalIn: dot.insetBy(dx: -1.5, dy: -1.5)).fill()
+        context.compositingOperation = .sourceOver
+        NSColor.black.setFill()
+        NSBezierPath(ovalIn: dot).fill()
+        NSGraphicsContext.restoreGraphicsState()
+        let image = NSImage(size: size)
+        image.addRepresentation(rep)
+        return image
     }
 }
 
