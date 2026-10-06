@@ -526,3 +526,32 @@ enum Fixture {
         #expect(!result.isCurrent(revision: 5), "an add during the scan bumped the revision")
     }
 }
+
+@Suite struct ProcessRunnerTests {
+    @Test func capturesOutput() async {
+        let result = await ProcessRunner.run("/bin/echo", ["hi"], timeout: 5)
+        #expect(result.status == 0)
+        #expect(!result.timedOut)
+        #expect(String(decoding: result.data, as: UTF8.self) == "hi\n")
+    }
+
+    @Test func stdinIsEmpty() async {
+        let result = await ProcessRunner.run("/bin/cat", [], timeout: 5)
+        #expect(result.status == 0)
+        #expect(!result.timedOut)
+        #expect(result.data.isEmpty)
+    }
+
+    @Test func killsOnTimeout() async {
+        let start = Date()
+        let result = await ProcessRunner.run("/bin/sleep", ["10"], timeout: 0.5)
+        #expect(result.timedOut)
+        #expect(result.status != 0)
+        #expect(Date().timeIntervalSince(start) < 5)
+    }
+
+    @Test func missingExecutableFails() async {
+        let result = await ProcessRunner.run("/nonexistent/tool", [], timeout: 1)
+        #expect(result.status != 0)
+    }
+}
