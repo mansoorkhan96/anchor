@@ -16,6 +16,10 @@ enum SidebarFilter: Hashable {
     case all, downloading, queued, completed, failed
     case category(FileCategory)
     case torrents
+    /// Tidy lists; their items come from dedicated queries, not `matches(_:)`.
+    case cleanup, archive
+
+    var isTidy: Bool { self == .cleanup || self == .archive }
 
     var title: String {
         switch self {
@@ -26,6 +30,8 @@ enum SidebarFilter: Hashable {
         case .failed: "Failed"
         case .category(let c): c.title
         case .torrents: "Torrents"
+        case .cleanup: "Cleanup"
+        case .archive: "Archive"
         }
     }
 
@@ -38,6 +44,7 @@ enum SidebarFilter: Hashable {
         case .failed: item.state.isFailed
         case .category(let c): item.kind == .http && item.category == c
         case .torrents: item.kind == .torrent
+        case .cleanup, .archive: false
         }
     }
 }

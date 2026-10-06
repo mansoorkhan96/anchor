@@ -3,6 +3,7 @@ import Charts
 
 struct DownloadListView: View {
     @Environment(DownloadStore.self) private var store
+    @Environment(CleanupStore.self) private var cleanup
     let filter: SidebarFilter
     var sidebarHidden = false
     var toggleSidebar: () -> Void = {}
@@ -12,10 +13,19 @@ struct DownloadListView: View {
     /// The last row checked or unchecked without Shift; Shift-click selects from here.
     @State private var selectionAnchor: UUID?
     @State private var confirmDelete = false
+    @State private var confirmTrash = false
     @State private var panelWidth: CGFloat = 440
     @State private var spaceMonitor: Any?
 
-    private var visible: [DownloadItem] { store.items(for: filter, search: search) }
+    private var visible: [DownloadItem] {
+        switch filter {
+        case .cleanup: cleanup.cleanupItems(search: search)
+        case .archive: store.archivedItems(search: search)
+        default: store.items(for: filter, search: search)
+        }
+    }
+
+    private var hasCleanupCards: Bool { !cleanup.leftovers.isEmpty || !cleanup.missing.isEmpty }
 
     var body: some View {
         @Bindable var settings = store.settings
@@ -27,16 +37,27 @@ struct DownloadListView: View {
                 if let link = store.clipboardSuggestion {
                     ClipboardBanner(url: link)
                 }
-                if store.settings.showSpeedStrip {
+                if filter == .cleanup {
+                    if !cleanup.leftovers.isEmpty { LeftoversCard() }
+                    if !cleanup.missing.isEmpty { MissingFilesCard() }
+                } else if !filter.isTidy, CleanupBanner.isVisible(cleanup: cleanup, settings: store.settings) {
+                    CleanupBanner()
+                }
+                if store.settings.showSpeedStrip, !filter.isTidy {
                     ThroughputCard()
                 }
                 if items.isEmpty {
-                    EmptyState(filter: filter, searching: !search.isEmpty)
+                    switch filter {
+                    case .cleanup:
+                        if !hasCleanupCards || !search.isEmpty { CleanupEmptyState(off: cleanup.isOff, searching: !search.isEmpty) }
+                    case .archive: ArchiveEmptyState(searching: !search.isEmpty)
+                    default: EmptyState(filter: filter, searching: !search.isEmpty)
+                    }
                 } else {
                     LazyVStack(spacing: 2) {
                         ForEach(items) { item in
                             DownloadRow(item: item, isSelected: selectionBinding(item.id),
-                                        isFocused: store.focusedID == item.id) {
+                                        isFocused: store.focusedID == item.id, note: note(for: item)) {
                                 // Shift-click on the row works like Shift-click on its checkbox.
                                 if NSApp.currentEvent?.modifierFlags.contains(.shift) == true {
                                     setSelected(item.id, !selection.contains(item.id))
@@ -64,7 +85,18 @@ struct DownloadListView: View {
                                  move: moveSelection,
                                  delete: { confirmDelete = true },
                                  toggle: toggleSelection,
-                                 anyRunning: selectionRunning)
+                                 anyRunning: selectionRunning,
+                                 mode: filter == .cleanup ? .cleanup : filter == .archive ? .archive : .downloads,
+                                 trash: { confirmTrash = true },
+                                 keep: {
+                                     store.setKeep(selection, true)
+                                     selection.removeAll()
+                                 },
+                                 restore: {
+                                     let ids = selection
+                                     selection.removeAll()
+                                     Task { await cleanup.restore(ids) }
+                                 })
                         .padding(.bottom, 18)
                         .transition(.move(edge: .bottom).combined(with: .opacity))
                 }
@@ -85,7 +117,7 @@ struct DownloadListView: View {
         }
         .safeAreaInset(edge: .top, spacing: 0) {
             HeaderBar(title: filter.title, subtitle: subtitle, search: $search,
-                      sidebarHidden: sidebarHidden, toggleSidebar: toggleSidebar)
+                      sidebarHidden: sidebarHidden, showsSort: !filter.isTidy, toggleSidebar: toggleSidebar)
         }
         .onAppear {
             spaceMonitor = NSEvent.addLocalMonitorForEvents(matching: .keyDown) { event in
@@ -104,6 +136,22 @@ struct DownloadListView: View {
             spaceMonitor = nil
         }
         .onChange(of: filter) { selection.removeAll() }
+        // Tidy lists change with each scan; keep the selection to rows that are still listed.
+        .onChange(of: filter.isTidy ? visible.map(\.id) : []) { _, ids in
+            if filter.isTidy { selection.formIntersection(ids) }
+        }
+        .confirmationDialog(trashTitle, isPresented: $confirmTrash) {
+            Button("Move to Trash", role: .destructive) {
+                let ids = selection
+                selection.removeAll()
+                Task {
+                    if filter == .archive { await cleanup.trashArchived(ids) } else { await cleanup.trash(ids) }
+                }
+            }
+            Button("Cancel", role: .cancel) {}
+        } message: {
+            Text("Each file is checked again first. Anything that changed since Drift listed it is left alone.")
+        }
         .onChange(of: store.items.map(\.id)) { _, ids in
             selection.formIntersection(ids)
             if let id = store.focusedID, !ids.contains(id) { store.focusedID = nil }
@@ -125,6 +173,24 @@ struct DownloadListView: View {
     }
 
     private var anyRunning: Bool { store.activeCount + store.queuedCount > 0 }
+
+    /// "Move 12 files (3.4 GB) to the Trash?"
+    private var trashTitle: String {
+        let bytes = selection.reduce(Int64(0)) { total, id in
+            total + (cleanup.candidates[id]?.bytes ?? store.item(id)?.stamp?.size ?? 0)
+        }
+        return "Move \(selection.count) file\(selection.count == 1 ? "" : "s") (\(Format.bytes(bytes))) to the Trash?"
+    }
+
+    /// The secondary line under a row's name.
+    private func note(for item: DownloadItem) -> String? {
+        if item.pendingMove != nil { return "Waiting to finish moving" }
+        switch filter {
+        case .cleanup: return cleanup.candidates[item.id]?.reason.text
+        case .archive: return archivedLine(item)
+        default: return nil
+        }
+    }
 
     private var subtitle: String {
         let paused = store.items.count { $0.state == .paused }
@@ -199,6 +265,7 @@ private struct HeaderBar: View {
     let subtitle: String
     @Binding var search: String
     let sidebarHidden: Bool
+    var showsSort = true
     let toggleSidebar: () -> Void
     @FocusState private var searchFocused: Bool
     @Environment(\.openSettings) private var openSettings
@@ -271,15 +338,17 @@ private struct HeaderBar: View {
 
                 SpeedMenu()
 
-                SlidersIcon()
-                    .stroke(style: StrokeStyle(lineWidth: 1.5, lineCap: .round))
-                    .frame(width: 15, height: 15)
-                    .frame(width: 32, height: 28)
-                    .contentShape(.capsule)
-                    .overlay(TrailingMenu(makeMenu: sortMenu))
-                    .help("Sort downloads")
-                    .accessibilityAddTraits(.isButton)
-                    .accessibilityLabel("Sort")
+                if showsSort {
+                    SlidersIcon()
+                        .stroke(style: StrokeStyle(lineWidth: 1.5, lineCap: .round))
+                        .frame(width: 15, height: 15)
+                        .frame(width: 32, height: 28)
+                        .contentShape(.capsule)
+                        .overlay(TrailingMenu(makeMenu: sortMenu))
+                        .help("Sort downloads")
+                        .accessibilityAddTraits(.isButton)
+                        .accessibilityLabel("Sort")
+                }
             }
             .foregroundStyle(Color.driftText)
             .padding(3)
@@ -517,6 +586,8 @@ private struct KeyHint: View {
 // MARK: - Selection
 
 private struct SelectionBar: View {
+    enum Mode { case downloads, cleanup, archive }
+
     let count: Int
     let allSelected: Bool
     let selectAll: () -> Void
@@ -525,6 +596,10 @@ private struct SelectionBar: View {
     let delete: () -> Void
     var toggle: (() -> Void)? = nil
     var anyRunning = false
+    var mode: Mode = .downloads
+    var trash: () -> Void = {}
+    var keep: () -> Void = {}
+    var restore: () -> Void = {}
 
     var body: some View {
         HStack(spacing: 6) {
@@ -546,13 +621,22 @@ private struct SelectionBar: View {
                     .padding(.horizontal, 6)
             }
             Rectangle().fill(Color.driftLine).frame(width: 1, height: 16).padding(.horizontal, 4)
-            if let toggle {
-                BarButton(title: anyRunning ? "Pause" : "Resume", symbol: anyRunning ? "pause.fill" : "play.fill",
-                          ink: anyRunning ? .driftText : .driftAccentStrong, wash: anyRunning ? .driftField : .driftAccentWash,
-                          action: toggle)
+            switch mode {
+            case .downloads:
+                if let toggle {
+                    BarButton(title: anyRunning ? "Pause" : "Resume", symbol: anyRunning ? "pause.fill" : "play.fill",
+                              ink: anyRunning ? .driftText : .driftAccentStrong, wash: anyRunning ? .driftField : .driftAccentWash,
+                              action: toggle)
+                }
+                BarButton(title: "Move", symbol: "folder", ink: .driftText, wash: .driftField, action: move)
+                BarButton(title: "Delete", symbol: "trash", ink: .driftDanger, wash: .driftDangerWash, action: delete)
+            case .cleanup:
+                BarButton(title: "Keep", symbol: "pin", ink: .driftText, wash: .driftField, action: keep)
+                BarButton(title: "Move to Trash", symbol: "trash", ink: .driftDanger, wash: .driftDangerWash, action: trash)
+            case .archive:
+                BarButton(title: "Restore", symbol: "arrow.uturn.backward", ink: .driftAccentStrong, wash: .driftAccentWash, action: restore)
+                BarButton(title: "Move to Trash", symbol: "trash", ink: .driftDanger, wash: .driftDangerWash, action: trash)
             }
-            BarButton(title: "Move", symbol: "folder", ink: .driftText, wash: .driftField, action: move)
-            BarButton(title: "Delete", symbol: "trash", ink: .driftDanger, wash: .driftDangerWash, action: delete)
             IconButton(symbol: "xmark", label: "Clear selection", tint: .driftMuted, fill: .clear, size: 26,
                        glyphScale: 0.38, action: clear)
         }

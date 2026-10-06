@@ -3,6 +3,7 @@ import UniformTypeIdentifiers
 
 struct MainView: View {
     @Environment(DownloadStore.self) private var store
+    @Environment(CleanupStore.self) private var cleanup
     @State private var filter: SidebarFilter = .all
     @State private var columns: NavigationSplitViewVisibility = .all
 
@@ -33,10 +34,27 @@ struct MainView: View {
         }
         // Opened from elsewhere (e.g. the menu bar): make sure the focused download is visible in the list.
         .onChange(of: store.focusedID) { _, id in
-            if let id, let item = store.item(id), !filter.matches(item) { filter = .all }
+            if let id, let item = store.item(id), !shows(item) { filter = .all }
+        }
+        // Asked for from elsewhere (the menu bar line or the cleanup banner).
+        .onChange(of: store.pendingFilter, initial: true) { _, pending in
+            guard let pending else { return }
+            filter = pending
+            store.pendingFilter = nil
+        }
+        .onChange(of: filter) { _, filter in
+            if filter == .cleanup { cleanup.rescan() }
         }
         .onDrop(of: [.fileURL, .url, .plainText], isTargeted: nil) { providers in
             handleDrop(providers)
+        }
+    }
+
+    private func shows(_ item: DownloadItem) -> Bool {
+        switch filter {
+        case .cleanup: cleanup.candidates[item.id] != nil
+        case .archive: item.archivedAt != nil
+        default: filter.matches(item)
         }
     }
 
@@ -60,6 +78,7 @@ struct MainView: View {
 
 struct SidebarView: View {
     @Environment(DownloadStore.self) private var store
+    @Environment(CleanupStore.self) private var cleanup
     @Binding var selection: SidebarFilter
 
     var body: some View {
@@ -82,6 +101,12 @@ struct SidebarView: View {
                     }
                     row(.torrents, dot: .driftTorrent)
                 }
+                VStack(alignment: .leading, spacing: 2) {
+                    SectionLabel("Tidy")
+                    let bytes = cleanup.attentionBytes
+                    row(.cleanup, symbol: "sparkles", color: .driftSuccess, badge: bytes > 0 ? Format.bytes(bytes) : nil)
+                    row(.archive, symbol: "archivebox", color: .driftMuted, badge: "\(store.archivedItems().count)")
+                }
             }
             .padding(.horizontal, 10)
             .padding(.top, 6)
@@ -93,8 +118,8 @@ struct SidebarView: View {
         }
     }
 
-    private func row(_ filter: SidebarFilter, symbol: String, color: Color) -> some View {
-        SidebarRow(title: filter.title, count: store.count(filter), isSelected: selection == filter) {
+    private func row(_ filter: SidebarFilter, symbol: String, color: Color, badge: String? = nil) -> some View {
+        SidebarRow(title: filter.title, badge: filter.isTidy ? badge : "\(store.count(filter))", isSelected: selection == filter) {
             Image(systemName: symbol)
                 .font(.system(size: 13, weight: .semibold))
                 .foregroundStyle(color)
@@ -105,7 +130,7 @@ struct SidebarView: View {
     }
 
     private func row(_ filter: SidebarFilter, dot: Color) -> some View {
-        SidebarRow(title: filter.title, count: store.count(filter), isSelected: selection == filter) {
+        SidebarRow(title: filter.title, badge: "\(store.count(filter))", isSelected: selection == filter) {
             Circle().fill(dot).frame(width: 8, height: 8).frame(width: 18)
         } action: {
             selection = filter
@@ -129,7 +154,8 @@ private struct SectionLabel: View {
 
 private struct SidebarRow<Icon: View>: View {
     let title: String
-    let count: Int
+    /// A count, or a size for Cleanup; nil hides it.
+    let badge: String?
     let isSelected: Bool
     @ViewBuilder let icon: () -> Icon
     let action: () -> Void
@@ -143,12 +169,14 @@ private struct SidebarRow<Icon: View>: View {
                     .font(.system(size: 13, weight: isSelected ? .semibold : .medium))
                     .foregroundStyle(isSelected ? Color.driftAccentInk : Color.driftText)
                 Spacer(minLength: 4)
-                Text("\(count)")
-                    .font(.system(size: 11, weight: .semibold).monospacedDigit())
-                    .foregroundStyle(isSelected ? Color.white : Color.driftMuted)
-                    .padding(.horizontal, 7)
-                    .padding(.vertical, 1)
-                    .background(isSelected ? Color.driftAccent : .clear, in: .capsule)
+                if let badge {
+                    Text(badge)
+                        .font(.system(size: 11, weight: .semibold).monospacedDigit())
+                        .foregroundStyle(isSelected ? Color.white : Color.driftMuted)
+                        .padding(.horizontal, 7)
+                        .padding(.vertical, 1)
+                        .background(isSelected ? Color.driftAccent : .clear, in: .capsule)
+                }
             }
             .padding(.horizontal, 10)
             .frame(height: 32)

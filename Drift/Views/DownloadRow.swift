@@ -5,8 +5,12 @@ struct DownloadRow: View {
     let item: DownloadItem
     @Binding var isSelected: Bool
     var isFocused = false
+    /// Secondary line under the name: the cleanup reason, where it was archived from, or a pending move.
+    var note: String?
     var onFocus: () -> Void = {}
     @State private var hovering = false
+
+    private var locked: Bool { item.pendingMove != nil }
 
     var body: some View {
         HStack(spacing: 12) {
@@ -28,11 +32,25 @@ struct DownloadRow: View {
                         .foregroundStyle(Color.driftPausedInk)
                         .help("Limited to \(Format.speed(Double(kb * 1000)))")
                 }
-                Text(item.fileName)
-                    .font(.system(size: 13, weight: .medium))
-                    .foregroundStyle(Color.driftText)
-                    .lineLimit(1)
-                    .truncationMode(.middle)
+                if item.keep == true {
+                    Image(systemName: "pin.fill")
+                        .font(.system(size: 9, weight: .bold))
+                        .foregroundStyle(Color.driftMuted)
+                        .help("Kept: never suggested for cleanup or archived")
+                }
+                VStack(alignment: .leading, spacing: 1) {
+                    Text(item.fileName)
+                        .font(.system(size: 13, weight: .medium))
+                        .foregroundStyle(Color.driftText)
+                        .lineLimit(1)
+                        .truncationMode(.middle)
+                    if let note {
+                        Text(note)
+                            .font(.system(size: 11.5))
+                            .foregroundStyle(Color.driftMuted)
+                            .lineLimit(1)
+                    }
+                }
             }
             .frame(maxWidth: .infinity, alignment: .leading)
 
@@ -59,7 +77,7 @@ struct DownloadRow: View {
             actionButton
         }
         .padding(.horizontal, 12)
-        .frame(height: 40)
+        .frame(height: note == nil ? 40 : 50)
         .background(background, in: .rect(cornerRadius: 8))
         .overlay(RoundedRectangle(cornerRadius: 8).strokeBorder(isSelected ? Color.driftAccentEdge : .clear, lineWidth: 1))
         // Anywhere on the row except its buttons: one click shows details, a double click opens or pauses/resumes.
@@ -116,6 +134,7 @@ struct DownloadRow: View {
     @ViewBuilder private var menu: some View {
         if item.state.isFinished {
             Button("Open") { store.open(item.id) }
+                .disabled(locked)
         }
         Button("Show in Finder") { store.reveal(item.id) }
         Button("Copy Link") {
@@ -158,9 +177,20 @@ struct DownloadRow: View {
         if item.files != nil || item.kind == .http {
             Button("Show Details") { onFocus() }
         }
+        if item.state.isFinished {
+            Divider()
+            Button(item.keep == true ? "Don't Keep" : "Keep") { store.setKeep([item.id], item.keep != true) }
+                .disabled(locked)
+            if item.archivedAt != nil {
+                Button("Restore") { Task { await CleanupStore.shared.restore([item.id]) } }
+                    .disabled(locked)
+            }
+        }
         Divider()
         Button("Remove from List") { store.remove([item.id], deleteFiles: false) }
+            .disabled(locked)
         Button("Move to Trash", role: .destructive) { store.remove([item.id], deleteFiles: true) }
+            .disabled(locked)
     }
 }
 

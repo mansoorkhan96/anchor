@@ -180,6 +180,21 @@ private struct GeneralDetails: View {
                 row("Priority") {
                     PriorityMenu(priority: item.priority ?? .normal) { store.setPriority([item.id], to: $0) }
                 }
+                if item.state.isFinished {
+                    row("Keep") {
+                        HStack(spacing: 8) {
+                            DriftSwitch(isOn: Binding(get: { item.keep == true }, set: { store.setKeep([item.id], $0) }), label: "Keep")
+                                .disabled(item.pendingMove != nil)
+                                .opacity(item.pendingMove != nil ? 0.45 : 1)
+                            Text(item.pendingMove != nil ? "Waiting to finish moving" : "Never suggest for cleanup or archive")
+                                .font(.system(size: 12))
+                                .foregroundStyle(Color.driftMuted)
+                        }
+                    }
+                }
+                if let archived = archivedLine(item) {
+                    row("Archive") { value(archived) }
+                }
                 if !item.state.isFinished {
                     row("Speed limit") {
                         Menu {
