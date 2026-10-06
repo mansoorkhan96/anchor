@@ -69,6 +69,26 @@ struct DownloadItem: Codable, Identifiable, Hashable, Sendable {
     var uploadSpeed: Double = 0
     var uploadedBytes: Int64 = 0
 
+    // Cleanup
+    /// The user marked Keep: never suggested in Cleanup, never archived.
+    var keep: Bool?
+    /// Identity of the finished file, recorded at completion (or adopted later, see `stampIsBaseline`).
+    var stamp: FileStamp?
+    /// The stamp was adopted after the fact; such items are never archived automatically.
+    var stampIsBaseline: Bool?
+    /// Last time the file was opened from Drift.
+    var openedAt: Date?
+    /// When the archiver moved the file; non-nil means "in the archive".
+    var archivedAt: Date?
+    /// The directory path the file was archived from, used by Restore.
+    var archivedFrom: String?
+    /// The file name before archiving, used by Restore.
+    var archivedName: String?
+    /// Set and saved before an archive or restore move, cleared after.
+    var pendingMove: PendingMove?
+    /// Cached result of inspecting the installer.
+    var installer: InstallerInfo?
+
     /// Extra request headers forwarded from the browser (cookies, referer, user agent).
     var headers: [String: String] = [:]
 
@@ -86,6 +106,7 @@ struct DownloadItem: Codable, Identifiable, Hashable, Sendable {
         case id, kind, url, fileName, directory, category, totalBytes, receivedBytes, segments
         case supportsRanges, validator, state, createdAt, completedAt, openWhenDone, headers, nameFromServer, overwrite, queuedAt, priority, files, appliedSelection, speedLimitKB, seeding
         case torrentGID, torrentFile
+        case keep, stamp, stampIsBaseline, openedAt, archivedAt, archivedFrom, archivedName, pendingMove, installer
     }
 
     init(url: URL, fileName: String, directory: URL, category: FileCategory, kind: DownloadKind = .http) {
