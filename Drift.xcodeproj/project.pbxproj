@@ -43,6 +43,7 @@
 		EA74697FF32067E760E1BA60 /* RateLimiter.swift in Sources */ = {isa = PBXBuildFile; fileRef = 46FF34950EC60FE0BF896F2A /* RateLimiter.swift */; };
 		ECF11542596170A83DB72072 /* DriftApp.swift in Sources */ = {isa = PBXBuildFile; fileRef = 80473000068BB96DF392A468 /* DriftApp.swift */; };
 		EE676C212B8A4113373438A5 /* AppSettings.swift in Sources */ = {isa = PBXBuildFile; fileRef = 1838DE170DA877B6F676AFA2 /* AppSettings.swift */; };
+		F12BCA9D3982F377FF605A56 /* CleanupRules.swift in Sources */ = {isa = PBXBuildFile; fileRef = 28820D56F7D75FAA822B715E /* CleanupRules.swift */; };
 		FA56AD964523695BCCB5EAC3 /* DetailsPanel.swift in Sources */ = {isa = PBXBuildFile; fileRef = A331546982DA568F2F096A59 /* DetailsPanel.swift */; };
 		FC1C422C14285E31EF3AB463 /* SettingsView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 2422888F84E23778A8427069 /* SettingsView.swift */; };
 /* End PBXBuildFile section */
@@ -65,6 +66,7 @@
 		1926BBD3575AD4DC05AA01AF /* BrowserExtension */ = {isa = PBXFileReference; lastKnownFileType = folder; path = BrowserExtension; sourceTree = SOURCE_ROOT; };
 		2422888F84E23778A8427069 /* SettingsView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SettingsView.swift; sourceTree = "<group>"; };
 		270FBD82479F9E786F86C760 /* FileConflictView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = FileConflictView.swift; sourceTree = "<group>"; };
+		28820D56F7D75FAA822B715E /* CleanupRules.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = CleanupRules.swift; sourceTree = "<group>"; };
 		2A614D70A1860749FC6DA7CB /* Probe.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Probe.swift; sourceTree = "<group>"; };
 		2BF9FFE56F0166CDE01AC25F /* TorrentFileList.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = TorrentFileList.swift; sourceTree = "<group>"; };
 		46FF34950EC60FE0BF896F2A /* RateLimiter.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = RateLimiter.swift; sourceTree = "<group>"; };
@@ -176,6 +178,7 @@
 		4F09636EF8033F1C6996693D /* Cleanup */ = {
 			isa = PBXGroup;
 			children = (
+				28820D56F7D75FAA822B715E /* CleanupRules.swift */,
 				A0F45C12F2E66C9D88629DA1 /* FileStamp.swift */,
 			);
 			path = Cleanup;
@@ -362,6 +365,7 @@
 				EE676C212B8A4113373438A5 /* AppSettings.swift in Sources */,
 				3AFB631E68FC2FA8FA7ED2D5 /* Aria2.swift in Sources */,
 				2BB7278F0A4287D54828B694 /* BrowserBridge.swift in Sources */,
+				F12BCA9D3982F377FF605A56 /* CleanupRules.swift in Sources */,
 				83CDF23601F5B9E57739B518 /* ClipboardWatcher.swift in Sources */,
 				56268192EDB3D4839E59695F /* DebugSnapshot.swift in Sources */,
 				FA56AD964523695BCCB5EAC3 /* DetailsPanel.swift in Sources */,

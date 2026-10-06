@@ -190,3 +190,244 @@ func makeTempDir() throws -> URL {
         #expect(AppSettings.loadCleanupDays(from: defaults) == [.video: 14])
     }
 }
+
+/// Shared fixtures for the pure rule tests (no disk access).
+enum Fixture {
+    static let base = Date(timeIntervalSince1970: 1_000_000)
+    static let day: TimeInterval = 86_400
+    static let stamp = FileStamp(volume: "VOL", fileID: 7, created: base, modified: base, size: 100)
+
+    static func item(_ name: String = "movie.mp4", category: FileCategory = .video, completed: Date = base) -> DownloadItem {
+        var item = DownloadItem(url: URL(string: "https://a.com/\(name)")!, fileName: name,
+                                directory: URL(filePath: "/tmp/drift-fixture"), category: category)
+        item.state = .completed
+        item.createdAt = completed
+        item.completedAt = completed
+        item.stamp = stamp
+        return item
+    }
+
+    static func installer(version: String = "1.9") -> DownloadItem {
+        var item = item("App.dmg", category: .apps)
+        item.installer = InstallerInfo(stamp: stamp, bundleID: "com.example.app", version: version, failed: false)
+        return item
+    }
+
+    static let archiveFacts = ArchiveFacts(current: stamp, archiveVolume: "VOL", installedVersions: ["1.9"],
+                                           mounted: false, sharedPath: false)
+}
+
+@Suite struct CleanupReasonTests {
+    let now = Fixture.base.addingTimeInterval(100 * Fixture.day)
+
+    func reason(_ item: DownloadItem, days: Int = 30, current: FileStamp? = Fixture.stamp, lastUsed: Date? = nil,
+                shared: Bool = false, now: Date? = nil) -> CleanupReason? {
+        CleanupRules.reason(for: item, now: now ?? self.now, days: days, current: current, lastUsed: lastUsed, sharedPath: shared)
+    }
+
+    @Test func oldUnusedFileIsSuggested() {
+        let result = reason(Fixture.item())
+        #expect(result?.text == "No recorded use in 100 days")
+        #expect(result?.days == 100)
+    }
+
+    @Test func exclusions() {
+        var notDone = Fixture.item(); notDone.state = .paused
+        var seeding = Fixture.item(); seeding.seeding = true
+        var kept = Fixture.item(); kept.keep = true
+        var pending = Fixture.item()
+        pending.pendingMove = PendingMove(kind: .archive, from: "/a", to: "/b", stamp: Fixture.stamp)
+        var noStamp = Fixture.item(); noStamp.stamp = nil
+        var torrent = Fixture.item(); torrent.kind = .torrent
+        var edited = Fixture.stamp; edited.modified = Fixture.base.addingTimeInterval(1)
+
+        #expect(reason(notDone) == nil)
+        #expect(reason(seeding) == nil)
+        #expect(reason(kept) == nil)
+        #expect(reason(pending) == nil)
+        #expect(reason(noStamp) == nil)
+        #expect(reason(Fixture.item(), current: nil) == nil, "missing file")
+        #expect(reason(torrent, current: nil) == nil, "torrent folder has no file stamp")
+        #expect(reason(torrent) != nil, "single-file torrent")
+        #expect(reason(Fixture.item(), shared: true) == nil)
+        #expect(reason(Fixture.item(), days: 0) == nil, "Never")
+        #expect(reason(Fixture.item(), current: edited) == nil, "file changed since download")
+    }
+
+    @Test func dayBoundary() {
+        let boundary = Fixture.base.addingTimeInterval(30 * Fixture.day)
+        #expect(reason(Fixture.item(), now: boundary) != nil)
+        #expect(reason(Fixture.item(), now: boundary.addingTimeInterval(-1)) == nil)
+    }
+
+    @Test func recentActivityOfAnyKindBlocks() {
+        let recent = now.addingTimeInterval(-2 * Fixture.day)
+        var opened = Fixture.item(); opened.openedAt = recent
+        var archived = Fixture.item(); archived.archivedAt = recent
+        var touched = Fixture.stamp; touched.modified = recent
+        var touchedItem = Fixture.item(); touchedItem.stamp = touched
+        let recentlyDone = Fixture.item(completed: recent)
+
+        #expect(reason(Fixture.item(), lastUsed: recent) == nil, "Spotlight last used")
+        #expect(reason(opened) == nil, "opened from Drift")
+        #expect(reason(archived) == nil, "archive clock starts at archivedAt")
+        #expect(reason(touchedItem, current: touched) == nil, "modification date")
+        #expect(reason(recentlyDone) == nil)
+        #expect(reason(Fixture.item(), lastUsed: Fixture.base.addingTimeInterval(-Fixture.day)) != nil, "older dates don't block")
+    }
+}
+
+@Suite struct ShouldArchiveTests {
+    let now = Fixture.base.addingTimeInterval(2 * Fixture.day)
+
+    func check(_ item: DownloadItem, enabled: Bool = true, facts: ArchiveFacts = Fixture.archiveFacts, now: Date? = nil) -> Bool {
+        CleanupRules.shouldArchive(item, now: now ?? self.now, enabled: enabled, facts: facts)
+    }
+
+    @Test func happyPath() {
+        #expect(check(Fixture.installer()))
+    }
+
+    @Test func itemConditions() {
+        var pkg = Fixture.installer(); pkg.fileName = "App.pkg"
+        var notApps = Fixture.installer(); notApps.category = .other
+        var torrent = Fixture.installer(); torrent.kind = .torrent
+        var notDone = Fixture.installer(); notDone.state = .paused
+        var kept = Fixture.installer(); kept.keep = true
+        var archived = Fixture.installer(); archived.archivedAt = Fixture.base
+        var pending = Fixture.installer()
+        pending.pendingMove = PendingMove(kind: .archive, from: "/a", to: "/b", stamp: Fixture.stamp)
+        var noStamp = Fixture.installer(); noStamp.stamp = nil
+        var baseline = Fixture.installer(); baseline.stampIsBaseline = true
+        var noCompletion = Fixture.installer(); noCompletion.completedAt = nil
+
+        #expect(!check(Fixture.installer(), enabled: false))
+        for item in [pkg, notApps, torrent, notDone, kept, archived, pending, noStamp, baseline, noCompletion] {
+            #expect(!check(item), "\(item.fileName)")
+        }
+        #expect(!check(Fixture.installer(), now: Fixture.base.addingTimeInterval(23 * 3600)), "24 hour grace period")
+        #expect(check(Fixture.installer(), now: Fixture.base.addingTimeInterval(24 * 3600)))
+    }
+
+    @Test func fileAndInstallerConditions() {
+        var other = Fixture.stamp; other.fileID = 8
+        var facts = Fixture.archiveFacts
+        facts.current = other
+        #expect(!check(Fixture.installer(), facts: facts), "stamp mismatch")
+        facts = Fixture.archiveFacts; facts.current = nil
+        #expect(!check(Fixture.installer(), facts: facts), "missing file")
+        facts = Fixture.archiveFacts; facts.archiveVolume = "OTHER"
+        #expect(!check(Fixture.installer(), facts: facts), "different volume")
+        facts = Fixture.archiveFacts; facts.archiveVolume = nil
+        #expect(!check(Fixture.installer(), facts: facts), "unknown volume")
+        facts = Fixture.archiveFacts; facts.sharedPath = true
+        #expect(!check(Fixture.installer(), facts: facts), "shared path")
+        facts = Fixture.archiveFacts; facts.mounted = true
+        #expect(!check(Fixture.installer(), facts: facts), "mounted")
+        facts = Fixture.archiveFacts; facts.installedVersions = []
+        #expect(!check(Fixture.installer(), facts: facts), "not installed")
+
+        var stale = Fixture.installer(); stale.installer?.stamp = other
+        var failed = Fixture.installer(); failed.installer?.failed = true
+        var noBundle = Fixture.installer(); noBundle.installer?.bundleID = nil
+        var noVersion = Fixture.installer(); noVersion.installer?.version = nil
+        var notInspected = Fixture.installer(); notInspected.installer = nil
+        for item in [stale, failed, noBundle, noVersion, notInspected] { #expect(!check(item)) }
+    }
+
+    @Test func versionComparison() {
+        var facts = Fixture.archiveFacts
+        facts.installedVersions = ["1.10"]
+        #expect(check(Fixture.installer(version: "1.9"), facts: facts), "1.10 >= 1.9")
+        facts.installedVersions = ["1.9"]
+        #expect(!check(Fixture.installer(version: "1.10"), facts: facts), "older installed")
+        facts.installedVersions = ["1.2", "2.0"]
+        #expect(check(Fixture.installer(version: "1.10"), facts: facts), "any installed copy new enough")
+        #expect(CleanupRules.isInstalled(version: "124.3", installed: ["124.5"]))
+        #expect(!CleanupRules.isInstalled(version: "124.5", installed: ["124.3"]))
+    }
+}
+
+@Suite struct CleanupLockAndRecoveryTests {
+    var pending: PendingMove { PendingMove(kind: .archive, from: "/d/App.dmg", to: "/d/Drift Archive/2026-10 October/App.dmg", stamp: Fixture.stamp) }
+
+    @Test func storeMethodsSkipLockedItems() {
+        var locked = Fixture.item("a.mp4"); locked.pendingMove = pending
+        let free = Fixture.item("b.mp4")
+        #expect(CleanupRules.unlocked([locked.id, free.id, UUID()], in: [locked, free]) == [free.id])
+    }
+
+    @Test func missingFiles() {
+        var pendingItem = Fixture.item(); pendingItem.pendingMove = pending
+        var paused = Fixture.item(); paused.state = .paused
+        #expect(CleanupRules.isMissing(Fixture.item(), directoryExists: true, fileExists: false))
+        #expect(!CleanupRules.isMissing(Fixture.item(), directoryExists: false, fileExists: false), "unmounted drive")
+        #expect(!CleanupRules.isMissing(Fixture.item(), directoryExists: true, fileExists: true))
+        #expect(!CleanupRules.isMissing(pendingItem, directoryExists: true, fileExists: false))
+        #expect(!CleanupRules.isMissing(paused, directoryExists: true, fileExists: false))
+    }
+
+    @Test func reconcileCompletedNotDoneAndUnknown() {
+        var other = Fixture.stamp; other.fileID = 99
+        let move = pending
+        #expect(CleanupRules.reconcile(move) { $0 == move.to ? Fixture.stamp : nil } == .completed)
+        #expect(CleanupRules.reconcile(move) { $0 == move.from ? Fixture.stamp : nil } == .notMoved)
+        #expect(CleanupRules.reconcile(move) { _ in nil } == .unknown)
+        #expect(CleanupRules.reconcile(move) { _ in other } == .unknown)
+        // Moved, then a different file appeared at the old path: the entry follows the moved file only.
+        #expect(CleanupRules.reconcile(move) { $0 == move.to ? Fixture.stamp : other } == .completed)
+    }
+
+    @Test func applyArchiveAndRestore() {
+        var item = Fixture.installer()
+        item.directory = URL(filePath: "/d")
+        item.pendingMove = pending
+        let now = Fixture.base
+        CleanupRules.applyMove(pending, to: &item, now: now)
+        #expect(item.directory.path == "/d/Drift Archive/2026-10 October")
+        #expect(item.fileName == "App.dmg")
+        #expect(item.archivedAt == now)
+        #expect(item.archivedFrom == "/d")
+        #expect(item.archivedName == "App.dmg")
+        #expect(item.pendingMove == nil)
+
+        let back = PendingMove(kind: .restore, from: pending.to, to: "/d/App (2).dmg", stamp: Fixture.stamp)
+        item.pendingMove = back
+        CleanupRules.applyMove(back, to: &item, now: now)
+        #expect(item.directory.path == "/d")
+        #expect(item.fileName == "App (2).dmg")
+        #expect(item.archivedAt == nil && item.archivedFrom == nil && item.archivedName == nil)
+        #expect(item.keep == true)
+        #expect(item.pendingMove == nil)
+    }
+
+    @Test func archivePlanDroppedWhenAnythingChanged() {
+        let item = Fixture.installer()
+        #expect(CleanupRules.canLock(item, revision: 5, current: item, currentRevision: 5))
+        #expect(!CleanupRules.canLock(item, revision: 5, current: item, currentRevision: 6), "revision changed")
+        #expect(!CleanupRules.canLock(item, revision: 5, current: nil, currentRevision: 5), "removed")
+        var moved = item; moved.directory = URL(filePath: "/elsewhere")
+        var renamed = item; renamed.fileName = "Other.dmg"
+        var kept = item; kept.keep = true
+        var archived = item; archived.archivedAt = Fixture.base
+        var locked = item; locked.pendingMove = pending
+        var state = item; state.state = .failed("x")
+        for current in [moved, renamed, kept, archived, locked, state] {
+            #expect(!CleanupRules.canLock(item, revision: 5, current: current, currentRevision: 5))
+        }
+    }
+
+    @Test func bannerThreshold() {
+        let mb: Int64 = 1_000_000
+        #expect(!CleanupRules.showsBanner(total: 400 * mb, dismissed: 0))
+        #expect(CleanupRules.showsBanner(total: 600 * mb, dismissed: 0))
+        #expect(!CleanupRules.showsBanner(total: 600 * mb, dismissed: 600 * mb))
+        #expect(!CleanupRules.showsBanner(total: 1_000 * mb, dismissed: 600 * mb))
+        #expect(CleanupRules.showsBanner(total: 1_200 * mb, dismissed: 600 * mb))
+    }
+
+    @Test func sharedPaths() {
+        let a = Fixture.item("a.mp4"), b = Fixture.item("a.mp4"), c = Fixture.item("c.mp4")
+        #expect(CleanupRules.sharedPaths([a, b, c]) == [a.destination.standardizedFileURL.path])
+    }
+}
