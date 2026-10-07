@@ -20,7 +20,6 @@ struct DownloadRow: View {
             SelectionCheckbox(isOn: $isSelected, label: "Select \(item.fileName)")
                 .padding(.horizontal, -4)
             actionButton
-            StatusPie(item: item)
             HStack(spacing: 5) {
                 FileThumbnail(item: item)
                     .padding(.trailing, 4)
@@ -123,9 +122,13 @@ struct DownloadRow: View {
     @ViewBuilder private var actionButton: some View {
         switch item.state {
         case .downloading, .connecting, .queued:
-            IconButton(symbol: "pause.fill", label: "Pause", fill: .driftField, size: 26) { store.toggle(item.id) }
+            IconButton(symbol: "pause.fill", label: "Pause", tint: item.stateColor,
+                       fill: item.stateColor.opacity(0.12), size: 26, glyphScale: 0.45) { store.toggle(item.id) }
+                .overlay(ProgressRing(item: item))
         case .paused:
-            IconButton(symbol: "play.fill", label: "Resume", tint: .driftAccentStrong, fill: .driftAccentWash, size: 26) { store.toggle(item.id) }
+            IconButton(symbol: "play.fill", label: "Resume", tint: item.stateColor,
+                       fill: item.stateColor.opacity(0.12), size: 26, glyphScale: 0.45) { store.toggle(item.id) }
+                .overlay(ProgressRing(item: item))
         case .failed:
             IconButton(symbol: "arrow.clockwise", label: "Retry", tint: .driftDanger, fill: .driftDangerWash, size: 26) { store.retry(item.id) }
         case .completed:
@@ -201,66 +204,40 @@ struct DownloadRow: View {
     }
 }
 
-/// Linear-style status icon: a ring with a pie that fills with progress, in the state's color.
-struct StatusPie: View {
-    let item: DownloadItem
-
-    var body: some View {
-        Canvas { ctx, size in
-            let rect = CGRect(origin: .zero, size: size)
-            let center = CGPoint(x: rect.midX, y: rect.midY)
-            switch item.state {
-            case .completed:
-                ctx.fill(Path(ellipseIn: rect.insetBy(dx: 1, dy: 1)), with: .color(.driftDone))
-                var check = Path()
-                check.move(to: CGPoint(x: size.width * 0.3, y: size.height * 0.51))
-                check.addLine(to: CGPoint(x: size.width * 0.44, y: size.height * 0.64))
-                check.addLine(to: CGPoint(x: size.width * 0.7, y: size.height * 0.37))
-                ctx.stroke(check, with: .color(.white), style: StrokeStyle(lineWidth: 1.7, lineCap: .round, lineJoin: .round))
-            case .failed:
-                ctx.fill(Path(ellipseIn: rect.insetBy(dx: 1, dy: 1)), with: .color(.driftDanger))
-                var bang = Path()
-                bang.move(to: CGPoint(x: center.x, y: size.height * 0.28))
-                bang.addLine(to: CGPoint(x: center.x, y: size.height * 0.56))
-                ctx.stroke(bang, with: .color(.white), style: StrokeStyle(lineWidth: 1.8, lineCap: .round))
-                ctx.fill(Path(ellipseIn: CGRect(x: center.x - 1, y: size.height * 0.68, width: 2, height: 2)), with: .color(.white))
-            default:
-                let dashed = item.state == .queued || item.state == .connecting
-                ctx.stroke(Path(ellipseIn: rect.insetBy(dx: 1.4, dy: 1.4)), with: .color(color),
-                           style: StrokeStyle(lineWidth: 1.6, dash: dashed ? [2, 1.6] : []))
-                let fraction = item.progress
-                if fraction > 0 {
-                    var pie = Path()
-                    pie.move(to: center)
-                    pie.addArc(center: center, radius: size.width * 0.28, startAngle: .degrees(-90),
-                               endAngle: .degrees(-90 + 360 * min(1, fraction)), clockwise: false)
-                    pie.closeSubpath()
-                    ctx.fill(pie, with: .color(color))
-                }
-            }
-        }
-        .frame(width: 16, height: 16)
-        .help(help)
-    }
-
-    private var color: Color {
-        switch item.state {
-        case .downloading: item.kind == .torrent ? .driftTorrent : .driftAccent
+extension DownloadItem {
+    /// The state's color, used by the progress ring on Pause/Resume buttons.
+    var stateColor: Color {
+        switch state {
+        case .downloading: kind == .torrent ? .driftTorrent : .driftAccent
         case .connecting: .driftAccent
         case .paused: .driftPaused
         default: .driftQueued
         }
     }
+}
 
-    private var help: String {
-        switch item.state {
-        case .downloading: "Downloading"
-        case .connecting: "Connecting"
-        case .queued: "Queued"
-        case .paused: "Paused"
-        case .failed: "Failed"
-        case .completed: "Done"
+/// A ring around a Pause/Resume button that fills with progress, in the state's color.
+/// Both strokes sit flush with the button's outer edge and grow inward. Dashed while queued or connecting.
+struct ProgressRing: View {
+    let item: DownloadItem
+    private let track: CGFloat = 1.5
+    private let arc: CGFloat = 3
+
+    var body: some View {
+        let color = item.stateColor
+        let dashed = item.state == .queued || item.state == .connecting
+        ZStack {
+            Circle()
+                .stroke(color.opacity(0.25), style: StrokeStyle(lineWidth: track, dash: dashed ? [2.5, 2] : []))
+                .padding(track / 2)
+            Circle()
+                .trim(from: 0, to: min(1, max(0, item.progress)))
+                .stroke(color, style: StrokeStyle(lineWidth: arc, lineCap: .round))
+                .rotationEffect(.degrees(-90))
+                .padding(arc / 2)
+                .animation(.linear(duration: 0.4), value: item.progress)
         }
+        .allowsHitTesting(false)
     }
 }
 
