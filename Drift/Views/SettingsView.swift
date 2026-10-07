@@ -285,41 +285,43 @@ private struct SpeedPage: View {
 /// Torrent seeding: share back after downloading, until a ratio, with an upload cap.
 private struct TorrentCard: View {
     @Environment(DownloadStore.self) private var store
-    private static let uploadOptions = [0, 100, 500, 1_000, 5_000]
+    private static let uploadOptions = [0, 32, 100, 500, 1_000, 5_000]
 
     var body: some View {
         @Bindable var settings = store.settings
         SettingsCard {
+            SettingsRow(title: "Upload limit", detail: uploadDetail(settings.uploadLimitKB), divider: true) {
+                Menu {
+                    ForEach(Self.uploadOptions, id: \.self) { kb in
+                        Button(uploadTitle(kb)) { settings.uploadLimitKB = kb }
+                    }
+                    Divider()
+                    Button(uploadTitle(-1)) { settings.uploadLimitKB = -1 }
+                } label: {
+                    HStack(spacing: 6) {
+                        Text(uploadTitle(settings.uploadLimitKB))
+                            .font(.system(size: 12.5, weight: .medium).monospacedDigit())
+                        Image(systemName: "chevron.up.chevron.down").font(.system(size: 9, weight: .semibold))
+                    }
+                    .foregroundStyle(settings.uploadLimitKB < 0 ? Color.driftPausedInk : Color.driftText)
+                    .padding(.horizontal, 10)
+                    .frame(height: 30)
+                    .background(Color.driftWindow, in: .rect(cornerRadius: 9))
+                    .overlay(RoundedRectangle(cornerRadius: 9).strokeBorder(Color.driftLine))
+                }
+                .menuStyle(.button)
+                .buttonStyle(.plain)
+                .menuIndicator(.hidden)
+                .fixedSize()
+            }
             SettingsRow(title: "Seed torrents after downloading",
                         detail: "Keep sharing finished torrents with other people", divider: settings.seedTorrents) {
                 DriftSwitch(isOn: $settings.seedTorrents, label: "Seed torrents after downloading")
             }
             if settings.seedTorrents {
                 SettingsRow(title: "Stop seeding at ratio",
-                            detail: "Uploaded ÷ size. 1.0 means you've shared back as much as you took", divider: true) {
+                            detail: "Uploaded ÷ size. 1.0 means you've shared back as much as you took") {
                     RatioStepper(value: $settings.seedRatio)
-                }
-                SettingsRow(title: "Upload limit", detail: "Caps how much bandwidth seeding uses") {
-                    Menu {
-                        ForEach(Self.uploadOptions, id: \.self) { kb in
-                            Button(kb == 0 ? "Unlimited" : Format.speed(Double(kb * 1000))) { settings.uploadLimitKB = kb }
-                        }
-                    } label: {
-                        HStack(spacing: 6) {
-                            Text(settings.uploadLimitKB == 0 ? "Unlimited" : Format.speed(Double(settings.uploadLimitKB * 1000)))
-                                .font(.system(size: 12.5, weight: .medium).monospacedDigit())
-                            Image(systemName: "chevron.up.chevron.down").font(.system(size: 9, weight: .semibold))
-                        }
-                        .foregroundStyle(Color.driftText)
-                        .padding(.horizontal, 10)
-                        .frame(height: 30)
-                        .background(Color.driftWindow, in: .rect(cornerRadius: 9))
-                        .overlay(RoundedRectangle(cornerRadius: 9).strokeBorder(Color.driftLine))
-                    }
-                    .menuStyle(.button)
-                    .buttonStyle(.plain)
-                    .menuIndicator(.hidden)
-                    .fixedSize()
                 }
             }
         }
@@ -327,6 +329,16 @@ private struct TorrentCard: View {
         .onChange(of: settings.seedTorrents) { store.applySeeding() }
         .onChange(of: settings.seedRatio) { store.applySeeding() }
         .onChange(of: settings.uploadLimitKB) { store.applySeeding() }
+    }
+
+    private func uploadTitle(_ kb: Int) -> String {
+        kb < 0 ? "Stop uploading" : kb == 0 ? "Unlimited" : Format.speed(Double(kb * 1000))
+    }
+
+    private func uploadDetail(_ kb: Int) -> String {
+        if kb < 0 { return "Downloads may be slower: peers favor people who share back" }
+        if kb == 0 { return "Torrents share with other people while downloading and seeding" }
+        return "Caps upload while downloading and seeding. A small cap keeps downloads fast"
     }
 }
 
