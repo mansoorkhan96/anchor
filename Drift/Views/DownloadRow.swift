@@ -19,6 +19,7 @@ struct DownloadRow: View {
         HStack(spacing: 12) {
             SelectionCheckbox(isOn: $isSelected, label: "Select \(item.fileName)")
                 .padding(.horizontal, -4)
+            actionButton
             StatusPie(item: item)
             HStack(spacing: 5) {
                 FileThumbnail(item: item)
@@ -76,8 +77,6 @@ struct DownloadRow: View {
                 .truncationMode(.tail)
                 .frame(width: 120, alignment: .trailing)
                 .help(item.state.isFailed ? sizeText : "")
-
-            actionButton
         }
         .padding(.horizontal, 12)
         .frame(height: note == nil ? 40 : 50)
