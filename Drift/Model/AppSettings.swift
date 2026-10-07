@@ -66,6 +66,7 @@ final class AppSettings {
     var seedTorrents: Bool { didSet { defaults.set(seedTorrents, forKey: "seedTorrents") } }
     var seedRatio: Double { didSet { defaults.set(seedRatio, forKey: "seedRatio") } }
     /// KB/s, 0 = unlimited.
+    /// Torrent upload cap in KB/s: 0 is unlimited, -1 stops uploading (aria2 gets a 1 B/s cap, since 0 means unlimited there).
     var uploadLimitKB: Int { didSet { defaults.set(uploadLimitKB, forKey: "uploadLimitKB") } }
     /// One-shot: resets to `.nothing` after it runs, like FDM's "when done" option.
     var whenDone: WhenDoneAction = .nothing

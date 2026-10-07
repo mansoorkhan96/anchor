@@ -631,7 +631,7 @@ final class DownloadStore {
     /// Sends the seeding settings to aria2 for new and running torrents.
     func applySeeding() {
         let live = items.filter { $0.kind == .torrent && ($0.state.isActive || $0.seeding == true) }.compactMap(\.torrentGID)
-        let (enabled, ratio, upload) = (settings.seedTorrents, settings.seedRatio, Int64(settings.uploadLimitKB) * 1000)
+        let (enabled, ratio, upload) = (settings.seedTorrents, settings.seedRatio, settings.uploadLimitKB < 0 ? 1 : Int64(settings.uploadLimitKB) * 1000)
         Task { await Aria2.shared.configureSeeding(enabled: enabled, ratio: ratio, uploadLimit: upload, live: live) }
         if !enabled {
             for item in items where item.seeding == true { stopSeeding(item.id) }
