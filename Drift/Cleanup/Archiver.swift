@@ -58,9 +58,26 @@ enum Archiver {
         guard (try? fm.attributesOfItem(atPath: move.to)) == nil else { return .failure(.targetExists) }
         do {
             try fm.moveItem(atPath: move.from, toPath: move.to)
+            if move.kind == .restore { pruneEmptyFolders(from: URL(filePath: move.from).deletingLastPathComponent()) }
             return .success(())
         } catch {
             return .failure(.failed(error.localizedDescription))
+        }
+    }
+
+    /// Removes `folder`, then its parents up to and including `root`, while each is empty, so restoring or
+    /// trashing the last archived file doesn't leave empty month folders behind. A Finder `.DS_Store` doesn't
+    /// count as content. Folders outside `root` are never touched.
+    static func pruneEmptyFolders(from folder: URL, root: URL = root) {
+        let fm = FileManager.default
+        let rootPath = root.standardizedFileURL.path
+        var dir = folder.standardizedFileURL
+        while dir.path == rootPath || dir.path.hasPrefix(rootPath + "/") {
+            guard let contents = try? fm.contentsOfDirectory(atPath: dir.path),
+                  contents.allSatisfy({ $0 == ".DS_Store" }) else { return }
+            if !contents.isEmpty { try? fm.removeItem(at: dir.appending(path: ".DS_Store")) }
+            guard (try? fm.removeItem(at: dir)) != nil, dir.path != rootPath else { return }
+            dir = dir.deletingLastPathComponent()
         }
     }
 

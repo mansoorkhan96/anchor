@@ -840,3 +840,63 @@ enum Fixture {
         #expect(AppEnvironment.isRunningTests)
     }
 }
+
+@Suite struct ArchivePruneTests {
+    @Test func removesEmptyMonthFolderAndRoot() throws {
+        let dir = try makeTempDir()
+        defer { try? FileManager.default.removeItem(at: dir) }
+        let root = dir.appending(path: "Drift Archive", directoryHint: .isDirectory)
+        let month = root.appending(path: "2026-10 October", directoryHint: .isDirectory)
+        try FileManager.default.createDirectory(at: month, withIntermediateDirectories: true)
+        try Data().write(to: month.appending(path: ".DS_Store"))
+
+        Archiver.pruneEmptyFolders(from: month, root: root)
+        #expect(!FileManager.default.fileExists(atPath: month.path))
+        #expect(!FileManager.default.fileExists(atPath: root.path))
+        #expect(FileManager.default.fileExists(atPath: dir.path), "nothing above the root is touched")
+    }
+
+    @Test func keepsFoldersWithFiles() throws {
+        let dir = try makeTempDir()
+        defer { try? FileManager.default.removeItem(at: dir) }
+        let root = dir.appending(path: "Drift Archive", directoryHint: .isDirectory)
+        let empty = root.appending(path: "2026-09 September", directoryHint: .isDirectory)
+        let full = root.appending(path: "2026-10 October", directoryHint: .isDirectory)
+        try FileManager.default.createDirectory(at: empty, withIntermediateDirectories: true)
+        try FileManager.default.createDirectory(at: full, withIntermediateDirectories: true)
+        try Data("x".utf8).write(to: full.appending(path: "App.dmg"))
+
+        Archiver.pruneEmptyFolders(from: full, root: root)
+        #expect(FileManager.default.fileExists(atPath: full.appending(path: "App.dmg").path))
+        Archiver.pruneEmptyFolders(from: empty, root: root)
+        #expect(!FileManager.default.fileExists(atPath: empty.path))
+        #expect(FileManager.default.fileExists(atPath: root.path), "the root still holds another month")
+    }
+
+    @Test func ignoresFoldersOutsideTheRoot() throws {
+        let dir = try makeTempDir()
+        defer { try? FileManager.default.removeItem(at: dir) }
+        let root = dir.appending(path: "Drift Archive", directoryHint: .isDirectory)
+        let outside = dir.appending(path: "Downloads", directoryHint: .isDirectory)
+        try FileManager.default.createDirectory(at: outside, withIntermediateDirectories: true)
+
+        Archiver.pruneEmptyFolders(from: outside, root: root)
+        #expect(FileManager.default.fileExists(atPath: outside.path))
+    }
+
+    @Test func restoringTheLastFileRemovesItsMonthFolder() throws {
+        let dir = try makeTempDir()
+        defer { try? FileManager.default.removeItem(at: dir) }
+        let root = dir.appending(path: "Drift Archive", directoryHint: .isDirectory)
+        let month = root.appending(path: "2026-10 October", directoryHint: .isDirectory)
+        try FileManager.default.createDirectory(at: month, withIntermediateDirectories: true)
+        let file = month.appending(path: "App.dmg")
+        try Data("installer".utf8).write(to: file)
+        let back = dir.appending(path: "App.dmg")
+        try FileManager.default.moveItem(at: file, to: back)
+
+        Archiver.pruneEmptyFolders(from: file.deletingLastPathComponent(), root: root)
+        #expect(!FileManager.default.fileExists(atPath: root.path))
+        #expect(FileManager.default.fileExists(atPath: back.path))
+    }
+}

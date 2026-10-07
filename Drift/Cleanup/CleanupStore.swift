@@ -161,6 +161,8 @@ final class CleanupStore {
             return TrashEntry(id: id, name: item.fileName, path: item.destination.standardizedFileURL.path, stamp: stamp, rule: nil)
         }
         await runTrash(entries)
+        let folders = Set(entries.map { URL(filePath: $0.path).deletingLastPathComponent() })
+        await Task.detached(priority: .utility) { folders.forEach { Archiver.pruneEmptyFolders(from: $0) } }.value
     }
 
     /// Moves leftover partial files to the Trash unless a download claimed them since the scan.
