@@ -59,12 +59,8 @@ struct DownloadRow: View {
 
             CategoryTag(item: item)
 
-            Text(item.seeding == true ? "↑ \(Format.speed(item.uploadSpeed))" : item.state == .downloading ? Format.speed(item.speed) : "")
-                .font(.system(size: 12, weight: .semibold).monospacedDigit())
-                .foregroundStyle(item.seeding == true ? Color.driftSuccess : Color.driftAccentStrong)
-                .help(item.seeding == true ? "Seeding · \(Format.bytes(item.uploadedBytes)) uploaded" : "")
-                .frame(width: 80, alignment: .trailing)
-                .contentTransition(.numericText())
+            speedColumn
+                .frame(width: 84, alignment: .trailing)
             Text(percentText)
                 .font(.system(size: 12).monospacedDigit())
                 .foregroundStyle(Color.driftMuted)
@@ -93,6 +89,25 @@ struct DownloadRow: View {
         }
         .onHover { hovering = $0 }
         .contextMenu { menu }
+    }
+
+    /// HTTP: the download speed. Torrents: download and upload speeds on two lines, or only upload while seeding.
+    @ViewBuilder private var speedColumn: some View {
+        if item.kind == .torrent, item.state == .downloading || item.seeding == true {
+            VStack(alignment: .trailing, spacing: 1) {
+                if item.state == .downloading {
+                    SpeedLabel(symbol: "arrow.down", speed: item.speed, color: .driftAccentStrong)
+                        .help("Downloading")
+                }
+                SpeedLabel(symbol: "arrow.up", speed: item.uploadSpeed, color: .driftSuccess)
+                    .help(item.seeding == true ? "Seeding · \(Format.bytes(item.uploadedBytes)) uploaded" : "Uploading to other peers")
+            }
+        } else {
+            Text(item.state == .downloading ? Format.speed(item.speed) : "")
+                .font(.system(size: 12, weight: .semibold).monospacedDigit())
+                .foregroundStyle(Color.driftAccentStrong)
+                .contentTransition(.numericText())
+        }
     }
 
     private var background: Color {
@@ -352,5 +367,24 @@ struct SpeedLimitMenuItems: View {
                 if current == kb { Label(title, systemImage: "checkmark") } else { Text(title) }
             }
         }
+    }
+}
+
+/// A small arrow and speed, used for a torrent's download and upload rates.
+private struct SpeedLabel: View {
+    let symbol: String
+    let speed: Double
+    let color: Color
+
+    var body: some View {
+        HStack(spacing: 3) {
+            Image(systemName: symbol)
+                .font(.system(size: 8.5, weight: .bold))
+            Text(Format.speed(speed))
+                .font(.system(size: 11, weight: .semibold).monospacedDigit())
+                .contentTransition(.numericText())
+        }
+        .foregroundStyle(color)
+        .lineLimit(1)
     }
 }
