@@ -7,6 +7,9 @@ struct DownloadRow: View {
     var isFocused = false
     /// Secondary line under the name: the cleanup reason, where it was archived from, or a pending move.
     var note: String?
+    /// Set in the Cleanup and Archive lists: Move to Trash goes through their confirmation and file re-check
+    /// instead of trashing right away.
+    var onTrash: (() -> Void)?
     var onFocus: () -> Void = {}
     @State private var hovering = false
 
@@ -189,8 +192,13 @@ struct DownloadRow: View {
         Divider()
         Button("Remove from List") { store.remove([item.id], deleteFiles: false) }
             .disabled(locked)
-        Button("Move to Trash", role: .destructive) { store.remove([item.id], deleteFiles: true) }
-            .disabled(locked)
+        if let onTrash {
+            Button("Move to Trash…", role: .destructive, action: onTrash)
+                .disabled(locked)
+        } else {
+            Button("Move to Trash", role: .destructive) { store.remove([item.id], deleteFiles: true) }
+                .disabled(locked)
+        }
     }
 }
 

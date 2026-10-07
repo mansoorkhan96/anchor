@@ -14,6 +14,8 @@ struct DownloadListView: View {
     @State private var selectionAnchor: UUID?
     @State private var confirmDelete = false
     @State private var confirmTrash = false
+    /// What the Cleanup or Archive trash confirmation is about: the selection, or one row from its menu.
+    @State private var trashTargets: Set<UUID> = []
     @State private var panelWidth: CGFloat = 440
     @State private var spaceMonitor: Any?
 
@@ -61,7 +63,8 @@ struct DownloadListView: View {
                     LazyVStack(spacing: 2) {
                         ForEach(items) { item in
                             DownloadRow(item: item, isSelected: selectionBinding(item.id),
-                                        isFocused: store.focusedID == item.id, note: note(for: item)) {
+                                        isFocused: store.focusedID == item.id, note: note(for: item),
+                                        onTrash: filter.isTidy ? { requestTrash([item.id]) } : nil) {
                                 // Shift-click on the row works like Shift-click on its checkbox.
                                 if NSApp.currentEvent?.modifierFlags.contains(.shift) == true {
                                     setSelected(item.id, !selection.contains(item.id))
@@ -91,7 +94,7 @@ struct DownloadListView: View {
                                  toggle: toggleSelection,
                                  anyRunning: selectionRunning,
                                  mode: filter == .cleanup ? .cleanup : filter == .archive ? .archive : .downloads,
-                                 trash: { confirmTrash = true },
+                                 trash: { requestTrash(selection) },
                                  keep: {
                                      store.setKeep(selection, true)
                                      selection.removeAll()
@@ -146,8 +149,8 @@ struct DownloadListView: View {
         }
         .confirmationDialog(trashTitle, isPresented: $confirmTrash) {
             Button("Move to Trash", role: .destructive) {
-                let ids = selection
-                selection.removeAll()
+                let ids = trashTargets
+                selection.subtract(ids)
                 Task {
                     if filter == .archive { await cleanup.trashArchived(ids) } else { await cleanup.trash(ids) }
                 }
@@ -180,10 +183,15 @@ struct DownloadListView: View {
 
     /// "Move 12 files (3.4 GB) to the Trash?"
     private var trashTitle: String {
-        let bytes = selection.reduce(Int64(0)) { total, id in
+        let bytes = trashTargets.reduce(Int64(0)) { total, id in
             total + (cleanup.candidates[id]?.bytes ?? store.item(id)?.stamp?.size ?? 0)
         }
-        return "Move \(selection.count) file\(selection.count == 1 ? "" : "s") (\(Format.bytes(bytes))) to the Trash?"
+        return "Move \(trashTargets.count) file\(trashTargets.count == 1 ? "" : "s") (\(Format.bytes(bytes))) to the Trash?"
+    }
+
+    private func requestTrash(_ ids: Set<UUID>) {
+        trashTargets = ids
+        confirmTrash = true
     }
 
     /// The secondary line under a row's name.
