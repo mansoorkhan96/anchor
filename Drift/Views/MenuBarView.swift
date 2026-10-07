@@ -171,7 +171,7 @@ private struct RecentRow: View {
 
     var body: some View {
         HStack(spacing: 10) {
-            StatusPie(item: item)
+            action
             Text(item.fileName)
                 .font(.system(size: 12.5, weight: .semibold))
                 .foregroundStyle(Color.driftText)
@@ -183,7 +183,6 @@ private struct RecentRow: View {
                 .foregroundStyle(Color.driftMuted2)
                 .lineLimit(1)
                 .fixedSize()
-            action
             DeleteButton(label: "Delete \(item.fileName)", makeMenu: deleteMenu)
         }
         .padding(.horizontal, 6)
@@ -198,9 +197,13 @@ private struct RecentRow: View {
     @ViewBuilder private var action: some View {
         switch item.state {
         case .downloading, .connecting, .queued:
-            IconButton(symbol: "pause.fill", label: "Pause", size: 26) { store.toggle(item.id) }
+            IconButton(symbol: "pause.fill", label: "Pause", tint: item.stateColor,
+                       fill: item.stateColor.opacity(0.12), size: 26, glyphScale: 0.45) { store.toggle(item.id) }
+                .overlay(ProgressRing(item: item))
         case .paused:
-            IconButton(symbol: "play.fill", label: "Resume", tint: .driftAccentInk, fill: .driftAccentWash, size: 26) { store.toggle(item.id) }
+            IconButton(symbol: "play.fill", label: "Resume", tint: item.stateColor,
+                       fill: item.stateColor.opacity(0.12), size: 26, glyphScale: 0.45) { store.toggle(item.id) }
+                .overlay(ProgressRing(item: item))
         case .failed:
             IconButton(symbol: "arrow.clockwise", label: "Retry", tint: .driftDanger, fill: .driftDangerWash, size: 26) { store.retry(item.id) }
         case .completed:
