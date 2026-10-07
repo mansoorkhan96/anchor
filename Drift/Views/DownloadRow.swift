@@ -221,7 +221,7 @@ extension DownloadItem {
 struct ProgressRing: View {
     let item: DownloadItem
     private let track: CGFloat = 1.5
-    private let arc: CGFloat = 3
+    private let arc: CGFloat = 2.5
 
     var body: some View {
         let color = item.stateColor
