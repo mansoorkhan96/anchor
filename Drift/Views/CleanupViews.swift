@@ -101,24 +101,77 @@ struct LeftoversCard: View {
 }
 
 /// Finished downloads whose files are gone; removing them only tidies the list.
+/// Collapsed to one line until the user reviews which entries it means.
 struct MissingFilesCard: View {
+    @Environment(DownloadStore.self) private var store
     @Environment(CleanupStore.self) private var cleanup
+    @State private var expanded = false
 
     var body: some View {
-        let count = cleanup.missing.count
+        let items = cleanup.missing.compactMap { store.item($0) }
+        VStack(alignment: .leading, spacing: 10) {
+            HStack(spacing: 12) {
+                CardIcon(symbol: "questionmark.folder", ink: .driftMuted2, wash: .driftField)
+                VStack(alignment: .leading, spacing: 2) {
+                    Text("\(items.count) download\(items.count == 1 ? "" : "s") whose file\(items.count == 1 ? " is" : "s are") gone")
+                        .font(.system(size: 13, weight: .semibold))
+                        .foregroundStyle(Color.driftText)
+                    Text("Removing them from the list doesn't touch any files.")
+                        .font(.system(size: 12))
+                        .foregroundStyle(Color.driftMuted)
+                }
+                Spacer()
+                if expanded {
+                    Button("Remove from List") { Task { await cleanup.removeMissing() } }
+                        .buttonStyle(.driftSecondary)
+                }
+                Button(expanded ? "Hide" : "Review") {
+                    withAnimation(.snappy(duration: 0.2)) { expanded.toggle() }
+                }
+                .buttonStyle(.driftPlain)
+            }
+            if expanded {
+                VStack(alignment: .leading, spacing: 4) {
+                    ForEach(items) { item in
+                        Text(displayPath(item.destination.path))
+                            .font(.system(size: 12))
+                            .foregroundStyle(Color.driftMuted2)
+                            .lineLimit(1)
+                            .truncationMode(.middle)
+                            .textSelection(.enabled)
+                    }
+                }
+                .padding(.leading, 46)
+            }
+        }
+        .padding(12)
+        .background(Color.driftCard, in: .rect(cornerRadius: 14))
+    }
+}
+
+/// Shown under the leftover and missing cards when no category is set to suggest files, so the way to turn
+/// Cleanup on isn't hidden behind them.
+struct CleanupOffCard: View {
+    @Environment(DownloadStore.self) private var store
+    @Environment(\.openSettings) private var openSettings
+
+    var body: some View {
         HStack(spacing: 12) {
-            CardIcon(symbol: "questionmark.folder", ink: .driftMuted2, wash: .driftField)
+            CardIcon(symbol: "sparkles", ink: .driftMuted2, wash: .driftField)
             VStack(alignment: .leading, spacing: 2) {
-                Text("\(count) download\(count == 1 ? "" : "s") whose file\(count == 1 ? " is" : "s are") gone")
+                Text("Old downloads aren't suggested yet")
                     .font(.system(size: 13, weight: .semibold))
                     .foregroundStyle(Color.driftText)
-                Text("Removing them from the list doesn't touch any files.")
+                Text("Choose which kinds of files to suggest, and after how long.")
                     .font(.system(size: 12))
                     .foregroundStyle(Color.driftMuted)
             }
             Spacer()
-            Button("Remove from List") { Task { await cleanup.removeMissing() } }
-                .buttonStyle(.driftSecondary)
+            Button("Open Cleanup Settings") {
+                store.settings.requestedSettingsPage = "cleanup"
+                openSettings()
+            }
+            .buttonStyle(.driftSecondary)
         }
         .padding(12)
         .background(Color.driftCard, in: .rect(cornerRadius: 14))

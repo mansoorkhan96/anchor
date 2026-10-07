@@ -49,7 +49,11 @@ struct DownloadListView: View {
                 if items.isEmpty {
                     switch filter {
                     case .cleanup:
-                        if !hasCleanupCards || !search.isEmpty { CleanupEmptyState(off: cleanup.isOff, searching: !search.isEmpty) }
+                        if !hasCleanupCards || !search.isEmpty {
+                            CleanupEmptyState(off: cleanup.isOff, searching: !search.isEmpty)
+                        } else if cleanup.isOff {
+                            CleanupOffCard()
+                        }
                     case .archive: ArchiveEmptyState(searching: !search.isEmpty)
                     default: EmptyState(filter: filter, searching: !search.isEmpty)
                     }
