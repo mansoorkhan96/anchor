@@ -153,9 +153,9 @@ struct CleanupEmptyState: View {
             if searching {
                 Text("No suggestions match your search.")
             } else if off {
-                Text("Cleanup is off. Choose which kinds of files to suggest in Settings.")
+                Text("Choose which kinds of files to suggest in Settings. Nothing is removed until you choose to.")
             } else {
-                Text("Nothing to clean up.")
+                Text("Downloads you haven't used for a while show up here.")
             }
         } actions: {
             if off, !searching {
