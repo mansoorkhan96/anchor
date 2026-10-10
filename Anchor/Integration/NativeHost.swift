@@ -1,9 +1,11 @@
 import Foundation
 
-/// Registers Drift's native messaging host with the Chromium browsers on this Mac, so the browser extension
-/// can launch Drift when it isn't running. Rewritten at every launch, since the host's path moves with the app.
+/// Registers Anchor's native messaging host with the Chromium browsers on this Mac, so the browser extension
+/// can launch Anchor when it isn't running. Rewritten at every launch, since the host's path moves with the app.
 enum NativeHost {
-    static let name = "dev.mansoor.drift"
+    static let name = "dev.mansoor.anchor"
+    /// The host's name before the app was renamed from Drift; its manifests are removed at launch.
+    static let legacyName = "dev.mansoor.drift"
     /// Fixed by the `key` in the extension's manifest.json.
     static let extensionID = "alcbklgeokffgjieplnglbmhadebnncm"
 
@@ -17,11 +19,11 @@ enum NativeHost {
     ]
 
     static func register() {
-        let host = Bundle.main.bundleURL.appending(path: "Contents/MacOS/drift-native-host")
+        let host = Bundle.main.bundleURL.appending(path: "Contents/MacOS/anchor-native-host")
         guard FileManager.default.isExecutableFile(atPath: host.path) else { return }
         let manifest: [String: Any] = [
             "name": name,
-            "description": "Drift Download Manager",
+            "description": "Anchor Download Manager",
             "path": host.path,
             "type": "stdio",
             "allowed_origins": ["chrome-extension://\(extensionID)/"],
@@ -34,6 +36,7 @@ enum NativeHost {
             let folder = profile.appending(path: "NativeMessagingHosts", directoryHint: .isDirectory)
             try? FileManager.default.createDirectory(at: folder, withIntermediateDirectories: true)
             try? data.write(to: folder.appending(path: "\(name).json"), options: .atomic)
+            try? FileManager.default.removeItem(at: folder.appending(path: "\(legacyName).json"))
         }
     }
 }

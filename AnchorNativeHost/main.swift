@@ -1,15 +1,15 @@
 import AppKit
 
-/// Chrome native messaging host for the Drift browser extension.
+/// Chrome native messaging host for the Anchor browser extension.
 ///
 /// Chrome starts this tool on request and talks to it over stdin/stdout: each message is a 4-byte native-endian
 /// length followed by that many bytes of JSON. `{"type":"ping"}` answers at once, so the extension can tell that
-/// the host is installed. `{"type":"launch"}` starts Drift in the background if needed and answers once its
+/// the host is installed. `{"type":"launch"}` starts Anchor in the background if needed and answers once its
 /// browser bridge is up (or after a timeout), with `{"ok":true|false,"enabled":true|false}`.
 
 let bridge = URL(string: "http://127.0.0.1:47821/ping")!
 
-/// Drift.app, three levels up from Drift.app/Contents/MacOS/drift-native-host.
+/// Anchor.app, three levels up from Anchor.app/Contents/MacOS/anchor-native-host.
 let app = URL(fileURLWithPath: CommandLine.arguments[0]).resolvingSymlinksInPath()
     .deletingLastPathComponent().deletingLastPathComponent().deletingLastPathComponent()
 
@@ -27,7 +27,7 @@ func reply(_ object: [String: Any]) {
     FileHandle.standardOutput.write(Data(bytes: &length, count: 4) + body)
 }
 
-/// Whether Drift's bridge answers, and if so whether browser downloads are on.
+/// Whether Anchor's bridge answers, and if so whether browser downloads are on.
 func ping() async -> Bool? {
     var request = URLRequest(url: bridge)
     request.timeoutInterval = 1

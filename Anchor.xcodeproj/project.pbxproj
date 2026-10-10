@@ -668,7 +668,7 @@
 					"@executable_path/../Frameworks",
 				);
 				PRODUCT_BUNDLE_IDENTIFIER = dev.mansoor.Anchor.NativeHost;
-				PRODUCT_NAME = "drift-native-host";
+				PRODUCT_NAME = "anchor-native-host";
 				SDKROOT = macosx;
 				SKIP_INSTALL = YES;
 			};
@@ -797,7 +797,7 @@
 					"@executable_path/../Frameworks",
 				);
 				PRODUCT_BUNDLE_IDENTIFIER = dev.mansoor.Anchor.NativeHost;
-				PRODUCT_NAME = "drift-native-host";
+				PRODUCT_NAME = "anchor-native-host";
 				SDKROOT = macosx;
 				SKIP_INSTALL = YES;
 			};

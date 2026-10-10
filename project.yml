@@ -96,7 +96,7 @@ targets:
     sources: [AnchorNativeHost]
     settings:
       base:
-        PRODUCT_NAME: drift-native-host
+        PRODUCT_NAME: anchor-native-host
         PRODUCT_BUNDLE_IDENTIFIER: dev.mansoor.Anchor.NativeHost
         SKIP_INSTALL: YES
   AnchorTests:
