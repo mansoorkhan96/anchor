@@ -225,7 +225,7 @@ extension DownloadItem {
         switch state {
         case .downloading: kind == .torrent ? .driftTorrent : .driftAccent
         case .connecting: .driftAccent
-        case .paused: .driftPaused
+        case .paused: .driftIdle
         default: .driftQueued
         }
     }

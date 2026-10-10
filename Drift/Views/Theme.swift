@@ -66,6 +66,9 @@ extension Color {
     static let driftTorrent = adaptive(light: 0x61B790, dark: 0x6FCB9F)
     static let driftPaused = adaptive(light: 0xE8B248, dark: 0xF0C060)
     static let driftPausedInk = adaptive(light: 0xA86F0B, dark: 0xF0C060)
+    /// Paused downloads: a cool slate, so "inactive" never reads like the orange accent.
+    static let driftIdle = adaptive(light: 0x8A9099, dark: 0x9BA2AC)
+    static let driftIdleInk = adaptive(light: 0x5A616B, dark: 0xC2C7CF)
     static let driftSuccess = adaptive(light: 0x2F7D3A, dark: 0x6FD38A)
     static let driftDone = adaptive(light: 0x4FAE5C, dark: 0x5FC46E)
     static let driftQueued = adaptive(light: 0xA1A1A6, dark: 0x7C7C82)
@@ -363,7 +366,7 @@ struct StatusPill: View {
         case .downloading: nil
         case .connecting: ("Connecting", "arrow.triangle.2.circlepath", .driftAccentInk, .driftAccentWash)
         case .queued: ("Queued", "clock", .driftMuted2, .driftField)
-        case .paused: ("Paused", "pause.fill", .driftPausedInk, Color.driftPaused.opacity(0.18))
+        case .paused: ("Paused", "pause.fill", .driftIdleInk, Color.driftIdle.opacity(0.16))
         case .failed: ("Failed", "exclamationmark.triangle.fill", .driftDanger, .driftDangerWash)
         case .completed: ("Done", "checkmark", .driftSuccess, .driftSuccessWash)
         }
