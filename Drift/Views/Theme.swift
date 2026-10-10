@@ -1,7 +1,28 @@
 import SwiftUI
 import AppKit
 
-// MARK: - Color tokens (Vitals palette: white, soft gray cards, system blue)
+// MARK: - Brand
+
+/// The app's primary color, like a CSS `--primary` variable. Every accent shade below is mixed from it,
+/// so changing the brand color is this one line.
+enum Brand {
+    static let primary: UInt32 = 0xFD6A0A
+
+    /// Light and dark window backgrounds the tints are mixed into.
+    fileprivate static let lightGround: UInt32 = 0xFFFFFF
+    fileprivate static let darkGround: UInt32 = 0x1B1B1D
+
+    /// `from` moved `amount` (0...1) of the way toward `to`, like CSS `color-mix()`.
+    fileprivate static func mix(_ from: UInt32, _ to: UInt32, _ amount: Double) -> UInt32 {
+        func channel(_ shift: UInt32) -> UInt32 {
+            let a = Double((from >> shift) & 0xFF), b = Double((to >> shift) & 0xFF)
+            return UInt32((a + (b - a) * amount).rounded()) << shift
+        }
+        return channel(16) | channel(8) | channel(0)
+    }
+}
+
+// MARK: - Color tokens
 
 extension Color {
     /// A color with separate light and dark appearance values.
@@ -14,16 +35,21 @@ extension Color {
         })
     }
 
-    // Accent
-    static let driftAccent = adaptive(light: 0x418FF8, dark: 0x5AA0FF)
-    /// Filled buttons: a deeper blue so white text stays readable.
-    static let driftAccentStrong = adaptive(light: 0x2B73E6, dark: 0x3D85F5)
-    /// Blue text and links.
-    static let driftAccentInk = adaptive(light: 0x1F63C6, dark: 0x8DBBFF)
-    static let driftAccentWash = adaptive(light: 0xEEF5FE, dark: 0x1D2B40)
-    static let driftAccentTint = adaptive(light: 0xDCEAFD, dark: 0x24395A)
-    static let driftAccentRing = adaptive(light: 0x7FB3FB, dark: 0x4A79C2)
-    static let driftAccentEdge = adaptive(light: 0xB9D5FB, dark: 0x34558A)
+    // Accent: all derived from Brand.primary.
+    static let driftAccent = adaptive(light: Brand.primary, dark: Brand.mix(Brand.primary, 0xFFFFFF, 0.15))
+    /// Filled buttons and badges: the primary itself.
+    static let driftAccentStrong = driftAccent
+    /// Accent-colored text and links: a touch deeper than the primary so it stays readable on white.
+    static let driftAccentInk = adaptive(light: Brand.mix(Brand.primary, 0x000000, 0.08),
+                                         dark: Brand.mix(Brand.primary, 0xFFFFFF, 0.35))
+    static let driftAccentWash = adaptive(light: Brand.mix(Brand.lightGround, Brand.primary, 0.08),
+                                          dark: Brand.mix(Brand.darkGround, Brand.primary, 0.16))
+    static let driftAccentTint = adaptive(light: Brand.mix(Brand.lightGround, Brand.primary, 0.18),
+                                          dark: Brand.mix(Brand.darkGround, Brand.primary, 0.26))
+    static let driftAccentRing = adaptive(light: Brand.mix(Brand.lightGround, Brand.primary, 0.6),
+                                          dark: Brand.mix(Brand.darkGround, Brand.primary, 0.6))
+    static let driftAccentEdge = adaptive(light: Brand.mix(Brand.lightGround, Brand.primary, 0.32),
+                                          dark: Brand.mix(Brand.darkGround, Brand.primary, 0.4))
 
     // Neutrals
     static let driftWindow = adaptive(light: 0xFFFFFF, dark: 0x1B1B1D)
