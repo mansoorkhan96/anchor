@@ -1,4 +1,4 @@
-# Drift
+# Anchor
 
 A native download manager for macOS, built with SwiftUI.
 
@@ -6,7 +6,7 @@ A native download manager for macOS, built with SwiftUI.
 
 - **Fast HTTP downloads**: splits each file across several connections, resumes after interruptions, and queues the rest.
 - **Torrents and magnet links**: powered by a bundled aria2, with per-file selection and priority, seeding ratio and upload limits.
-- **Browser integration**: a Safari extension ships inside the app. Chrome, Arc, Brave and Edge use the separate [drift-browser-extension](https://github.com/mansoorkhan96/drift-browser-extension).
+- **Browser integration**: a Safari extension ships inside the app. Chrome, Arc, Brave and Edge use the separate [anchor-browser-extension](https://github.com/mansoorkhan96/anchor-browser-extension).
 - **Clipboard pickup**: offers to download links and magnets you copy.
 - **Speed control**: global speed limits and quick speed modes.
 - **When done**: sleep, shut down or quit once every download has finished.
@@ -29,7 +29,7 @@ The Xcode project is generated from `project.yml`:
 
 ```sh
 xcodegen generate
-open Drift.xcodeproj
+open Anchor.xcodeproj
 ```
 
 The first build copies Homebrew's `aria2c` and its libraries into `Vendor/aria2` (`scripts/vendor-aria2.sh`) and embeds them in the app.
@@ -43,19 +43,21 @@ scripts/install.sh
 ### Tests
 
 ```sh
-xcodebuild test -project Drift.xcodeproj -scheme Drift
+xcodebuild test -project Anchor.xcodeproj -scheme Anchor
 ```
 
 ## Browser extensions
 
-Turn on **Take over browser downloads** in Settings > Browser. The extensions talk to Drift over a local server on `127.0.0.1:47821`.
+Turn on **Take over browser downloads** in Settings > Browser. The extensions talk to Anchor over a local server on `127.0.0.1:47821`.
 
-- **Safari**: open Settings > Browser > Open Safari… and enable Drift. Unsigned builds also need Develop > Allow Unsigned Extensions.
-- **Chrome, Arc, Brave, Edge**: in `chrome://extensions` turn on Developer mode, choose Load unpacked, and pick your `drift-browser-extension` folder.
+- **Safari**: open Settings > Browser > Open Safari… and enable Anchor. Unsigned builds also need Develop > Allow Unsigned Extensions.
+- **Chrome, Arc, Brave, Edge**: in `chrome://extensions` turn on Developer mode, choose Load unpacked, and pick your `anchor-browser-extension` folder.
 
 ## Data
 
-Drift keeps its library and torrent state in `~/Library/Application Support/Drift`.
+Anchor keeps its library and torrent state in `~/Library/Application Support/Anchor`.
+
+Anchor used to be called Drift. On first launch it moves the old `Application Support/Drift` folder and settings over, renames unfinished `.drift-part` files to `.anchor-part`, and still accepts `drift://` links.
 
 ## License
 
