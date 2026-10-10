@@ -55,9 +55,7 @@ enum FileNaming {
         func free(_ candidate: String) -> Bool {
             !taken.contains(candidate)
                 && !fm.fileExists(atPath: directory.appending(path: candidate).path)
-                && (ignoringPartials || ![DownloadItem.partialSuffix, DownloadItem.legacyPartialSuffix].contains {
-                    fm.fileExists(atPath: directory.appending(path: candidate + $0).path)
-                })
+                && (ignoringPartials || !fm.fileExists(atPath: directory.appending(path: candidate + DownloadItem.partialSuffix).path))
         }
         if free(name) { return name }
         let (stem, ext) = splitExtension(name)
