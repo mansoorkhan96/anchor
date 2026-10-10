@@ -3,22 +3,33 @@
 <head>
 <meta charset="utf-8">
 <style>
-  :root { color-scheme: light dark; }
-  body { margin: 0; width: 240px; font: 13px -apple-system, BlinkMacSystemFont, sans-serif; background: #17181C; color: #ECEDEF; }
+  /* --primary matches Brand.primary in the app's Theme.swift. */
+  :root {
+    color-scheme: light dark;
+    --primary: #FD6A0A;
+    --bg: #FFFFFF; --text: #1D1D1F; --muted: #737378;
+    --off: #8A9099; --on: #4FAE5C;
+  }
+  @media (prefers-color-scheme: dark) {
+    :root { --primary: #FF8A3D; --bg: #1B1B1D; --text: #F2F2F4; --muted: #9C9CA1; --off: #9BA2AC; --on: #5FC46E; }
+  }
+  body { margin: 0; width: 240px; font: 13px -apple-system, BlinkMacSystemFont, sans-serif; background: var(--bg); color: var(--text); }
   main { padding: 14px; display: flex; flex-direction: column; gap: 12px; }
+  header { display: flex; align-items: center; gap: 8px; }
+  header img { width: 22px; height: 22px; }
   h1 { margin: 0; font-size: 14px; font-weight: 650; }
-  .status { display: flex; align-items: center; gap: 8px; font-size: 12px; color: #9A9DA6; }
-  .dot { width: 8px; height: 8px; border-radius: 50%; background: #F2B35B; }
-  .dot.on { background: #6FD3A0; }
+  .status { display: flex; align-items: center; gap: 8px; font-size: 12px; color: var(--muted); }
+  .dot { width: 8px; height: 8px; border-radius: 50%; background: var(--off); }
+  .dot.on { background: var(--on); }
   label { display: flex; align-items: center; gap: 8px; }
-  input { accent-color: #5CCDEB; }
+  input { accent-color: var(--primary); }
 </style>
 </head>
 <body>
 <main>
-  <h1>Drift</h1>
+  <header><img src="icon128.png" alt=""><h1>Anchor</h1></header>
   <div class="status"><span class="dot" id="dot"></span><span id="status">Checking…</span></div>
-  <label><input type="checkbox" id="enabled"> Send downloads to Drift</label>
+  <label><input type="checkbox" id="enabled"> Send downloads to Anchor</label>
 </main>
 <script src="popup.js"></script>
 </body>

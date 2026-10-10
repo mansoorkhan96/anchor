@@ -7,6 +7,6 @@ fetch('http://127.0.0.1:47821/ping', { signal: AbortSignal.timeout(800) })
   .then((r) => r.json())
   .then((j) => {
     document.getElementById('dot').classList.toggle('on', j.enabled);
-    document.getElementById('status').textContent = j.enabled ? 'Connected to Drift' : 'Browser downloads are off in Drift';
+    document.getElementById('status').textContent = j.enabled ? 'Connected to Anchor' : 'Browser downloads are off in Anchor';
   })
-  .catch(() => { document.getElementById('status').textContent = 'Drift is not running'; });
+  .catch(() => { document.getElementById('status').textContent = 'Anchor is not running'; });

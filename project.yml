@@ -75,7 +75,7 @@ targets:
     info:
       path: SafariExtension/Info.plist
       properties:
-        CFBundleDisplayName: Drift
+        CFBundleDisplayName: Anchor
         CFBundleShortVersionString: $(MARKETING_VERSION)
         CFBundleVersion: $(CURRENT_PROJECT_VERSION)
         LSMinimumSystemVersion: "26.0"

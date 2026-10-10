@@ -1,4 +1,4 @@
-// Hands Safari downloads over to the Drift app through its local bridge on 127.0.0.1.
+// Hands Safari downloads over to the Anchor app through its local bridge on 127.0.0.1.
 // Safari has no downloads API, so content.js catches clicks on download links and asks this page to send them.
 const API = 'http://127.0.0.1:47821';
 
@@ -17,7 +17,7 @@ async function appAvailable() {
   }
 }
 
-async function sendToDrift(url, filename, referrer) {
+async function sendToAnchor(url, filename, referrer) {
   let cookies = '';
   try {
     cookies = (await browser.cookies.getAll({ url })).map((c) => `${c.name}=${c.value}`).join('; ');
@@ -34,23 +34,23 @@ async function sendToDrift(url, filename, referrer) {
   }
 }
 
-// Whether Drift is running with browser downloads on. Kept in local storage so content scripts can
+// Whether Anchor is running with browser downloads on. Kept in local storage so content scripts can
 // decide synchronously, inside the click handler, whether to take a link.
 async function refresh() {
-  const driftReady = (await isEnabled()) && (await appAvailable());
-  await browser.storage.local.set({ driftReady });
+  const anchorReady = (await isEnabled()) && (await appAvailable());
+  await browser.storage.local.set({ anchorReady });
 }
 
 browser.runtime.onMessage.addListener((message) => {
   if (message?.type !== 'add') return;
-  return sendToDrift(message.url, message.filename, message.referrer).then((ok) => {
-    if (!ok) refresh(); // Drift went away: stop taking links until it is back.
+  return sendToAnchor(message.url, message.filename, message.referrer).then((ok) => {
+    if (!ok) refresh(); // Anchor went away: stop taking links until it is back.
     return ok;
   });
 });
 
-browser.alarms.create('drift-ping', { periodInMinutes: 0.5 });
-browser.alarms.onAlarm.addListener((alarm) => { if (alarm.name === 'drift-ping') refresh(); });
+browser.alarms.create('anchor-ping', { periodInMinutes: 0.5 });
+browser.alarms.onAlarm.addListener((alarm) => { if (alarm.name === 'anchor-ping') refresh(); });
 browser.runtime.onStartup.addListener(refresh);
 browser.storage.onChanged.addListener((changes, area) => { if (area === 'local' && 'enabled' in changes) refresh(); });
 refresh();
@@ -58,13 +58,13 @@ refresh();
 browser.runtime.onInstalled.addListener(() => {
   refresh();
   browser.contextMenus.create({
-    id: 'drift-download',
-    title: 'Download with Drift',
+    id: 'anchor-download',
+    title: 'Download with Anchor',
     contexts: ['link', 'video', 'audio', 'image'],
   });
 });
 
 browser.contextMenus.onClicked.addListener(async (info, tab) => {
   const url = info.linkUrl || info.srcUrl;
-  if (url) await sendToDrift(url, undefined, tab?.url);
+  if (url) await sendToAnchor(url, undefined, tab?.url);
 });

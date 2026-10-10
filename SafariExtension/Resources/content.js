@@ -1,7 +1,7 @@
-// Catches clicks on download links before Safari starts them and hands them to Drift.
+// Catches clicks on download links before Safari starts them and hands them to Anchor.
 // Safari can't tell extensions about downloads, so links are recognised by their download attribute or
 // file extension. Types Safari shows in the tab (PDFs, text, common audio and video) are left alone
-// unless the link asks to be downloaded; "Download with Drift" in the context menu covers everything else.
+// unless the link asks to be downloaded; "Download with Anchor" in the context menu covers everything else.
 const EXTENSIONS = new Set([
   'mkv', 'avi', 'wmv', 'flv', 'mpg', 'mpeg', 'ts', '3gp',
   'flac', 'ogg', 'opus', 'aiff', 'wma', 'alac',
@@ -12,12 +12,12 @@ const EXTENSIONS = new Set([
 ]);
 
 let ready = false;
-browser.storage.local.get('driftReady').then(({ driftReady = false }) => { ready = driftReady; });
+browser.storage.local.get('anchorReady').then(({ anchorReady = false }) => { ready = anchorReady; });
 browser.storage.onChanged.addListener((changes, area) => {
-  if (area === 'local' && 'driftReady' in changes) ready = changes.driftReady.newValue === true;
+  if (area === 'local' && 'anchorReady' in changes) ready = changes.anchorReady.newValue === true;
 });
 
-// Links Drift couldn't take, clicked again so Safari downloads them itself.
+// Links Anchor couldn't take, clicked again so Safari downloads them itself.
 const handedBack = new WeakSet();
 
 function looksLikeDownload(link, url) {
