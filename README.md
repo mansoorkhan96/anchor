@@ -57,8 +57,6 @@ Turn on **Take over browser downloads** in Settings > Browser. The extensions ta
 
 Anchor keeps its library and torrent state in `~/Library/Application Support/Anchor`.
 
-Anchor used to be called Drift. On first launch it moves the old `Application Support/Drift` folder and settings over, renames unfinished `.drift-part` files to `.anchor-part`, and still accepts `drift://` links.
-
 ## License
 
 [MIT](LICENSE)
