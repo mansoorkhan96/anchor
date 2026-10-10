@@ -15,10 +15,10 @@
             buildForAnalyzing = "YES">
             <BuildableReference
                BuildableIdentifier = "primary"
-               BlueprintIdentifier = "CAEDCE34417A91D973F68377"
-               BuildableName = "Drift.app"
-               BlueprintName = "Drift"
-               ReferencedContainer = "container:Drift.xcodeproj">
+               BlueprintIdentifier = "6F5D2FC464FFAA1DA15E11C1"
+               BuildableName = "Anchor.app"
+               BlueprintName = "Anchor"
+               ReferencedContainer = "container:Anchor.xcodeproj">
             </BuildableReference>
          </BuildActionEntry>
          <BuildActionEntry
@@ -29,10 +29,10 @@
             buildForAnalyzing = "NO">
             <BuildableReference
                BuildableIdentifier = "primary"
-               BlueprintIdentifier = "50A0CCC2E8C96C468D93CEF8"
-               BuildableName = "DriftTests.xctest"
-               BlueprintName = "DriftTests"
-               ReferencedContainer = "container:Drift.xcodeproj">
+               BlueprintIdentifier = "F550439999E9EDA3665F573C"
+               BuildableName = "AnchorTests.xctest"
+               BlueprintName = "AnchorTests"
+               ReferencedContainer = "container:Anchor.xcodeproj">
             </BuildableReference>
          </BuildActionEntry>
       </BuildActionEntries>
@@ -46,10 +46,10 @@
       <MacroExpansion>
          <BuildableReference
             BuildableIdentifier = "primary"
-            BlueprintIdentifier = "CAEDCE34417A91D973F68377"
-            BuildableName = "Drift.app"
-            BlueprintName = "Drift"
-            ReferencedContainer = "container:Drift.xcodeproj">
+            BlueprintIdentifier = "6F5D2FC464FFAA1DA15E11C1"
+            BuildableName = "Anchor.app"
+            BlueprintName = "Anchor"
+            ReferencedContainer = "container:Anchor.xcodeproj">
          </BuildableReference>
       </MacroExpansion>
       <Testables>
@@ -58,10 +58,10 @@
             parallelizable = "NO">
             <BuildableReference
                BuildableIdentifier = "primary"
-               BlueprintIdentifier = "50A0CCC2E8C96C468D93CEF8"
-               BuildableName = "DriftTests.xctest"
-               BlueprintName = "DriftTests"
-               ReferencedContainer = "container:Drift.xcodeproj">
+               BlueprintIdentifier = "F550439999E9EDA3665F573C"
+               BuildableName = "AnchorTests.xctest"
+               BlueprintName = "AnchorTests"
+               ReferencedContainer = "container:Anchor.xcodeproj">
             </BuildableReference>
          </TestableReference>
       </Testables>
@@ -82,10 +82,10 @@
          runnableDebuggingMode = "0">
          <BuildableReference
             BuildableIdentifier = "primary"
-            BlueprintIdentifier = "CAEDCE34417A91D973F68377"
-            BuildableName = "Drift.app"
-            BlueprintName = "Drift"
-            ReferencedContainer = "container:Drift.xcodeproj">
+            BlueprintIdentifier = "6F5D2FC464FFAA1DA15E11C1"
+            BuildableName = "Anchor.app"
+            BlueprintName = "Anchor"
+            ReferencedContainer = "container:Anchor.xcodeproj">
          </BuildableReference>
       </BuildableProductRunnable>
    </LaunchAction>
@@ -99,10 +99,10 @@
          runnableDebuggingMode = "0">
          <BuildableReference
             BuildableIdentifier = "primary"
-            BlueprintIdentifier = "CAEDCE34417A91D973F68377"
-            BuildableName = "Drift.app"
-            BlueprintName = "Drift"
-            ReferencedContainer = "container:Drift.xcodeproj">
+            BlueprintIdentifier = "6F5D2FC464FFAA1DA15E11C1"
+            BuildableName = "Anchor.app"
+            BlueprintName = "Anchor"
+            ReferencedContainer = "container:Anchor.xcodeproj">
          </BuildableReference>
       </BuildableProductRunnable>
    </ProfileAction>

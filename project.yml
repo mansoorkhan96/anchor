@@ -1,4 +1,4 @@
-name: Drift
+name: Anchor
 options:
   bundleIdPrefix: dev.mansoor
   deploymentTarget:
@@ -16,20 +16,20 @@ settings:
     ARCHS: arm64
     SWIFT_STRICT_CONCURRENCY: complete
 targets:
-  Drift:
+  Anchor:
     type: application
     platform: macOS
     sources:
-      - path: Drift
+      - path: Anchor
     dependencies:
-      - target: DriftSafariExtension
+      - target: AnchorSafariExtension
         embed: true
-      - target: DriftNativeHost
+      - target: AnchorNativeHost
         embed: true
         copy:
           destination: executables
     info:
-      path: Drift/Resources/Info.plist
+      path: Anchor/Resources/Info.plist
       properties:
         CFBundleDisplayName: Drift
         CFBundleShortVersionString: $(MARKETING_VERSION)
@@ -64,7 +64,7 @@ targets:
       - name: Embed aria2
         script: "\"${PROJECT_DIR}/scripts/embed-aria2.sh\""
         basedOnDependencyAnalysis: false
-  DriftSafariExtension:
+  AnchorSafariExtension:
     type: app-extension
     platform: macOS
     sources:
@@ -90,31 +90,31 @@ targets:
       base:
         PRODUCT_BUNDLE_IDENTIFIER: dev.mansoor.Drift.SafariExtension
         GENERATE_INFOPLIST_FILE: NO
-  DriftNativeHost:
+  AnchorNativeHost:
     type: tool
     platform: macOS
-    sources: [DriftNativeHost]
+    sources: [AnchorNativeHost]
     settings:
       base:
         PRODUCT_NAME: drift-native-host
         PRODUCT_BUNDLE_IDENTIFIER: dev.mansoor.Drift.NativeHost
         SKIP_INSTALL: YES
-  DriftTests:
+  AnchorTests:
     type: bundle.unit-test
     platform: macOS
-    sources: [DriftTests]
+    sources: [AnchorTests]
     dependencies:
-      - target: Drift
+      - target: Anchor
     settings:
       base:
         BUNDLE_LOADER: $(TEST_HOST)
-        TEST_HOST: $(BUILT_PRODUCTS_DIR)/Drift.app/Contents/MacOS/Drift
+        TEST_HOST: $(BUILT_PRODUCTS_DIR)/Anchor.app/Contents/MacOS/Anchor
         GENERATE_INFOPLIST_FILE: YES
 schemes:
-  Drift:
+  Anchor:
     build:
       targets:
-        Drift: all
-        DriftTests: [test]
+        Anchor: all
+        AnchorTests: [test]
     test:
-      targets: [DriftTests]
+      targets: [AnchorTests]

@@ -1,5 +1,5 @@
 #!/bin/bash
-# Xcode post-build phase: copies the vendored aria2c into Drift.app/Contents/Helpers and signs it.
+# Xcode post-build phase: copies the vendored aria2c into Anchor.app/Contents/Helpers and signs it.
 set -euo pipefail
 VENDOR="${PROJECT_DIR}/Vendor/aria2"
 if [ ! -x "$VENDOR/aria2c" ]; then

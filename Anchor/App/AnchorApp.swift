@@ -1,7 +1,7 @@
 import SwiftUI
 
 @main
-struct DriftApp: App {
+struct AnchorApp: App {
     @NSApplicationDelegateAdaptor(AppDelegate.self) private var delegate
     @State private var store = DownloadStore.shared
     @State private var cleanup = CleanupStore.shared
