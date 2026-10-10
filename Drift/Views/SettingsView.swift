@@ -41,8 +41,8 @@ private enum SettingsSection: String, CaseIterable, Identifiable {
     var badge: Color {
         switch self {
         case .general: .adaptive(light: 0x5E5E63, dark: 0x6E6E73)
-        case .speed: .adaptive(light: 0x2F7AE0, dark: 0x3D85F5)
-        case .browser: .adaptive(light: 0x2F6BC0, dark: 0x4A82D6)
+        case .speed: .driftAccent
+        case .browser: .driftAccentInk
         case .cleanup: .adaptive(light: 0x46902E, dark: 0x5BA845)
         case .about: .adaptive(light: 0x737378, dark: 0x7C7C81)
         }
