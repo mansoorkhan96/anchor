@@ -2,9 +2,31 @@ import Foundation
 
 enum AppPaths {
     static var support: URL {
-        let url = URL.applicationSupportDirectory.appending(path: "Drift", directoryHint: .isDirectory)
+        _ = migrated
+        let url = URL.applicationSupportDirectory.appending(path: "Anchor", directoryHint: .isDirectory)
         try? FileManager.default.createDirectory(at: url, withIntermediateDirectories: true)
         return url
+    }
+
+    /// The app was called Drift. Its data moves to the Anchor folder once, on first use.
+    private static let migrated: Void = migrateLegacySupport(
+        from: URL.applicationSupportDirectory.appending(path: "Drift", directoryHint: .isDirectory),
+        to: URL.applicationSupportDirectory.appending(path: "Anchor", directoryHint: .isDirectory))
+
+    /// Moves `legacy` to `current` if only the legacy folder exists, then leaves a symlink at the old path so
+    /// absolute paths saved in the download list (torrent files, for one) keep resolving.
+    static func migrateLegacySupport(from legacy: URL, to current: URL) {
+        let fm = FileManager.default
+        var isFolder: ObjCBool = false
+        guard !fm.fileExists(atPath: current.path),
+              fm.fileExists(atPath: legacy.path, isDirectory: &isFolder), isFolder.boolValue,
+              (try? fm.destinationOfSymbolicLink(atPath: legacy.path)) == nil else { return }
+        do {
+            try fm.moveItem(at: legacy, to: current)
+            try? fm.createSymbolicLink(at: legacy, withDestinationURL: current)
+        } catch {
+            NSLog("Anchor: could not move \(legacy.path) to \(current.path): \(error)")
+        }
     }
 
     static var torrents: URL {
