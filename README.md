@@ -17,7 +17,17 @@
 - **Cleanup**: finds downloads you haven't used in a while so you can archive them (and restore them later) or move them to the Trash. Installers can be archived once their app is installed. Nothing is removed until you choose to.
 - **Menu bar**: live speed and recent downloads, one click away.
 
-## Requirements
+## Install
+
+Download `Anchor.dmg` from the [latest release](https://github.com/mansoorkhan96/anchor/releases/latest), open it and drag Anchor to Applications. Anchor needs macOS 26 on Apple silicon.
+
+Anchor isn't notarized by Apple, so macOS blocks the first launch. Open Anchor once, then go to **System Settings > Privacy & Security** and click **Open Anyway**. Or run:
+
+```sh
+xattr -dr com.apple.quarantine /Applications/Anchor.app
+```
+
+## Requirements for building
 
 - macOS 26 on Apple silicon
 - Xcode 26
@@ -50,12 +60,39 @@ scripts/install.sh
 xcodebuild test -project Anchor.xcodeproj -scheme Anchor
 ```
 
+### Releasing
+
+```sh
+scripts/release.sh 1.1.0
+```
+
+This sets the version in `project.yml` (and bumps the build number), builds a Release copy and writes `build/dist/Anchor-1.1.0.dmg`, a copy named `Anchor.dmg` and a SHA-256 checksum. Builds are ad-hoc signed, not notarized.
+
+To publish, commit and push the version bump, then run:
+
+```sh
+scripts/release.sh 1.1.0 --publish
+```
+
+That builds again and creates a draft GitHub release `v1.1.0` with the DMGs, install notes and generated release notes. Review the draft on GitHub and publish it. Add `--beta` to mark it as a pre-release titled "Anchor 1.1.0 Beta".
+
 ## Browser extensions
 
-Turn on **Take over browser downloads** in Settings > Browser. The extensions talk to Anchor over a local server on `127.0.0.1:47821`.
+**Take over browser downloads** is on by default (Settings > Browser), along with **Confirm each download**, which shows the New Download window before each browser download starts. The extensions talk to Anchor over a local server on `127.0.0.1:47821`.
 
-- **Safari**: open Settings > Browser > Open Safari… and enable Anchor. Unsigned builds also need Develop > Allow Unsigned Extensions.
-- **Chrome, Arc, Brave, Edge**: in `chrome://extensions` turn on Developer mode, choose Load unpacked, and pick your `anchor-browser-extension` folder.
+### Safari
+
+The Safari extension ships inside the app. Open Settings > Browser > Open Safari… and enable Anchor. Because builds aren't notarized, Safari also needs Develop > Allow Unsigned Extensions.
+
+### Chrome, Arc, Brave, Edge
+
+The extension lives in its own repo: [anchor-browser-extension](https://github.com/mansoorkhan96/anchor-browser-extension).
+
+1. [Download the extension](https://github.com/mansoorkhan96/anchor-browser-extension/archive/refs/heads/main.zip) and unzip it to a folder you'll keep (it unzips as `anchor-browser-extension-main`).
+2. Open `chrome://extensions` (or your browser's extensions page) and turn on **Developer mode**.
+3. Click **Load unpacked** and pick that folder.
+
+The browser loads the extension from that folder, so don't delete or move it.
 
 ## Data
 
