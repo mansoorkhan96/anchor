@@ -256,7 +256,7 @@ final class DownloadStore {
         let taken = Set(items.filter { $0.directory == folder && !$0.state.isFinished }.map(\.fileName))
         guard ignoringFinished else { return FileNaming.unique(name, in: folder, taken: taken) }
         // Only check names claimed by other unfinished downloads and their partial files, not finished files on disk.
-        let partial = folder.appending(path: name + ".drift-part")
+        let partial = folder.appending(path: name + DownloadItem.partialSuffix)
         return taken.contains(name) || FileManager.default.fileExists(atPath: partial.path) ? FileNaming.unique(name, in: folder, taken: taken) : name
     }
 
@@ -584,7 +584,7 @@ final class DownloadStore {
                         try fm.moveItem(at: item.destination, to: folder.appending(path: name))
                     }
                 } else if fm.fileExists(atPath: item.partialFile.path) {
-                    try fm.moveItem(at: item.partialFile, to: folder.appending(path: name + ".drift-part"))
+                    try fm.moveItem(at: item.partialFile, to: folder.appending(path: name + DownloadItem.partialSuffix))
                 }
                 mutate(id) {
                     $0.directory = folder
