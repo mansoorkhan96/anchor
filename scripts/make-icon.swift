@@ -1,8 +1,19 @@
 // Renders Drift's app icon to PNGs: swift scripts/make-icon.swift <out-dir>
+// The anchor on Harbor orange: a white anchor whose shank is a down arrow, upright at 86% size.
 import AppKit
 
 let out = URL(fileURLWithPath: CommandLine.arguments[1])
 try? FileManager.default.createDirectory(at: out, withIntermediateDirectories: true)
+
+/// Brand orange, light to dark, matching `Brand.primary` in Theme.swift.
+let gradientStops: [UInt32] = [0xFE9208, 0xFD5E06, 0xD03501]
+/// The anchor's arms: a pale tint of the orange.
+let armTint: UInt32 = 0xFFE3D0
+
+func color(_ hex: UInt32, _ alpha: CGFloat = 1) -> CGColor {
+    NSColor(srgbRed: CGFloat((hex >> 16) & 0xFF) / 255, green: CGFloat((hex >> 8) & 0xFF) / 255,
+            blue: CGFloat(hex & 0xFF) / 255, alpha: alpha).cgColor
+}
 
 func render(_ px: Int) -> Data {
     let s = CGFloat(px)
@@ -13,70 +24,62 @@ func render(_ px: Int) -> Data {
     NSGraphicsContext.current = NSGraphicsContext(bitmapImageRep: rep)
     let ctx = NSGraphicsContext.current!.cgContext
 
-    // macOS icon grid: 824/1024 body with ~185 corner radius.
-    let inset = s * 100 / 1024
-    let body = CGRect(x: inset, y: inset, width: s - inset * 2, height: s - inset * 2)
-    let path = CGPath(roundedRect: body, cornerWidth: s * 185 / 1024, cornerHeight: s * 185 / 1024, transform: nil)
+    // Draw in a 1024-point, y-down space so the coordinates match the design canvas.
+    ctx.translateBy(x: 0, y: s)
+    ctx.scaleBy(x: s / 1024, y: -s / 1024)
 
+    // macOS icon grid: 824/1024 body with ~185 corner radius.
+    let body = CGRect(x: 100, y: 100, width: 824, height: 824)
+    let path = CGPath(roundedRect: body, cornerWidth: 185, cornerHeight: 185, transform: nil)
+    let space = CGColorSpaceCreateDeviceRGB()
+
+    // Drop shadow under the tile.
     ctx.saveGState()
-    ctx.setShadow(offset: CGSize(width: 0, height: -s * 0.012), blur: s * 0.03, color: NSColor.black.withAlphaComponent(0.35).cgColor)
+    ctx.setShadow(offset: CGSize(width: 0, height: 12), blur: 30, color: color(0xD03501, 0.30))
     ctx.addPath(path)
-    ctx.setFillColor(NSColor(red: 0.07, green: 0.08, blue: 0.10, alpha: 1).cgColor)
+    ctx.setFillColor(color(gradientStops[1]))
     ctx.fillPath()
     ctx.restoreGState()
 
     ctx.saveGState()
     ctx.addPath(path)
     ctx.clip()
-    let bg = CGGradient(colorsSpace: CGColorSpaceCreateDeviceRGB(), colors: [
-        NSColor(red: 0.13, green: 0.15, blue: 0.19, alpha: 1).cgColor,
-        NSColor(red: 0.05, green: 0.06, blue: 0.08, alpha: 1).cgColor,
-    ] as CFArray, locations: [0, 1])!
-    ctx.drawLinearGradient(bg, start: CGPoint(x: 0, y: body.maxY), end: CGPoint(x: 0, y: body.minY), options: [])
+    let bg = CGGradient(colorsSpace: space, colors: gradientStops.map { color($0) } as CFArray, locations: [0, 0.55, 1])!
+    ctx.drawLinearGradient(bg, start: CGPoint(x: 100, y: 100), end: CGPoint(x: 924, y: 924), options: [])
+    // Soft sheen over the top half.
+    let sheen = CGGradient(colorsSpace: space, colors: [color(0xFFFFFF, 0.2), color(0xFFFFFF, 0)] as CFArray, locations: [0, 1])!
+    ctx.drawLinearGradient(sheen, start: CGPoint(x: 0, y: 100), end: CGPoint(x: 0, y: 512), options: [])
+    ctx.restoreGState()
 
-    // Soft accent glow behind the glyph.
-    let glow = CGGradient(colorsSpace: CGColorSpaceCreateDeviceRGB(), colors: [
-        NSColor(red: 0.36, green: 0.80, blue: 0.92, alpha: 0.35).cgColor,
-        NSColor(red: 0.36, green: 0.80, blue: 0.92, alpha: 0).cgColor,
-    ] as CFArray, locations: [0, 1])!
-    ctx.drawRadialGradient(glow, startCenter: CGPoint(x: s / 2, y: s * 0.42), startRadius: 0,
-                           endCenter: CGPoint(x: s / 2, y: s * 0.42), endRadius: s * 0.42, options: [])
+    // The anchor sits at 86% of the tile's drawing area, centered, for breathing room.
+    ctx.translateBy(x: 512, y: 512)
+    ctx.scaleBy(x: 0.86, y: 0.86)
+    ctx.translateBy(x: -512, y: -515)
 
-    // Segment bars: four flowing lines that converge into an arrow.
-    let accent = NSColor(red: 0.36, green: 0.80, blue: 0.92, alpha: 1).cgColor
+    // Small sizes get bolder strokes and drop the fluke tips, which blur below 64 px.
+    let small = px <= 64
     ctx.setLineCap(.round)
     ctx.setLineJoin(.round)
-    let w = s * 0.06
-    ctx.setLineWidth(w)
-    ctx.setStrokeColor(accent)
+    ctx.setLineWidth(small ? 54 : 48)
 
-    let cx = s / 2
-    // Arrow shaft
-    ctx.move(to: CGPoint(x: cx, y: s * 0.72))
-    ctx.addLine(to: CGPoint(x: cx, y: s * 0.36))
-    ctx.strokePath()
-    // Arrow head
-    ctx.move(to: CGPoint(x: cx - s * 0.15, y: s * 0.49))
-    ctx.addLine(to: CGPoint(x: cx, y: s * 0.34))
-    ctx.addLine(to: CGPoint(x: cx + s * 0.15, y: s * 0.49))
+    // Ring, crossbar and the down-arrow shank, in white.
+    ctx.setStrokeColor(color(0xFFFFFF))
+    ctx.strokeEllipse(in: CGRect(x: 512 - 46, y: 258 - 46, width: 92, height: 92))
+    ctx.move(to: CGPoint(x: 412, y: 390)); ctx.addLine(to: CGPoint(x: 612, y: 390))
+    ctx.move(to: CGPoint(x: 512, y: 306)); ctx.addLine(to: CGPoint(x: 512, y: 700))
+    ctx.move(to: CGPoint(x: 432, y: 624)); ctx.addLine(to: CGPoint(x: 512, y: 704)); ctx.addLine(to: CGPoint(x: 592, y: 624))
     ctx.strokePath()
 
-    // Segmented baseline (the "connections")
-    let y = s * 0.245
-    let segs: [(CGFloat, CGFloat, CGFloat)] = [(0.29, 0.35, 1), (0.45, 0.55, 1), (0.65, 0.71, 0.4)]
-    for (a, b, alpha) in segs {
-        ctx.setStrokeColor(NSColor(red: 0.36, green: 0.80, blue: 0.92, alpha: alpha).cgColor)
-        ctx.move(to: CGPoint(x: s * a, y: y))
-        ctx.addLine(to: CGPoint(x: s * b, y: y))
-        ctx.strokePath()
+    // Arms, in the pale tint.
+    ctx.setStrokeColor(color(armTint))
+    ctx.move(to: CGPoint(x: 296, y: 560))
+    ctx.addCurve(to: CGPoint(x: 512, y: 772), control1: CGPoint(x: 312, y: 704), control2: CGPoint(x: 418, y: 772))
+    ctx.addCurve(to: CGPoint(x: 728, y: 560), control1: CGPoint(x: 606, y: 772), control2: CGPoint(x: 712, y: 704))
+    if !small {
+        ctx.move(to: CGPoint(x: 252, y: 608)); ctx.addLine(to: CGPoint(x: 296, y: 556)); ctx.addLine(to: CGPoint(x: 348, y: 596))
+        ctx.move(to: CGPoint(x: 676, y: 596)); ctx.addLine(to: CGPoint(x: 728, y: 556)); ctx.addLine(to: CGPoint(x: 772, y: 608))
     }
-
-    // Top highlight
-    ctx.addPath(path)
-    ctx.setStrokeColor(NSColor.white.withAlphaComponent(0.10).cgColor)
-    ctx.setLineWidth(s * 0.004)
     ctx.strokePath()
-    ctx.restoreGState()
 
     NSGraphicsContext.restoreGraphicsState()
     return rep.representation(using: .png, properties: [:])!
