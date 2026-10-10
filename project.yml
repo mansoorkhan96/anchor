@@ -24,6 +24,9 @@ targets:
       - path: BrowserExtension
         type: folder
         buildPhase: resources
+    dependencies:
+      - target: DriftSafariExtension
+        embed: true
     info:
       path: Drift/Resources/Info.plist
       properties:
@@ -60,6 +63,32 @@ targets:
       - name: Embed aria2
         script: "\"${PROJECT_DIR}/scripts/embed-aria2.sh\""
         basedOnDependencyAnalysis: false
+  DriftSafariExtension:
+    type: app-extension
+    platform: macOS
+    sources:
+      - path: SafariExtension
+        excludes: ["Resources/**"]
+      - path: SafariExtension/Resources
+        buildPhase: resources
+    info:
+      path: SafariExtension/Info.plist
+      properties:
+        CFBundleDisplayName: Drift
+        CFBundleShortVersionString: $(MARKETING_VERSION)
+        CFBundleVersion: $(CURRENT_PROJECT_VERSION)
+        LSMinimumSystemVersion: "26.0"
+        NSExtension:
+          NSExtensionPointIdentifier: com.apple.Safari.web-extension
+          NSExtensionPrincipalClass: $(PRODUCT_MODULE_NAME).SafariWebExtensionHandler
+    entitlements:
+      path: SafariExtension/SafariExtension.entitlements
+      properties:
+        com.apple.security.app-sandbox: true
+    settings:
+      base:
+        PRODUCT_BUNDLE_IDENTIFIER: dev.mansoor.Drift.SafariExtension
+        GENERATE_INFOPLIST_FILE: NO
   DriftTests:
     type: bundle.unit-test
     platform: macOS

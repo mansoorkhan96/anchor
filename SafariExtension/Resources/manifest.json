@@ -1,0 +1,14 @@
+{
+  "manifest_version": 3,
+  "name": "Drift Download Manager",
+  "version": "1.0.0",
+  "description": "Send Safari downloads to Drift for faster, resumable, multi-connection downloading.",
+  "permissions": ["contextMenus", "cookies", "storage", "alarms"],
+  "host_permissions": ["<all_urls>"],
+  "background": { "scripts": ["background.js"], "persistent": false },
+  "content_scripts": [
+    { "matches": ["<all_urls>"], "js": ["content.js"], "run_at": "document_start", "all_frames": true }
+  ],
+  "action": { "default_popup": "popup.html", "default_title": "Drift" },
+  "icons": { "128": "icon128.png" }
+}

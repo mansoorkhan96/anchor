@@ -1,6 +1,7 @@
 import SwiftUI
 import UniformTypeIdentifiers
 import ServiceManagement
+import SafariServices
 
 private enum SettingsSection: String, CaseIterable, Identifiable {
     case general, speed, browser, cleanup, about
@@ -21,7 +22,7 @@ private enum SettingsSection: String, CaseIterable, Identifiable {
         switch self {
         case .general: "Where downloads go and how Drift behaves."
         case .speed: "How hard Drift pushes your connection."
-        case .browser: "Send downloads from Chrome, Arc, Brave and Edge to Drift."
+        case .browser: "Send downloads from Safari, Chrome, Arc, Brave and Edge to Drift."
         case .cleanup: "Files show up in Cleanup when Drift has seen no use of them for this long. Nothing is removed until you choose to."
         case .about: ""
         }
@@ -612,12 +613,21 @@ private struct BrowserPage: View {
                 .disabled(!settings.browserIntegration)
             }
             SettingsCard {
-                SettingsRow(title: "Browser extension",
+                SettingsRow(title: "Safari extension",
+                            detail: "Turn on Drift in Safari's Extensions settings. Unsigned builds also need Develop > Allow Unsigned Extensions.",
+                            divider: true) {
+                    Button("Open Safari…", action: openSafariExtension).buttonStyle(.driftSecondary)
+                }
+                SettingsRow(title: "Chrome, Arc, Brave and Edge extension",
                             detail: "In chrome://extensions turn on Developer mode, choose Load unpacked, and pick the folder Drift shows you.") {
                     Button("Install…", action: revealExtension).buttonStyle(.driftSecondary)
                 }
             }
         }
+    }
+
+    private func openSafariExtension() {
+        SFSafariApplication.showPreferencesForExtension(withIdentifier: "dev.mansoor.Drift.SafariExtension") { _ in }
     }
 
     private func revealExtension() {
