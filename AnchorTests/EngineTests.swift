@@ -228,3 +228,21 @@ import Testing
         #expect(!FileManager.default.fileExists(atPath: current.appending(path: "downloads.json").path))
     }
 }
+
+@MainActor @Suite struct LegacySettingsTests {
+    @Test func copiesDriftSettingsOnce() throws {
+        let name = "AnchorSettings-\(UUID().uuidString)"
+        let defaults = try #require(UserDefaults(suiteName: name))
+        defer { defaults.removePersistentDomain(forName: name) }
+        defaults.set(8, forKey: "connections")
+
+        AppSettings.migrateLegacyDefaults(["connections": 4, "seedTorrents": true],
+                                          existing: defaults.persistentDomain(forName: name) ?? [:], into: defaults)
+        #expect(defaults.integer(forKey: "connections") == 8, "a value already set under the new ID wins")
+        #expect(defaults.bool(forKey: "seedTorrents"))
+
+        AppSettings.migrateLegacyDefaults(["notifications": false],
+                                          existing: defaults.persistentDomain(forName: name) ?? [:], into: defaults)
+        #expect(defaults.persistentDomain(forName: name)?["notifications"] == nil, "runs only once")
+    }
+}

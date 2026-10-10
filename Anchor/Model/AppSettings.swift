@@ -90,7 +90,22 @@ final class AppSettings {
     /// One-shot: the Settings window opens on this page (e.g. "cleanup") next time it appears.
     var requestedSettingsPage: String?
 
+    /// The app was called Drift, with its settings under the dev.mansoor.Drift bundle ID. Copies them over
+    /// once, without overwriting anything already saved under the new ID (`existing`, its persistent domain;
+    /// registered defaults don't count).
+    static func migrateLegacyDefaults(_ legacy: [String: Any]?, existing: [String: Any], into defaults: UserDefaults) {
+        let marker = "migratedFromDrift"
+        guard existing[marker] == nil else { return }
+        for (key, value) in legacy ?? [:] where existing[key] == nil {
+            defaults.set(value, forKey: key)
+        }
+        defaults.set(true, forKey: marker)
+    }
+
     private init() {
+        Self.migrateLegacyDefaults(UserDefaults.standard.persistentDomain(forName: "dev.mansoor.Drift"),
+                                   existing: Bundle.main.bundleIdentifier.flatMap { UserDefaults.standard.persistentDomain(forName: $0) } ?? [:],
+                                   into: defaults)
         defaults.register(defaults: [
             "maxConcurrent": 3, "connections": 16, "speedLimitKB": 0, "categorySubfolders": false,
             "clipboardMonitoring": true, "browserIntegration": true, "confirmBrowserDownloads": true,

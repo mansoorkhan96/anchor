@@ -667,7 +667,7 @@
 					"$(inherited)",
 					"@executable_path/../Frameworks",
 				);
-				PRODUCT_BUNDLE_IDENTIFIER = dev.mansoor.Drift.NativeHost;
+				PRODUCT_BUNDLE_IDENTIFIER = dev.mansoor.Anchor.NativeHost;
 				PRODUCT_NAME = "drift-native-host";
 				SDKROOT = macosx;
 				SKIP_INSTALL = YES;
@@ -685,7 +685,7 @@
 					"$(inherited)",
 					"@executable_path/../Frameworks",
 				);
-				PRODUCT_BUNDLE_IDENTIFIER = dev.mansoor.Drift;
+				PRODUCT_BUNDLE_IDENTIFIER = dev.mansoor.Anchor;
 				SDKROOT = macosx;
 			};
 			name = Release;
@@ -702,7 +702,7 @@
 					"@executable_path/../Frameworks",
 					"@executable_path/../../../../Frameworks",
 				);
-				PRODUCT_BUNDLE_IDENTIFIER = dev.mansoor.Drift.SafariExtension;
+				PRODUCT_BUNDLE_IDENTIFIER = dev.mansoor.Anchor.SafariExtension;
 				SDKROOT = macosx;
 			};
 			name = Debug;
@@ -719,7 +719,7 @@
 					"@executable_path/../Frameworks",
 					"@executable_path/../../../../Frameworks",
 				);
-				PRODUCT_BUNDLE_IDENTIFIER = dev.mansoor.Drift.SafariExtension;
+				PRODUCT_BUNDLE_IDENTIFIER = dev.mansoor.Anchor.SafariExtension;
 				SDKROOT = macosx;
 			};
 			name = Release;
@@ -796,7 +796,7 @@
 					"$(inherited)",
 					"@executable_path/../Frameworks",
 				);
-				PRODUCT_BUNDLE_IDENTIFIER = dev.mansoor.Drift.NativeHost;
+				PRODUCT_BUNDLE_IDENTIFIER = dev.mansoor.Anchor.NativeHost;
 				PRODUCT_NAME = "drift-native-host";
 				SDKROOT = macosx;
 				SKIP_INSTALL = YES;
@@ -885,7 +885,7 @@
 					"$(inherited)",
 					"@executable_path/../Frameworks",
 				);
-				PRODUCT_BUNDLE_IDENTIFIER = dev.mansoor.Drift;
+				PRODUCT_BUNDLE_IDENTIFIER = dev.mansoor.Anchor;
 				SDKROOT = macosx;
 			};
 			name = Debug;
