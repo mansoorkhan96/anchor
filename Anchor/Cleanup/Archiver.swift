@@ -24,8 +24,8 @@ struct ArchivePlan: Sendable {
 
 /// Archive and restore moves. Every function takes values and runs off the main actor.
 enum Archiver {
-    /// `~/Downloads/Drift Archive`.
-    static var root: URL { URL.downloadsDirectory.appending(path: "Drift Archive", directoryHint: .isDirectory) }
+    /// `~/Downloads/Anchor Archive`.
+    static var root: URL { URL.downloadsDirectory.appending(path: "Anchor Archive", directoryHint: .isDirectory) }
 
     /// e.g. "2026-10 October".
     static func monthFolderName(_ date: Date) -> String {

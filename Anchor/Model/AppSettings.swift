@@ -78,7 +78,7 @@ final class AppSettings {
             DownloadStore.shared.bumpCleanupRevision()
         }
     }
-    /// Move dmg installers whose app is installed into the Drift Archive folder.
+    /// Move dmg installers whose app is installed into the Anchor Archive folder.
     var archiveInstallers: Bool {
         didSet {
             defaults.set(archiveInstallers, forKey: "archiveInstallers")

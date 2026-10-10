@@ -231,7 +231,7 @@ struct ArchiveEmptyState: View {
             Label(searching ? "No Results" : "Nothing Archived", systemImage: searching ? "magnifyingglass" : "archivebox")
         } description: {
             Text(searching ? "No archived files match your search."
-                 : "Installers whose app you've installed move here, to Downloads/Drift Archive. Restore puts them back.")
+                 : "Installers whose app you've installed move here, to Downloads/Anchor Archive. Restore puts them back.")
         }
         .frame(maxWidth: .infinity, minHeight: 320)
     }

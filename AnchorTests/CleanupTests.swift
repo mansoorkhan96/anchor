@@ -349,7 +349,7 @@ enum Fixture {
 }
 
 @Suite struct CleanupLockAndRecoveryTests {
-    var pending: PendingMove { PendingMove(kind: .archive, from: "/d/App.dmg", to: "/d/Drift Archive/2026-10 October/App.dmg", stamp: Fixture.stamp) }
+    var pending: PendingMove { PendingMove(kind: .archive, from: "/d/App.dmg", to: "/d/Anchor Archive/2026-10 October/App.dmg", stamp: Fixture.stamp) }
 
     @Test func storeMethodsSkipLockedItems() {
         var locked = Fixture.item("a.mp4"); locked.pendingMove = pending
@@ -384,7 +384,7 @@ enum Fixture {
         item.pendingMove = pending
         let now = Fixture.base
         CleanupRules.applyMove(pending, to: &item, now: now)
-        #expect(item.directory.path == "/d/Drift Archive/2026-10 October")
+        #expect(item.directory.path == "/d/Anchor Archive/2026-10 October")
         #expect(item.fileName == "App.dmg")
         #expect(item.archivedAt == now)
         #expect(item.archivedFrom == "/d")
@@ -668,7 +668,7 @@ enum Fixture {
     func setup() throws -> Setup {
         let dir = try makeTempDir()
         let source = dir.appending(path: "Downloads", directoryHint: .isDirectory)
-        let archive = dir.appending(path: "Drift Archive/2026-10 October", directoryHint: .isDirectory)
+        let archive = dir.appending(path: "Anchor Archive/2026-10 October", directoryHint: .isDirectory)
         try FileManager.default.createDirectory(at: source, withIntermediateDirectories: true)
         try FileManager.default.createDirectory(at: archive, withIntermediateDirectories: true)
         try Data("installer".utf8).write(to: source.appending(path: "App.dmg"))
@@ -846,7 +846,7 @@ enum Fixture {
     @Test func removesEmptyMonthFolderAndRoot() throws {
         let dir = try makeTempDir()
         defer { try? FileManager.default.removeItem(at: dir) }
-        let root = dir.appending(path: "Drift Archive", directoryHint: .isDirectory)
+        let root = dir.appending(path: "Anchor Archive", directoryHint: .isDirectory)
         let month = root.appending(path: "2026-10 October", directoryHint: .isDirectory)
         try FileManager.default.createDirectory(at: month, withIntermediateDirectories: true)
         try Data().write(to: month.appending(path: ".DS_Store"))
@@ -860,7 +860,7 @@ enum Fixture {
     @Test func keepsFoldersWithFiles() throws {
         let dir = try makeTempDir()
         defer { try? FileManager.default.removeItem(at: dir) }
-        let root = dir.appending(path: "Drift Archive", directoryHint: .isDirectory)
+        let root = dir.appending(path: "Anchor Archive", directoryHint: .isDirectory)
         let empty = root.appending(path: "2026-09 September", directoryHint: .isDirectory)
         let full = root.appending(path: "2026-10 October", directoryHint: .isDirectory)
         try FileManager.default.createDirectory(at: empty, withIntermediateDirectories: true)
@@ -877,7 +877,7 @@ enum Fixture {
     @Test func ignoresFoldersOutsideTheRoot() throws {
         let dir = try makeTempDir()
         defer { try? FileManager.default.removeItem(at: dir) }
-        let root = dir.appending(path: "Drift Archive", directoryHint: .isDirectory)
+        let root = dir.appending(path: "Anchor Archive", directoryHint: .isDirectory)
         let outside = dir.appending(path: "Downloads", directoryHint: .isDirectory)
         try FileManager.default.createDirectory(at: outside, withIntermediateDirectories: true)
 
@@ -888,7 +888,7 @@ enum Fixture {
     @Test func restoringTheLastFileRemovesItsMonthFolder() throws {
         let dir = try makeTempDir()
         defer { try? FileManager.default.removeItem(at: dir) }
-        let root = dir.appending(path: "Drift Archive", directoryHint: .isDirectory)
+        let root = dir.appending(path: "Anchor Archive", directoryHint: .isDirectory)
         let month = root.appending(path: "2026-10 October", directoryHint: .isDirectory)
         try FileManager.default.createDirectory(at: month, withIntermediateDirectories: true)
         let file = month.appending(path: "App.dmg")

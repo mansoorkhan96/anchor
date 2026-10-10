@@ -550,7 +550,7 @@ private struct CleanupPage: View {
             }
             SettingsCard {
                 SettingsRow(title: "Archive installers once installed",
-                            detail: "Moves a dmg to Downloads/Drift Archive once the same or a newer version of its app is installed. Restore puts it back.") {
+                            detail: "Moves a dmg to Downloads/Anchor Archive once the same or a newer version of its app is installed. Restore puts it back.") {
                     AnchorSwitch(isOn: $settings.archiveInstallers, label: "Archive installers once installed")
                 }
             }
