@@ -14,7 +14,7 @@ final class AppRouter {
             present(AddRequest(url: url.absoluteString))
         case "file" where url.pathExtension.lowercased() == "torrent":
             present(AddRequest(url: url.absoluteString))
-        case "anchor", "drift":
+        case "anchor":
             let link = URLComponents(url: url, resolvingAgainstBaseURL: false)?.queryItems?.first { $0.name == "url" }?.value
             if let link { present(AddRequest(url: link)) }
         default:

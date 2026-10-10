@@ -42,7 +42,7 @@ targets:
           - CFBundleURLName: Magnet link
             CFBundleURLSchemes: [magnet]
           - CFBundleURLName: Anchor
-            CFBundleURLSchemes: [anchor, drift]
+            CFBundleURLSchemes: [anchor]
         CFBundleDocumentTypes:
           - CFBundleTypeName: BitTorrent file
             CFBundleTypeRole: Viewer

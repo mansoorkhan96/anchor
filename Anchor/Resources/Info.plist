@@ -49,7 +49,6 @@
 			<key>CFBundleURLSchemes</key>
 			<array>
 				<string>anchor</string>
-				<string>drift</string>
 			</array>
 		</dict>
 	</array>
