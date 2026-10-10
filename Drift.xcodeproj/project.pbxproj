@@ -7,6 +7,7 @@
 	objects = {
 
 /* Begin PBXBuildFile section */
+		059252C22097DE6C41AB8CCE /* NativeHost.swift in Sources */ = {isa = PBXBuildFile; fileRef = 97B31AEFBBFFB273BD7BEB19 /* NativeHost.swift */; };
 		05F9BE30C06BB63FCACFE156 /* icon128.png in Resources */ = {isa = PBXBuildFile; fileRef = E1F782CC26B0DF5E394B93A8 /* icon128.png */; };
 		0A0047585B0BE8724634DF5E /* WhenDoneView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 9A3D54BF360215659317A62F /* WhenDoneView.swift */; };
 		1127165D918D734766B9A24E /* DownloadRow.swift in Sources */ = {isa = PBXBuildFile; fileRef = A0278368CA85399B466A2078 /* DownloadRow.swift */; };
@@ -14,6 +15,7 @@
 		14FB89A5D3475CA779C218A1 /* HTTPDownload.swift in Sources */ = {isa = PBXBuildFile; fileRef = 506CB9D922F640D2B265D5B0 /* HTTPDownload.swift */; };
 		16B67EDEA20F5FD512F9B90C /* FileNaming.swift in Sources */ = {isa = PBXBuildFile; fileRef = B8DA68BA96D8381013FF15C2 /* FileNaming.swift */; };
 		17149684C587FD904D019427 /* Probe.swift in Sources */ = {isa = PBXBuildFile; fileRef = 2A614D70A1860749FC6DA7CB /* Probe.swift */; };
+		1C77708A0FECDA31D7D479FB /* DriftNativeHost in Embed Dependencies */ = {isa = PBXBuildFile; fileRef = 884D07753569C1828BBD3886 /* DriftNativeHost */; settings = {ATTRIBUTES = (RemoveHeadersOnCopy, ); }; };
 		23C43182F1F069780FBF83C2 /* Archiver.swift in Sources */ = {isa = PBXBuildFile; fileRef = 142B65657B445BDEA014D970 /* Archiver.swift */; };
 		25AE317E260BFC22DBB80184 /* content.js in Resources */ = {isa = PBXBuildFile; fileRef = CBFA26A7527AAFECBFBEF012 /* content.js */; };
 		2BB7278F0A4287D54828B694 /* BrowserBridge.swift in Sources */ = {isa = PBXBuildFile; fileRef = A7AE282971614E3AA76CED2D /* BrowserBridge.swift */; };
@@ -36,6 +38,7 @@
 		921B8060B88FC21B54E385C0 /* background.js in Resources */ = {isa = PBXBuildFile; fileRef = 4EF7656269003BEE28DA8CA4 /* background.js */; };
 		936725D9A1B7314D2966938A /* FileThumbnail.swift in Sources */ = {isa = PBXBuildFile; fileRef = 899274C1F596D4057AC6DF8E /* FileThumbnail.swift */; };
 		94B70FB2E41B8F0CC04BEAD9 /* EngineTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = DCF2B3E8EF7CFDC15797547E /* EngineTests.swift */; };
+		978AB123CECBA0B7B3157C13 /* main.swift in Sources */ = {isa = PBXBuildFile; fileRef = 6D57627BBF90B719E0F0E2FE /* main.swift */; };
 		A0CA07AFF1CB03DA508338C3 /* DownloadItem.swift in Sources */ = {isa = PBXBuildFile; fileRef = 6734B5CBCB8F8662A7DA34EE /* DownloadItem.swift */; };
 		A615B290735B9548946012DD /* LibraryWriter.swift in Sources */ = {isa = PBXBuildFile; fileRef = 72A3BDC18912464644C30402 /* LibraryWriter.swift */; };
 		A68F62707CAD1A2DD18A68C3 /* DownloadStore.swift in Sources */ = {isa = PBXBuildFile; fileRef = 7397CA07E3EA469ED813F06A /* DownloadStore.swift */; };
@@ -76,9 +79,27 @@
 			remoteGlobalIDString = 7739DC760F42BE37E1E5AAAD;
 			remoteInfo = DriftSafariExtension;
 		};
+		FCC13268987C493329EF2791 /* PBXContainerItemProxy */ = {
+			isa = PBXContainerItemProxy;
+			containerPortal = C57AFFDCB18AE227A2FF2ECA /* Project object */;
+			proxyType = 1;
+			remoteGlobalIDString = E547CB3A0A51B097C3F84008;
+			remoteInfo = DriftNativeHost;
+		};
 /* End PBXContainerItemProxy section */
 
 /* Begin PBXCopyFilesBuildPhase section */
+		394D1FE9AE56B8881DDF1793 /* Embed Dependencies */ = {
+			isa = PBXCopyFilesBuildPhase;
+			buildActionMask = 2147483647;
+			dstPath = "";
+			dstSubfolderSpec = 6;
+			files = (
+				1C77708A0FECDA31D7D479FB /* DriftNativeHost in Embed Dependencies */,
+			);
+			name = "Embed Dependencies";
+			runOnlyForDeploymentPostprocessing = 0;
+		};
 		E9172D29FDC438EA5075B0EE /* Embed Foundation Extensions */ = {
 			isa = PBXCopyFilesBuildPhase;
 			buildActionMask = 2147483647;
@@ -119,6 +140,7 @@
 		5C7AC6CD29844F7E20111FED /* SafariExtension.entitlements */ = {isa = PBXFileReference; lastKnownFileType = text.plist.entitlements; path = SafariExtension.entitlements; sourceTree = "<group>"; };
 		668D8D5951EB119A1624DDB2 /* DriftTests.xctest */ = {isa = PBXFileReference; explicitFileType = wrapper.cfbundle; includeInIndex = 0; path = DriftTests.xctest; sourceTree = BUILT_PRODUCTS_DIR; };
 		6734B5CBCB8F8662A7DA34EE /* DownloadItem.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = DownloadItem.swift; sourceTree = "<group>"; };
+		6D57627BBF90B719E0F0E2FE /* main.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = main.swift; sourceTree = "<group>"; };
 		702ACAAD294E992E87F5D010 /* TorrentFile.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = TorrentFile.swift; sourceTree = "<group>"; };
 		72A3BDC18912464644C30402 /* LibraryWriter.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = LibraryWriter.swift; sourceTree = "<group>"; };
 		7397CA07E3EA469ED813F06A /* DownloadStore.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = DownloadStore.swift; sourceTree = "<group>"; };
@@ -128,7 +150,9 @@
 		80473000068BB96DF392A468 /* DriftApp.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = DriftApp.swift; sourceTree = "<group>"; };
 		8087BF0C9AD4B98AFA09D073 /* CleanupStore.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = CleanupStore.swift; sourceTree = "<group>"; };
 		847D80793840446CEC52C5D3 /* FileCategory.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = FileCategory.swift; sourceTree = "<group>"; };
+		884D07753569C1828BBD3886 /* DriftNativeHost */ = {isa = PBXFileReference; includeInIndex = 0; path = DriftNativeHost; sourceTree = BUILT_PRODUCTS_DIR; };
 		899274C1F596D4057AC6DF8E /* FileThumbnail.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = FileThumbnail.swift; sourceTree = "<group>"; };
+		97B31AEFBBFFB273BD7BEB19 /* NativeHost.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = NativeHost.swift; sourceTree = "<group>"; };
 		9888F14F62828F61E272BB06 /* Aria2.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Aria2.swift; sourceTree = "<group>"; };
 		9A3D54BF360215659317A62F /* WhenDoneView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = WhenDoneView.swift; sourceTree = "<group>"; };
 		A0278368CA85399B466A2078 /* DownloadRow.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = DownloadRow.swift; sourceTree = "<group>"; };
@@ -168,10 +192,19 @@
 			path = Model;
 			sourceTree = "<group>";
 		};
+		02376A3EF5F0B05EA8094AC9 /* DriftNativeHost */ = {
+			isa = PBXGroup;
+			children = (
+				6D57627BBF90B719E0F0E2FE /* main.swift */,
+			);
+			path = DriftNativeHost;
+			sourceTree = "<group>";
+		};
 		0EA67573775347F2DA7F1A99 /* Products */ = {
 			isa = PBXGroup;
 			children = (
 				552F5AE6789DA294DDB91E8B /* Drift.app */,
+				884D07753569C1828BBD3886 /* DriftNativeHost */,
 				2171D099A1A1199CF7C6B88B /* DriftSafariExtension.appex */,
 				668D8D5951EB119A1624DDB2 /* DriftTests.xctest */,
 			);
@@ -182,6 +215,7 @@
 			isa = PBXGroup;
 			children = (
 				DF13210FEF8ED80B93DD4A50 /* Drift */,
+				02376A3EF5F0B05EA8094AC9 /* DriftNativeHost */,
 				230C4300561292D969C89B4E /* DriftTests */,
 				B48C05A4DD68B71A296BC5AC /* SafariExtension */,
 				0EA67573775347F2DA7F1A99 /* Products */,
@@ -202,6 +236,7 @@
 			children = (
 				A7AE282971614E3AA76CED2D /* BrowserBridge.swift */,
 				0E34BD7081042061DD730EA9 /* ClipboardWatcher.swift */,
+				97B31AEFBBFFB273BD7BEB19 /* NativeHost.swift */,
 			);
 			path = Integration;
 			sourceTree = "<group>";
@@ -366,12 +401,14 @@
 				271ED68B29D0DA60F5E3CB98 /* Sources */,
 				F72ECFB3C1B5BC2EFDA4A82C /* Resources */,
 				E9172D29FDC438EA5075B0EE /* Embed Foundation Extensions */,
+				394D1FE9AE56B8881DDF1793 /* Embed Dependencies */,
 				F30F238185727FA6BCE9AB89 /* Embed aria2 */,
 			);
 			buildRules = (
 			);
 			dependencies = (
 				C996854B9DFADD71B39DC4EC /* PBXTargetDependency */,
+				865417521626EF166CA95001 /* PBXTargetDependency */,
 			);
 			name = Drift;
 			packageProductDependencies = (
@@ -379,6 +416,23 @@
 			productName = Drift;
 			productReference = 552F5AE6789DA294DDB91E8B /* Drift.app */;
 			productType = "com.apple.product-type.application";
+		};
+		E547CB3A0A51B097C3F84008 /* DriftNativeHost */ = {
+			isa = PBXNativeTarget;
+			buildConfigurationList = B9F455BB65884EEE54312E12 /* Build configuration list for PBXNativeTarget "DriftNativeHost" */;
+			buildPhases = (
+				44E95ECD0C04B3F47135F82B /* Sources */,
+			);
+			buildRules = (
+			);
+			dependencies = (
+			);
+			name = DriftNativeHost;
+			packageProductDependencies = (
+			);
+			productName = DriftNativeHost;
+			productReference = 884D07753569C1828BBD3886 /* DriftNativeHost */;
+			productType = "com.apple.product-type.tool";
 		};
 /* End PBXNativeTarget section */
 
@@ -401,6 +455,10 @@
 						DevelopmentTeam = "";
 						ProvisioningStyle = Manual;
 					};
+					E547CB3A0A51B097C3F84008 = {
+						DevelopmentTeam = "";
+						ProvisioningStyle = Manual;
+					};
 				};
 			};
 			buildConfigurationList = 68F4AD629CB425B82407650A /* Build configuration list for PBXProject "Drift" */;
@@ -418,6 +476,7 @@
 			projectRoot = "";
 			targets = (
 				CAEDCE34417A91D973F68377 /* Drift */,
+				E547CB3A0A51B097C3F84008 /* DriftNativeHost */,
 				7739DC760F42BE37E1E5AAAD /* DriftSafariExtension */,
 				50A0CCC2E8C96C468D93CEF8 /* DriftTests */,
 			);
@@ -506,6 +565,7 @@
 				A615B290735B9548946012DD /* LibraryWriter.swift in Sources */,
 				B457446FCA430088B7876BD4 /* MainView.swift in Sources */,
 				709057788D8DABCAF3989C3C /* MenuBarView.swift in Sources */,
+				059252C22097DE6C41AB8CCE /* NativeHost.swift in Sources */,
 				D9021C6CCE69C86713A668F7 /* Power.swift in Sources */,
 				17149684C587FD904D019427 /* Probe.swift in Sources */,
 				499E8B05428438BFBC9870DC /* ProcessRunner.swift in Sources */,
@@ -516,6 +576,14 @@
 				D157E3910D791CACE24F4E0F /* TorrentFile.swift in Sources */,
 				573CEC74A2C02CE4AFF79B38 /* TorrentFileList.swift in Sources */,
 				0A0047585B0BE8724634DF5E /* WhenDoneView.swift in Sources */,
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
+		44E95ECD0C04B3F47135F82B /* Sources */ = {
+			isa = PBXSourcesBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+				978AB123CECBA0B7B3157C13 /* main.swift in Sources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
@@ -539,6 +607,11 @@
 /* End PBXSourcesBuildPhase section */
 
 /* Begin PBXTargetDependency section */
+		865417521626EF166CA95001 /* PBXTargetDependency */ = {
+			isa = PBXTargetDependency;
+			target = E547CB3A0A51B097C3F84008 /* DriftNativeHost */;
+			targetProxy = FCC13268987C493329EF2791 /* PBXContainerItemProxy */;
+		};
 		A2F4FA2AB0193C1E986DD906 /* PBXTargetDependency */ = {
 			isa = PBXTargetDependency;
 			target = CAEDCE34417A91D973F68377 /* Drift */;
@@ -633,6 +706,21 @@
 			};
 			name = Release;
 		};
+		2ED461504CA181316C9952CE /* Release */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				COMBINE_HIDPI_IMAGES = YES;
+				LD_RUNPATH_SEARCH_PATHS = (
+					"$(inherited)",
+					"@executable_path/../Frameworks",
+				);
+				PRODUCT_BUNDLE_IDENTIFIER = dev.mansoor.Drift.NativeHost;
+				PRODUCT_NAME = "drift-native-host";
+				SDKROOT = macosx;
+				SKIP_INSTALL = YES;
+			};
+			name = Release;
+		};
 		587A88FA205EDA9A3D1804FD /* Release */ = {
 			isa = XCBuildConfiguration;
 			buildSettings = {
@@ -681,6 +769,21 @@
 				);
 				PRODUCT_BUNDLE_IDENTIFIER = dev.mansoor.Drift.SafariExtension;
 				SDKROOT = macosx;
+			};
+			name = Debug;
+		};
+		6F3B8661B7D4B9166B2B66F6 /* Debug */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				COMBINE_HIDPI_IMAGES = YES;
+				LD_RUNPATH_SEARCH_PATHS = (
+					"$(inherited)",
+					"@executable_path/../Frameworks",
+				);
+				PRODUCT_BUNDLE_IDENTIFIER = dev.mansoor.Drift.NativeHost;
+				PRODUCT_NAME = "drift-native-host";
+				SDKROOT = macosx;
+				SKIP_INSTALL = YES;
 			};
 			name = Debug;
 		};
@@ -804,6 +907,15 @@
 			buildConfigurations = (
 				1BA2EF094074FE68869BD7E3 /* Debug */,
 				593F12B4C11F2DF5725E88BE /* Release */,
+			);
+			defaultConfigurationIsVisible = 0;
+			defaultConfigurationName = Debug;
+		};
+		B9F455BB65884EEE54312E12 /* Build configuration list for PBXNativeTarget "DriftNativeHost" */ = {
+			isa = XCConfigurationList;
+			buildConfigurations = (
+				6F3B8661B7D4B9166B2B66F6 /* Debug */,
+				2ED461504CA181316C9952CE /* Release */,
 			);
 			defaultConfigurationIsVisible = 0;
 			defaultConfigurationName = Debug;

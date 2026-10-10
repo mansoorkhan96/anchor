@@ -24,6 +24,10 @@ targets:
     dependencies:
       - target: DriftSafariExtension
         embed: true
+      - target: DriftNativeHost
+        embed: true
+        copy:
+          destination: executables
     info:
       path: Drift/Resources/Info.plist
       properties:
@@ -86,6 +90,15 @@ targets:
       base:
         PRODUCT_BUNDLE_IDENTIFIER: dev.mansoor.Drift.SafariExtension
         GENERATE_INFOPLIST_FILE: NO
+  DriftNativeHost:
+    type: tool
+    platform: macOS
+    sources: [DriftNativeHost]
+    settings:
+      base:
+        PRODUCT_NAME: drift-native-host
+        PRODUCT_BUNDLE_IDENTIFIER: dev.mansoor.Drift.NativeHost
+        SKIP_INSTALL: YES
   DriftTests:
     type: bundle.unit-test
     platform: macOS
