@@ -45,9 +45,10 @@
 		</dict>
 		<dict>
 			<key>CFBundleURLName</key>
-			<string>Drift</string>
+			<string>Anchor</string>
 			<key>CFBundleURLSchemes</key>
 			<array>
+				<string>anchor</string>
 				<string>drift</string>
 			</array>
 		</dict>
