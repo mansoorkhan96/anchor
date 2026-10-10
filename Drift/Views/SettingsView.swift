@@ -619,23 +619,13 @@ private struct BrowserPage: View {
                     Button("Open Safari…", action: openSafariExtension).buttonStyle(.driftSecondary)
                 }
                 SettingsRow(title: "Chrome, Arc, Brave and Edge extension",
-                            detail: "In chrome://extensions turn on Developer mode, choose Load unpacked, and pick the folder Drift shows you.") {
-                    Button("Install…", action: revealExtension).buttonStyle(.driftSecondary)
-                }
+                            detail: "In chrome://extensions turn on Developer mode, choose Load unpacked, and pick the drift-browser-extension folder.") {}
             }
         }
     }
 
     private func openSafariExtension() {
         SFSafariApplication.showPreferencesForExtension(withIdentifier: "dev.mansoor.Drift.SafariExtension") { _ in }
-    }
-
-    private func revealExtension() {
-        guard let source = Bundle.main.url(forResource: "BrowserExtension", withExtension: nil) else { return }
-        let target = AppPaths.support.appending(path: "BrowserExtension", directoryHint: .isDirectory)
-        try? FileManager.default.removeItem(at: target)
-        try? FileManager.default.copyItem(at: source, to: target)
-        NSWorkspace.shared.activateFileViewerSelecting([target])
     }
 }
 

@@ -21,9 +21,6 @@ targets:
     platform: macOS
     sources:
       - path: Drift
-      - path: BrowserExtension
-        type: folder
-        buildPhase: resources
     dependencies:
       - target: DriftSafariExtension
         embed: true
