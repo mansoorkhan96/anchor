@@ -1,6 +1,6 @@
 import Foundation
 import Testing
-@testable import Drift
+@testable import Anchor
 
 @Suite struct SegmentPlannerTests {
     @Test func plansContiguousCoverage() {

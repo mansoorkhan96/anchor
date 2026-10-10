@@ -1,6 +1,6 @@
 import Foundation
 import Testing
-@testable import Drift
+@testable import Anchor
 
 /// A fresh temp folder per test; tests never touch the user's Downloads or library.
 func makeTempDir() throws -> URL {
