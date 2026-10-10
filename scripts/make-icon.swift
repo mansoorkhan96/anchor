@@ -4,10 +4,10 @@ import AppKit
 let out = URL(fileURLWithPath: CommandLine.arguments[1])
 try? FileManager.default.createDirectory(at: out, withIntermediateDirectories: true)
 
-/// Brand orange, light to dark, matching `Brand.primary` in Theme.swift.
-let gradientStops: [UInt32] = [0xFE9208, 0xFD5E06, 0xD03501]
-/// The anchor's arms: a pale tint of the orange.
-let armTint: UInt32 = 0xFFE3D0
+/// Top to bottom: the Swift icon's amber shades into `Brand.primary` (0xEB6840).
+let gradientStops: [UInt32] = [0xE0A24A, 0xDF9946, 0xDE8741, 0xE4783F, 0xEB6840, 0xE95F40]
+let gradientLocations: [CGFloat] = [0, 0.09, 0.25, 0.46, 0.7, 1]
+let armTint: UInt32 = 0xFFE4D6
 
 func color(_ hex: UInt32, _ alpha: CGFloat = 1) -> CGColor {
     NSColor(srgbRed: CGFloat((hex >> 16) & 0xFF) / 255, green: CGFloat((hex >> 8) & 0xFF) / 255,
@@ -34,20 +34,17 @@ func render(_ px: Int) -> Data {
 
     // Drop shadow under the tile.
     ctx.saveGState()
-    ctx.setShadow(offset: CGSize(width: 0, height: 12), blur: 30, color: color(0xD03501, 0.30))
+    ctx.setShadow(offset: CGSize(width: 0, height: 12), blur: 30, color: color(0xEB6840, 0.30))
     ctx.addPath(path)
-    ctx.setFillColor(color(gradientStops[1]))
+    ctx.setFillColor(color(0xEB6840))
     ctx.fillPath()
     ctx.restoreGState()
 
     ctx.saveGState()
     ctx.addPath(path)
     ctx.clip()
-    let bg = CGGradient(colorsSpace: space, colors: gradientStops.map { color($0) } as CFArray, locations: [0, 0.55, 1])!
-    ctx.drawLinearGradient(bg, start: CGPoint(x: 100, y: 100), end: CGPoint(x: 924, y: 924), options: [])
-    // Soft sheen over the top half.
-    let sheen = CGGradient(colorsSpace: space, colors: [color(0xFFFFFF, 0.2), color(0xFFFFFF, 0)] as CFArray, locations: [0, 1])!
-    ctx.drawLinearGradient(sheen, start: CGPoint(x: 0, y: 100), end: CGPoint(x: 0, y: 512), options: [])
+    let bg = CGGradient(colorsSpace: space, colors: gradientStops.map { color($0) } as CFArray, locations: gradientLocations)!
+    ctx.drawLinearGradient(bg, start: CGPoint(x: 0, y: 100), end: CGPoint(x: 0, y: 924), options: [])
     ctx.restoreGState()
 
     // The anchor sits at 86% of the tile's drawing area, centered, for breathing room.
