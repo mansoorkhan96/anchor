@@ -4,7 +4,6 @@ import Foundation
 /// can launch Anchor when it isn't running. Rewritten at every launch, since the host's path moves with the app.
 enum NativeHost {
     static let name = "dev.mansoor.anchor"
-    static let legacyName = "dev.mansoor.drift"
     /// Fixed by the `key` in the extension's manifest.json.
     static let extensionID = "alcbklgeokffgjieplnglbmhadebnncm"
 
@@ -35,7 +34,6 @@ enum NativeHost {
             let folder = profile.appending(path: "NativeMessagingHosts", directoryHint: .isDirectory)
             try? FileManager.default.createDirectory(at: folder, withIntermediateDirectories: true)
             try? data.write(to: folder.appending(path: "\(name).json"), options: .atomic)
-            try? FileManager.default.removeItem(at: folder.appending(path: "\(legacyName).json"))
         }
     }
 }
