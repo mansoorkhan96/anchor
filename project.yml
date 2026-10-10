@@ -31,13 +31,13 @@ targets:
     info:
       path: Anchor/Resources/Info.plist
       properties:
-        CFBundleDisplayName: Drift
+        CFBundleDisplayName: Anchor
         CFBundleShortVersionString: $(MARKETING_VERSION)
         CFBundleVersion: $(CURRENT_PROJECT_VERSION)
         LSApplicationCategoryType: public.app-category.utilities
         LSMinimumSystemVersion: "26.0"
         NSHumanReadableCopyright: ""
-        NSAppleEventsUsageDescription: Drift asks System Events to shut down your Mac when you choose "Shut Down" after downloads finish.
+        NSAppleEventsUsageDescription: Anchor asks System Events to shut down your Mac when you choose "Shut Down" after downloads finish.
         CFBundleURLTypes:
           - CFBundleURLName: Magnet link
             CFBundleURLSchemes: [magnet]
