@@ -4,7 +4,7 @@ import AppKit
 
 /// Tiny HTTP server on 127.0.0.1 that the browser extension talks to.
 ///
-/// `GET /ping` reports that Drift is running; `POST /add` with JSON `{url, filename?, referrer?, cookies?, userAgent?}`
+/// `GET /ping` reports that Anchor is running; `POST /add` with JSON `{url, filename?, referrer?, cookies?, userAgent?}`
 /// queues a download. Requests from web pages are refused: only browser-extension origins, or callers that
 /// send no Origin at all (e.g. curl), are accepted.
 @MainActor
@@ -28,7 +28,7 @@ final class BrowserBridge {
             listener.start(queue: .global(qos: .utility))
             self.listener = listener
         } catch {
-            NSLog("Drift: browser bridge failed to start: \(error)")
+            NSLog("Anchor: browser bridge failed to start: \(error)")
         }
     }
 
@@ -69,7 +69,7 @@ final class BrowserBridge {
         case ("GET", "/ping"):
             Task { @MainActor in
                 let enabled = AppSettings.shared.browserIntegration
-                send("200 OK", #"{"app":"Drift","enabled":\#(enabled)}"#)
+                send("200 OK", #"{"app":"Anchor","enabled":\#(enabled)}"#)
             }
         case ("POST", "/add"):
             guard let json = try? JSONSerialization.jsonObject(with: request.body) as? [String: Any],

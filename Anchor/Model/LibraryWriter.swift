@@ -4,7 +4,7 @@ import Foundation
 /// with a lower sequence number than one already written is skipped, so an old state can never land last.
 /// A class with a queue rather than an actor so termination can drain it synchronously.
 final class LibraryWriter: @unchecked Sendable {
-    private let queue = DispatchQueue(label: "dev.mansoor.Drift.library-writer", qos: .utility)
+    private let queue = DispatchQueue(label: "dev.mansoor.Anchor.library-writer", qos: .utility)
     private let url: URL
     private let write: @Sendable (Data, URL) throws -> Void
     /// Only touched on `queue`.

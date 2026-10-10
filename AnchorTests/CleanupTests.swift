@@ -5,7 +5,7 @@ import Testing
 /// A fresh temp folder per test; tests never touch the user's Downloads or library.
 func makeTempDir() throws -> URL {
     let dir = FileManager.default.temporaryDirectory
-        .appending(path: "DriftCleanupTests-\(UUID().uuidString)", directoryHint: .isDirectory)
+        .appending(path: "AnchorCleanupTests-\(UUID().uuidString)", directoryHint: .isDirectory)
     try FileManager.default.createDirectory(at: dir, withIntermediateDirectories: true)
     return dir
 }
@@ -180,7 +180,7 @@ func makeTempDir() throws -> URL {
 
 @Suite struct CleanupSettingsTests {
     @Test func cleanupDaysRoundTripThroughDefaults() throws {
-        let name = "DriftCleanupTests-\(UUID().uuidString)"
+        let name = "AnchorCleanupTests-\(UUID().uuidString)"
         let defaults = try #require(UserDefaults(suiteName: name))
         defer { defaults.removePersistentDomain(forName: name) }
         #expect(AppSettings.loadCleanupDays(from: defaults).isEmpty)
@@ -199,7 +199,7 @@ enum Fixture {
 
     static func item(_ name: String = "movie.mp4", category: FileCategory = .video, completed: Date = base) -> DownloadItem {
         var item = DownloadItem(url: URL(string: "https://a.com/\(name)")!, fileName: name,
-                                directory: URL(filePath: "/tmp/drift-fixture"), category: category)
+                                directory: URL(filePath: "/tmp/anchor-fixture"), category: category)
         item.state = .completed
         item.createdAt = completed
         item.completedAt = completed
@@ -628,7 +628,7 @@ enum Fixture {
         let source = dir.appending(path: "src", directoryHint: .isDirectory)
         try makeApp("Foo", in: source, info: ["CFBundleIdentifier": "com.x.foo", "CFBundleShortVersionString": "2.5"])
         let dmg = dir.appending(path: "Foo.dmg")
-        let created = await ProcessRunner.run("/usr/bin/hdiutil", ["create", "-srcfolder", source.path, "-volname", "DriftTest",
+        let created = await ProcessRunner.run("/usr/bin/hdiutil", ["create", "-srcfolder", source.path, "-volname", "AnchorTest",
                                                                   "-format", "UDZO", "-ov", "-quiet", dmg.path], timeout: 60)
         try #require(created.status == 0)
         let stamp = try #require(FileStamp.read(dmg))

@@ -3,12 +3,12 @@ import AppKit
 import SwiftUI
 import notify
 
-/// Debug builds only: `notifyutil -p dev.mansoor.Drift.snapshot` renders every visible window to
-/// /tmp/drift-snapshots/<title>.png, so UI can be checked without Screen Recording permission.
+/// Debug builds only: `notifyutil -p dev.mansoor.Anchor.snapshot` renders every visible window to
+/// /tmp/anchor-snapshots/<title>.png, so UI can be checked without Screen Recording permission.
 enum DebugSnapshot {
     static func install() {
         var token: Int32 = 0
-        notify_register_dispatch("dev.mansoor.Drift.snapshot", &token, .main) { _ in
+        notify_register_dispatch("dev.mansoor.Anchor.snapshot", &token, .main) { _ in
             MainActor.assumeIsolated { capture() }
         }
     }
@@ -41,10 +41,10 @@ enum DebugSnapshot {
     }
 
     @MainActor static func capture() {
-        let dir = URL(filePath: "/tmp/drift-snapshots")
+        let dir = URL(filePath: "/tmp/anchor-snapshots")
         try? FileManager.default.createDirectory(at: dir, withIntermediateDirectories: true)
         renderComponents(to: dir)
-        NSLog("DriftSnapshot: \(NSApp.windows.map { "\($0.title)|\($0.isVisible)|\(type(of: $0))" })")
+        NSLog("AnchorSnapshot: \(NSApp.windows.map { "\($0.title)|\($0.isVisible)|\(type(of: $0))" })")
         for (index, window) in NSApp.windows.enumerated() where window.isVisible {
             guard let view = window.contentView?.superview ?? window.contentView, let layer = view.layer else { continue }
             let scale = window.backingScaleFactor

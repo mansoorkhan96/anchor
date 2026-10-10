@@ -5,7 +5,7 @@ import os
 /// Everything here runs off the main actor.
 enum InstallerInspector {
     static let hdiutil = "/usr/bin/hdiutil"
-    static let log = Logger(subsystem: "dev.mansoor.Drift", category: "cleanup")
+    static let log = Logger(subsystem: "dev.mansoor.Anchor", category: "cleanup")
     /// content-hint of the synthesized container disk macOS adds when attaching an APFS image.
     private static let apfsContainerHint = "EF57347C-0000-11AA-AA11-00306543ECAC"
 
@@ -100,7 +100,7 @@ enum InstallerInspector {
             return FileStamp.read(file) == expected ? failed : nil
         }
 
-        let mountRoot = FileManager.default.temporaryDirectory.appending(path: "Drift-inspect-\(UUID().uuidString)", directoryHint: .isDirectory)
+        let mountRoot = FileManager.default.temporaryDirectory.appending(path: "Anchor-inspect-\(UUID().uuidString)", directoryHint: .isDirectory)
         guard (try? FileManager.default.createDirectory(at: mountRoot, withIntermediateDirectories: true)) != nil else { return nil }
         let attach = await ProcessRunner.run(hdiutil, ["attach", file.path, "-readonly", "-nobrowse", "-noautoopen", "-noverify",
                                                        "-mountrandom", mountRoot.path, "-plist"], timeout: 30)
