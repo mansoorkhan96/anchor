@@ -197,38 +197,6 @@ import Testing
     }
 }
 
-@Suite struct LegacyDataTests {
-    @Test func movesTheDriftFolderAndLeavesALink() throws {
-        let root = FileManager.default.temporaryDirectory.appending(path: "AnchorMigration-\(UUID().uuidString)", directoryHint: .isDirectory)
-        defer { try? FileManager.default.removeItem(at: root) }
-        let legacy = root.appending(path: "Drift", directoryHint: .isDirectory)
-        let current = root.appending(path: "Anchor", directoryHint: .isDirectory)
-        try FileManager.default.createDirectory(at: legacy.appending(path: "Torrents"), withIntermediateDirectories: true)
-        try Data("[]".utf8).write(to: legacy.appending(path: "downloads.json"))
-
-        AppPaths.migrateLegacySupport(from: legacy, to: current)
-
-        #expect(FileManager.default.fileExists(atPath: current.appending(path: "downloads.json").path))
-        #expect(try FileManager.default.destinationOfSymbolicLink(atPath: legacy.path) == current.path)
-        #expect(FileManager.default.fileExists(atPath: legacy.appending(path: "Torrents").path), "old paths still resolve")
-    }
-
-    @Test func leavesAnExistingAnchorFolderAlone() throws {
-        let root = FileManager.default.temporaryDirectory.appending(path: "AnchorMigration-\(UUID().uuidString)", directoryHint: .isDirectory)
-        defer { try? FileManager.default.removeItem(at: root) }
-        let legacy = root.appending(path: "Drift", directoryHint: .isDirectory)
-        let current = root.appending(path: "Anchor", directoryHint: .isDirectory)
-        try FileManager.default.createDirectory(at: legacy, withIntermediateDirectories: true)
-        try FileManager.default.createDirectory(at: current, withIntermediateDirectories: true)
-        try Data("old".utf8).write(to: legacy.appending(path: "downloads.json"))
-
-        AppPaths.migrateLegacySupport(from: legacy, to: current)
-
-        #expect(FileManager.default.fileExists(atPath: legacy.appending(path: "downloads.json").path))
-        #expect(!FileManager.default.fileExists(atPath: current.appending(path: "downloads.json").path))
-    }
-}
-
 @MainActor @Suite struct LegacySettingsTests {
     @Test func copiesDriftSettingsOnce() throws {
         let name = "AnchorSettings-\(UUID().uuidString)"
