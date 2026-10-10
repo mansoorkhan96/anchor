@@ -1,6 +1,10 @@
-# Anchor
+<p align="center">
+  <img src="Anchor/Resources/Assets.xcassets/AppIcon.appiconset/icon_256.png" width="128" height="128" alt="Anchor icon">
+</p>
 
-A native download manager for macOS, built with SwiftUI.
+<h1 align="center">Anchor</h1>
+
+<p align="center">A native download manager for macOS, built with SwiftUI.</p>
 
 ## Features
 
