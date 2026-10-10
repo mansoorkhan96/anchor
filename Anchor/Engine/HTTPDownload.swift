@@ -77,7 +77,7 @@ final class HTTPDownload: NSObject, URLSessionDataDelegate, @unchecked Sendable 
         super.init()
     }
 
-    private var partialURL: URL { directory.appending(path: fileName + ".drift-part") }
+    private var partialURL: URL { directory.appending(path: fileName + DownloadItem.partialSuffix) }
     private var busy: Set<Int> { Set(tasks.values.map(\.segment)).union(cooling) }
 
     // MARK: Lifecycle

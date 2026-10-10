@@ -246,3 +246,20 @@ import Testing
         #expect(defaults.persistentDomain(forName: name)?["notifications"] == nil, "runs only once")
     }
 }
+
+@Suite struct LegacyPartialTests {
+    @Test func renamesAnUnfinishedDriftPart() throws {
+        let dir = FileManager.default.temporaryDirectory.appending(path: "AnchorPartial-\(UUID().uuidString)", directoryHint: .isDirectory)
+        try FileManager.default.createDirectory(at: dir, withIntermediateDirectories: true)
+        defer { try? FileManager.default.removeItem(at: dir) }
+        var item = DownloadItem(url: URL(string: "https://example.com/a.zip")!, fileName: "a.zip", directory: dir, category: .archives)
+        item.state = .paused
+        try Data("half".utf8).write(to: item.legacyPartialFile)
+
+        DownloadItem.adoptLegacyPartial(item)
+
+        #expect(FileManager.default.fileExists(atPath: item.partialFile.path))
+        #expect(!FileManager.default.fileExists(atPath: item.legacyPartialFile.path))
+        #expect(item.partialFile.lastPathComponent == "a.zip.anchor-part")
+    }
+}

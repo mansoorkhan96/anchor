@@ -455,19 +455,20 @@ enum Fixture {
         let dir = try makeTempDir()
         defer { try? FileManager.default.removeItem(at: dir) }
         let now = Date()
-        _ = try write("owned.mp4.drift-part", in: dir, age: 7200, now: now)
-        let orphan = try write("orphan.zip.drift-part", in: dir, age: 7200, now: now)
-        _ = try write("fresh.zip.drift-part", in: dir, now: now)
+        _ = try write("owned.mp4.anchor-part", in: dir, age: 7200, now: now)
+        let orphan = try write("orphan.zip.anchor-part", in: dir, age: 7200, now: now)
+        let legacyOrphan = try write("old.zip.drift-part", in: dir, age: 7200, now: now)
+        _ = try write("fresh.zip.anchor-part", in: dir, now: now)
         _ = try write("notes.txt", in: dir, age: 7200, now: now)
         let sub = dir.appending(path: "sub", directoryHint: .isDirectory)
         try FileManager.default.createDirectory(at: sub, withIntermediateDirectories: true)
-        _ = try write("deep.zip.drift-part", in: sub, age: 7200, now: now)
+        _ = try write("deep.zip.anchor-part", in: sub, age: 7200, now: now)
 
         let owner = item("owned.mp4", in: dir, state: .paused)
         let found = Leftovers.find(in: [dir, dir], owned: [owner.partialFile.standardizedFileURL.path], now: now)
-        #expect(found.map(\.path) == [orphan.standardizedFileURL.path])
-        #expect(found.first?.stamp == FileStamp.read(orphan))
-        #expect((found.first?.bytes ?? 0) > 0)
+        #expect(found.map(\.path) == [legacyOrphan, orphan].map(\.standardizedFileURL.path), "partials from before the rename count too")
+        #expect(found.last?.stamp == FileStamp.read(orphan))
+        #expect((found.last?.bytes ?? 0) > 0)
     }
 
     @Test func scanAdoptsBaselinesFindsCandidatesAndMissing() throws {
@@ -477,7 +478,7 @@ enum Fixture {
         let old = now.addingTimeInterval(-100 * Fixture.day)
         _ = try write("legacy.mp4", in: dir, age: 100 * Fixture.day, now: now)
         _ = try write("recent.mp4", in: dir, now: now)
-        _ = try write("orphan.mp4.drift-part", in: dir, age: 7200, now: now)
+        _ = try write("orphan.mp4.anchor-part", in: dir, age: 7200, now: now)
 
         let legacy = item("legacy.mp4", in: dir, completed: old)
         let recent = item("recent.mp4", in: dir, completed: old)
@@ -828,12 +829,12 @@ enum Fixture {
     @Test func trashFailureIsReported() throws {
         let dir = try makeTempDir()
         defer { try? FileManager.default.removeItem(at: dir) }
-        let url = dir.appending(path: "x.drift-part")
+        let url = dir.appending(path: "x.anchor-part")
         try Data("x".utf8).write(to: url)
-        let entry = TrashEntry(id: nil, name: "x.drift-part", path: url.standardizedFileURL.path, stamp: try #require(FileStamp.read(url)), rule: nil)
+        let entry = TrashEntry(id: nil, name: "x.anchor-part", path: url.standardizedFileURL.path, stamp: try #require(FileStamp.read(url)), rule: nil)
         let outcome = CleanupTrasher.trash([entry], now: Date(), lastUsed: { _ in nil }) { _ in throw CocoaError(.fileWriteNoPermission) }
         #expect(outcome.trashedPaths.isEmpty)
-        #expect(outcome.problems.map(\.name) == ["x.drift-part"])
+        #expect(outcome.problems.map(\.name) == ["x.anchor-part"])
     }
 
     @Test func cleanupDoesNotRunInTheTestHost() {

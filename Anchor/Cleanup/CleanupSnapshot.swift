@@ -22,7 +22,7 @@ struct CleanupCandidate: Hashable, Sendable {
     var path: String
 }
 
-/// An orphaned `.drift-part` file.
+/// An orphaned partial file (`.anchor-part`, or `.drift-part` from before the rename).
 struct Leftover: Hashable, Sendable, Identifiable {
     var path: String
     var bytes: Int64
@@ -91,14 +91,15 @@ enum CleanupScanner {
 enum Leftovers {
     static let minimumAge: TimeInterval = 3600
 
-    /// `.drift-part` files at the top level of `folders` that no item owns (whatever its state) and that
+    /// Partial files (`.anchor-part` or the older `.drift-part`) at the top level of `folders` that no item owns (whatever its state) and that
     /// have not been written to for an hour.
     static func find(in folders: [URL], owned: Set<String>, now: Date) -> [Leftover] {
         var seenFolders: Set<String> = []
         var found: [Leftover] = []
         for folder in folders where seenFolders.insert(folder.standardizedFileURL.path).inserted {
             let entries = (try? FileManager.default.contentsOfDirectory(at: folder, includingPropertiesForKeys: nil)) ?? []
-            for url in entries where url.lastPathComponent.hasSuffix(".drift-part") {
+            for url in entries where url.lastPathComponent.hasSuffix(DownloadItem.partialSuffix)
+                || url.lastPathComponent.hasSuffix(DownloadItem.legacyPartialSuffix) {
                 let path = url.standardizedFileURL.path
                 guard !owned.contains(path), let stamp = FileStamp.read(url),
                       now.timeIntervalSince(stamp.modified) > minimumAge else { continue }

@@ -38,7 +38,7 @@ struct CleanupBanner: View {
     }
 }
 
-/// Orphaned `.drift-part` files, collapsed to one line until the user reviews them.
+/// Orphaned partial files, collapsed to one line until the user reviews them.
 struct LeftoversCard: View {
     @Environment(CleanupStore.self) private var cleanup
     @State private var expanded = false

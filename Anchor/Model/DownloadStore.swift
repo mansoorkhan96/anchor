@@ -977,6 +977,7 @@ final class DownloadStore {
             }
             if item.state.isActive { item.state = .queued }
             item.seeding = nil
+            DownloadItem.adoptLegacyPartial(item)
             loaded.append(item)
         }
         if skipped > 0 { preserveUnreadable(url) }

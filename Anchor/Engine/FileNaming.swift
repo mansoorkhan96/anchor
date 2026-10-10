@@ -49,13 +49,15 @@ enum FileNaming {
     }
 
     /// Returns `name` or `name (2).ext`, `name (3).ext`… so nothing in `directory` is overwritten.
-    /// `ignoringPartials` skips the `.drift-part` check, for renaming a finished download over its own partial.
+    /// `ignoringPartials` skips the partial-file check, for renaming a finished download over its own partial.
     static func unique(_ name: String, in directory: URL, taken: Set<String> = [], ignoringPartials: Bool = false) -> String {
         let fm = FileManager.default
         func free(_ candidate: String) -> Bool {
             !taken.contains(candidate)
                 && !fm.fileExists(atPath: directory.appending(path: candidate).path)
-                && (ignoringPartials || !fm.fileExists(atPath: directory.appending(path: candidate + ".drift-part").path))
+                && (ignoringPartials || ![DownloadItem.partialSuffix, DownloadItem.legacyPartialSuffix].contains {
+                    fm.fileExists(atPath: directory.appending(path: candidate + $0).path)
+                })
         }
         if free(name) { return name }
         let (stem, ext) = splitExtension(name)
