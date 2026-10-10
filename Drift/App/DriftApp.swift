@@ -82,23 +82,32 @@ private struct MenuBarLabel: View {
     }
 }
 
-/// The status item glyph, optionally with a small dot cut into its top-right corner. Template images, so the
-/// menu bar tints them (the dot takes the icon's color).
+/// The status item glyph: the real app icon, optionally with a small red dot in its top-right corner.
+/// Not a template image, so it keeps its colors in light and dark menu bars.
 @MainActor
 private enum MenuBarIcon {
     private static var cache: [String: NSImage] = [:]
 
     static func image(filled: Bool, dot: Bool) -> NSImage {
-        let name = filled ? "arrow.down.circle.fill" : "arrow.down.circle"
-        let key = "\(name)-\(dot)"
+        let key = "\(dot)"
         if let cached = cache[key] { return cached }
-        let config = NSImage.SymbolConfiguration(pointSize: 14, weight: .regular)
-        guard let symbol = NSImage(systemSymbolName: name, accessibilityDescription: "Drift")?.withSymbolConfiguration(config) else {
-            return NSImage()
-        }
-        let image = dot ? dotted(symbol) : symbol
-        image.isTemplate = true
+        let icon = appIcon()
+        let image = dot ? dotted(icon) : icon
         cache[key] = image
+        return image
+    }
+
+    /// The app icon at menu bar size. The icon's tile fills about 80% of its canvas (the rest is the shadow
+    /// margin), so it is drawn larger and cropped to let the tile itself fill the 16 pt glyph.
+    private static func appIcon() -> NSImage {
+        let source = NSApp.applicationIconImage ?? NSImage()
+        let image = NSImage(size: NSSize(width: 16, height: 16), flipped: false) { rect in
+            let side = rect.width * 1024 / 824
+            let inset = (side - rect.width) / 2
+            source.draw(in: NSRect(x: -inset, y: -inset, width: side, height: side))
+            return true
+        }
+        image.accessibilityDescription = "Drift"
         return image
     }
 
@@ -120,7 +129,7 @@ private enum MenuBarIcon {
         context.compositingOperation = .clear
         NSBezierPath(ovalIn: dot.insetBy(dx: -1.5, dy: -1.5)).fill()
         context.compositingOperation = .sourceOver
-        NSColor.black.setFill()
+        NSColor.systemRed.setFill()
         NSBezierPath(ovalIn: dot).fill()
         NSGraphicsContext.restoreGraphicsState()
         let image = NSImage(size: size)
