@@ -98,7 +98,7 @@ struct DriftButtonStyle: ButtonStyle {
 
     private func background(pressed: Bool) -> Color {
         switch kind {
-        case .primary: Color.driftAccentStrong.opacity(pressed ? 0.85 : 1)
+        case .primary: Color.driftAccent.opacity(pressed ? 0.85 : 1)
         case .secondary: pressed ? .driftLine : .driftField
         case .plain: pressed ? .driftField : .clear
         }

@@ -380,7 +380,7 @@ private struct HeaderBar: View {
                 .padding(.leading, 10)
                 .padding(.trailing, 14)
                 .frame(height: 32)
-                .background(Color.driftAccentStrong, in: .capsule)
+                .background(Color.driftAccent, in: .capsule)
                 .contentShape(.capsule)
             }
             .buttonStyle(.plain)
