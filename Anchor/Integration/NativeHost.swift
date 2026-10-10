@@ -4,7 +4,6 @@ import Foundation
 /// can launch Anchor when it isn't running. Rewritten at every launch, since the host's path moves with the app.
 enum NativeHost {
     static let name = "dev.mansoor.anchor"
-    /// The host's name before the app was renamed from Drift; its manifests are removed at launch.
     static let legacyName = "dev.mansoor.drift"
     /// Fixed by the `key` in the extension's manifest.json.
     static let extensionID = "alcbklgeokffgjieplnglbmhadebnncm"

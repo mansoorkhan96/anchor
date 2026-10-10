@@ -119,13 +119,11 @@ struct DownloadItem: Codable, Identifiable, Hashable, Sendable {
 
     var destination: URL { directory.appending(path: fileName) }
     var partialFile: URL { directory.appending(path: fileName + Self.partialSuffix) }
-    /// The partial file's name before the app was renamed from Drift; renamed on load (see `adoptLegacyPartial`).
     var legacyPartialFile: URL { directory.appending(path: fileName + Self.legacyPartialSuffix) }
 
     static let partialSuffix = ".anchor-part"
     static let legacyPartialSuffix = ".drift-part"
 
-    /// Renames an unfinished download's `.drift-part` to `.anchor-part`, so it resumes where it left off.
     static func adoptLegacyPartial(_ item: DownloadItem) {
         let fm = FileManager.default
         guard !item.state.isFinished, item.kind == .http,

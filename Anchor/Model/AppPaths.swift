@@ -8,13 +8,10 @@ enum AppPaths {
         return url
     }
 
-    /// The app was called Drift. Its data moves to the Anchor folder once, on first use.
     private static let migrated: Void = migrateLegacySupport(
         from: URL.applicationSupportDirectory.appending(path: "Drift", directoryHint: .isDirectory),
         to: URL.applicationSupportDirectory.appending(path: "Anchor", directoryHint: .isDirectory))
 
-    /// Moves `legacy` to `current` if only the legacy folder exists, then leaves a symlink at the old path so
-    /// absolute paths saved in the download list (torrent files, for one) keep resolving.
     static func migrateLegacySupport(from legacy: URL, to current: URL) {
         let fm = FileManager.default
         var isFolder: ObjCBool = false

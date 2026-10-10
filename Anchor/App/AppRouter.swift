@@ -15,7 +15,6 @@ final class AppRouter {
         case "file" where url.pathExtension.lowercased() == "torrent":
             present(AddRequest(url: url.absoluteString))
         case "anchor", "drift":
-            // anchor://add?url=<encoded>. drift:// is the name from before the rename, still accepted.
             let link = URLComponents(url: url, resolvingAgainstBaseURL: false)?.queryItems?.first { $0.name == "url" }?.value
             if let link { present(AddRequest(url: link)) }
         default:
