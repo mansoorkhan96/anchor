@@ -457,7 +457,6 @@ enum Fixture {
         let now = Date()
         _ = try write("owned.mp4.anchor-part", in: dir, age: 7200, now: now)
         let orphan = try write("orphan.zip.anchor-part", in: dir, age: 7200, now: now)
-        let legacyOrphan = try write("old.zip.drift-part", in: dir, age: 7200, now: now)
         _ = try write("fresh.zip.anchor-part", in: dir, now: now)
         _ = try write("notes.txt", in: dir, age: 7200, now: now)
         let sub = dir.appending(path: "sub", directoryHint: .isDirectory)
@@ -466,9 +465,9 @@ enum Fixture {
 
         let owner = item("owned.mp4", in: dir, state: .paused)
         let found = Leftovers.find(in: [dir, dir], owned: [owner.partialFile.standardizedFileURL.path], now: now)
-        #expect(found.map(\.path) == [legacyOrphan, orphan].map(\.standardizedFileURL.path), "partials from before the rename count too")
-        #expect(found.last?.stamp == FileStamp.read(orphan))
-        #expect((found.last?.bytes ?? 0) > 0)
+        #expect(found.map(\.path) == [orphan.standardizedFileURL.path])
+        #expect(found.first?.stamp == FileStamp.read(orphan))
+        #expect((found.first?.bytes ?? 0) > 0)
     }
 
     @Test func scanAdoptsBaselinesFindsCandidatesAndMissing() throws {

@@ -95,8 +95,7 @@ enum Leftovers {
         var found: [Leftover] = []
         for folder in folders where seenFolders.insert(folder.standardizedFileURL.path).inserted {
             let entries = (try? FileManager.default.contentsOfDirectory(at: folder, includingPropertiesForKeys: nil)) ?? []
-            for url in entries where url.lastPathComponent.hasSuffix(DownloadItem.partialSuffix)
-                || url.lastPathComponent.hasSuffix(DownloadItem.legacyPartialSuffix) {
+            for url in entries where url.lastPathComponent.hasSuffix(DownloadItem.partialSuffix) {
                 let path = url.standardizedFileURL.path
                 guard !owned.contains(path), let stamp = FileStamp.read(url),
                       now.timeIntervalSince(stamp.modified) > minimumAge else { continue }
