@@ -31,7 +31,7 @@ final class AppRouter {
         }
     }
 
-    /// Inside Drift: a sheet on the main window. From another app (e.g. the browser): a floating panel,
+    /// Inside Anchor: a sheet on the main window. From another app (e.g. the browser): a floating panel,
     /// because macOS won't let a background app pull itself to the front.
     /// Brings up the main window with this download's details open.
     func showDetails(_ id: UUID) {

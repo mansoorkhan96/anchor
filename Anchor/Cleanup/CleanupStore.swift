@@ -10,7 +10,7 @@ enum AppEnvironment {
     }
 }
 
-/// Cleanup suggestions, Drift leftovers, and the installer archive. Reads and mutations happen on the main actor;
+/// Cleanup suggestions, Anchor leftovers, and the installer archive. Reads and mutations happen on the main actor;
 /// all disk and process work runs in detached tasks on value snapshots.
 @MainActor @Observable
 final class CleanupStore {
@@ -154,7 +154,7 @@ final class CleanupStore {
         await runTrash(entries)
     }
 
-    /// Moves archived files to the Trash if they are still the files Drift archived.
+    /// Moves archived files to the Trash if they are still the files Anchor archived.
     func trashArchived(_ ids: Set<UUID>) async {
         let entries = ids.compactMap { id -> TrashEntry? in
             guard let item = store.item(id), item.archivedAt != nil, item.pendingMove == nil, let stamp = item.stamp else { return nil }

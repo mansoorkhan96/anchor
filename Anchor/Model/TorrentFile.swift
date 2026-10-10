@@ -41,7 +41,7 @@ struct TorrentFile: Codable, Hashable, Identifiable, Sendable {
 enum TorrentSelection {
     /// The files aria2 should download right now.
     ///
-    /// aria2 has no per-file priority, so Drift downloads in phases: included files of the highest priority that
+    /// aria2 has no per-file priority, so Anchor downloads in phases: included files of the highest priority that
     /// still have bytes to fetch, plus everything above that priority and anything already finished. When a phase
     /// completes, the next priority level is added.
     static func phase(_ files: [TorrentFile]) -> [Int] {

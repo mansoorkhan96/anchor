@@ -126,7 +126,7 @@ enum DiskSize {
     }
 }
 
-/// One file the user asked to move to the Trash, with what Drift saw when it listed it.
+/// One file the user asked to move to the Trash, with what Anchor saw when it listed it.
 struct TrashEntry: Sendable {
     /// When set, the item must still qualify for Cleanup, with fresh dates.
     struct Rule: Sendable {

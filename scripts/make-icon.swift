@@ -1,4 +1,4 @@
-// Renders Drift's app icon to PNGs: swift scripts/make-icon.swift <out-dir>
+// Renders Anchor's app icon to PNGs: swift scripts/make-icon.swift <out-dir>
 import AppKit
 
 let out = URL(fileURLWithPath: CommandLine.arguments[1])

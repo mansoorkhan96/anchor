@@ -269,7 +269,7 @@ enum Fixture {
         let recentlyDone = Fixture.item(completed: recent)
 
         #expect(reason(Fixture.item(), lastUsed: recent) == nil, "Spotlight last used")
-        #expect(reason(opened) == nil, "opened from Drift")
+        #expect(reason(opened) == nil, "opened from Anchor")
         #expect(reason(archived) == nil, "archive clock starts at archivedAt")
         #expect(reason(touchedItem, current: touched) == nil, "modification date")
         #expect(reason(recentlyDone) == nil)

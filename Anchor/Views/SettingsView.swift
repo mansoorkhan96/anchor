@@ -629,15 +629,15 @@ private struct BrowserPage: View {
     }
 }
 
-/// Shows which app opens magnet links and .torrent files, and lets Drift take them over.
+/// Shows which app opens magnet links and .torrent files, and lets Anchor take them over.
 private struct DefaultAppCard: View {
     @State private var magnetApp: URL?
     @State private var torrentApp: URL?
     @State private var working = false
 
     private static let torrentType = UTType("org.bittorrent.torrent") ?? UTType(filenameExtension: "torrent")!
-    private var drift: URL { Bundle.main.bundleURL.standardizedFileURL }
-    private var isDefault: Bool { magnetApp?.standardizedFileURL == drift && torrentApp?.standardizedFileURL == drift }
+    private var anchor: URL { Bundle.main.bundleURL.standardizedFileURL }
+    private var isDefault: Bool { magnetApp?.standardizedFileURL == anchor && torrentApp?.standardizedFileURL == anchor }
 
     var body: some View {
         SettingsCard {
@@ -670,7 +670,7 @@ private struct DefaultAppCard: View {
     private func makeDefault() {
         working = true
         let ws = NSWorkspace.shared
-        let app = drift
+        let app = anchor
         ws.setDefaultApplication(at: app, toOpenURLsWithScheme: "magnet") { _ in
             ws.setDefaultApplication(at: app, toOpen: Self.torrentType) { _ in }
         }

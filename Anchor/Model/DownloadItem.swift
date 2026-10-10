@@ -76,7 +76,7 @@ struct DownloadItem: Codable, Identifiable, Hashable, Sendable {
     var stamp: FileStamp?
     /// The stamp was adopted after the fact; such items are never archived automatically.
     var stampIsBaseline: Bool?
-    /// Last time the file was opened from Drift.
+    /// Last time the file was opened from Anchor.
     var openedAt: Date?
     /// When the archiver moved the file; non-nil means "in the archive".
     var archivedAt: Date?
