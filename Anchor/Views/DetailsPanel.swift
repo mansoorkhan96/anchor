@@ -86,7 +86,7 @@ struct DetailsPanel: View {
             tab = item.files == nil ? .general : .files
             escapeMonitor = NSEvent.addLocalMonitorForEvents(matching: .keyDown) { event in
                 // Escape in the main window (not a sheet or the floating New Download panel) closes the slide-over.
-                guard event.keyCode == 53, let window = event.window, window.title == "Drift",
+                guard event.keyCode == 53, let window = event.window, window.title == "Anchor",
                       window.attachedSheet == nil else { return event }
                 close()
                 return nil

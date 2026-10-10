@@ -50,7 +50,7 @@ struct WhenDoneView: View {
 
     private var message: String {
         switch action {
-        case .quit: "Drift will quit in \(left)s."
+        case .quit: "Anchor will quit in \(left)s."
         case .sleep: "Your Mac will sleep in \(left)s."
         case .shutDown: "Your Mac will shut down in \(left)s."
         case .nothing: ""

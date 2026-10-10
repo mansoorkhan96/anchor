@@ -11,7 +11,7 @@ enum WhenDoneAction: String, CaseIterable, Identifiable {
     var title: String {
         switch self {
         case .nothing: "Do Nothing"
-        case .quit: "Quit Drift"
+        case .quit: "Quit Anchor"
         case .sleep: "Sleep"
         case .shutDown: "Shut Down"
         }
@@ -38,7 +38,7 @@ enum Power {
         if awake, !holding {
             holding = IOPMAssertionCreateWithName(kIOPMAssertionTypePreventUserIdleSystemSleep as CFString,
                                                   IOPMAssertionLevel(kIOPMAssertionLevelOn),
-                                                  "Drift is downloading" as CFString, &assertion) == kIOReturnSuccess
+                                                  "Anchor is downloading" as CFString, &assertion) == kIOReturnSuccess
         } else if !awake, holding {
             IOPMAssertionRelease(assertion)
             holding = false

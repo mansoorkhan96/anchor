@@ -20,10 +20,10 @@ private enum SettingsSection: String, CaseIterable, Identifiable {
 
     var subtitle: String {
         switch self {
-        case .general: "Where downloads go and how Drift behaves."
-        case .speed: "How hard Drift pushes your connection."
-        case .browser: "Send downloads from Safari, Chrome, Arc, Brave and Edge to Drift."
-        case .cleanup: "Files show up in Cleanup when Drift has seen no use of them for this long. Nothing is removed until you choose to."
+        case .general: "Where downloads go and how Anchor behaves."
+        case .speed: "How hard Anchor pushes your connection."
+        case .browser: "Send downloads from Safari, Chrome, Arc, Brave and Edge to Anchor."
+        case .cleanup: "Files show up in Cleanup when Anchor has seen no use of them for this long. Nothing is removed until you choose to."
         case .about: ""
         }
     }
@@ -210,8 +210,8 @@ private struct GeneralPage: View {
                 }
             }
             SettingsCard {
-                SettingsRow(title: "Open Drift at login", detail: "Stays in the menu bar so browser downloads always work", divider: true) {
-                    AnchorSwitch(isOn: $launchAtLogin, label: "Open Drift at login")
+                SettingsRow(title: "Open Anchor at login", detail: "Stays in the menu bar so browser downloads always work", divider: true) {
+                    AnchorSwitch(isOn: $launchAtLogin, label: "Open Anchor at login")
                 }
                 SettingsRow(title: "Keep Mac awake while downloading", detail: "Stops idle sleep until downloads finish; the screen can still turn off", divider: true) {
                     AnchorSwitch(isOn: $settings.keepAwake, label: "Keep Mac awake while downloading")
@@ -229,8 +229,8 @@ private struct GeneralPage: View {
                 }
             }
             SettingsCard {
-                SettingsRow(title: "Show Drift in the menu bar", detail: "Live speed and recent downloads, one click away", divider: true) {
-                    AnchorSwitch(isOn: $settings.showMenuBarIcon, label: "Show Drift in the menu bar")
+                SettingsRow(title: "Show Anchor in the menu bar", detail: "Live speed and recent downloads, one click away", divider: true) {
+                    AnchorSwitch(isOn: $settings.showMenuBarIcon, label: "Show Anchor in the menu bar")
                 }
                 SettingsRow(title: "Recent downloads in menu bar", detail: "How many show in the menu bar list") {
                     NumberStepper(value: $settings.menuBarCount, range: 3...15)
@@ -437,7 +437,7 @@ private struct SpeedLimitCard: View {
                     }
                 }
 
-                Text("Drift will stay under \(Text(Format.speed(Double(settings.effectiveSpeedLimit))).bold().foregroundStyle(Color.anchorText)) across all downloads.")
+                Text("Anchor will stay under \(Text(Format.speed(Double(settings.effectiveSpeedLimit))).bold().foregroundStyle(Color.anchorText)) across all downloads.")
                     .font(.system(size: 12).monospacedDigit())
                     .foregroundStyle(Color.anchorMuted)
             } else {
@@ -614,12 +614,12 @@ private struct BrowserPage: View {
             }
             SettingsCard {
                 SettingsRow(title: "Safari extension",
-                            detail: "Turn on Drift in Safari's Extensions settings. Unsigned builds also need Develop > Allow Unsigned Extensions.",
+                            detail: "Turn on Anchor in Safari's Extensions settings. Unsigned builds also need Develop > Allow Unsigned Extensions.",
                             divider: true) {
                     Button("Open Safari…", action: openSafariExtension).buttonStyle(.anchorSecondary)
                 }
                 SettingsRow(title: "Chrome, Arc, Brave and Edge extension",
-                            detail: "In chrome://extensions turn on Developer mode, choose Load unpacked, and pick the drift-browser-extension folder.") {}
+                            detail: "In chrome://extensions turn on Developer mode, choose Load unpacked, and pick the anchor-browser-extension folder.") {}
             }
         }
     }
@@ -642,11 +642,11 @@ private struct DefaultAppCard: View {
     var body: some View {
         SettingsCard {
             SettingsRow(title: "Open magnet links and .torrent files",
-                        detail: isDefault ? "Drift opens them" : "Currently: \(describe())") {
+                        detail: isDefault ? "Anchor opens them" : "Currently: \(describe())") {
                 if isDefault {
-                    Chip(text: "Drift is the default", ink: .anchorSuccess, wash: .anchorSuccessWash)
+                    Chip(text: "Anchor is the default", ink: .anchorSuccess, wash: .anchorSuccessWash)
                 } else {
-                    Button(working ? "Waiting…" : "Make Drift the Default", action: makeDefault)
+                    Button(working ? "Waiting…" : "Make Anchor the Default", action: makeDefault)
                         .buttonStyle(.anchorPrimary)
                         .disabled(working)
                 }
@@ -697,7 +697,7 @@ private struct AboutPage: View {
             Image(nsImage: NSApp.applicationIconImage)
                 .resizable()
                 .frame(width: 96, height: 96)
-            Text("Drift")
+            Text("Anchor")
                 .font(.system(size: 22, weight: .bold))
                 .foregroundStyle(Color.anchorText)
             Text(version)

@@ -7,7 +7,7 @@ struct AnchorApp: App {
     @State private var cleanup = CleanupStore.shared
 
     var body: some Scene {
-        Window("Drift", id: "main") {
+        Window("Anchor", id: "main") {
             MainView()
                 .environment(store)
                 .environment(cleanup)
@@ -107,7 +107,7 @@ private enum MenuBarIcon {
             source.draw(in: NSRect(x: -inset, y: -inset, width: side, height: side))
             return true
         }
-        image.accessibilityDescription = "Drift"
+        image.accessibilityDescription = "Anchor"
         return image
     }
 

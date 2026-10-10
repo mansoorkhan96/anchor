@@ -27,7 +27,7 @@ struct MainView: View {
         .sheet(item: $store.addRequest) { request in
             AddDownloadSheet(request: request)
         }
-        .alert("Drift", isPresented: Binding(get: { store.alert != nil }, set: { if !$0 { store.alert = nil } })) {
+        .alert("Anchor", isPresented: Binding(get: { store.alert != nil }, set: { if !$0 { store.alert = nil } })) {
             Button("OK") { store.alert = nil }
         } message: {
             Text(store.alert ?? "")

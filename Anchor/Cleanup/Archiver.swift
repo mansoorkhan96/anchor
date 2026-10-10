@@ -120,7 +120,7 @@ enum Archiver {
             return plan
         }
         guard current == item.stamp else {
-            plan.failure = "\(item.fileName) changed since it was archived, so Drift left it where it is."
+            plan.failure = "\(item.fileName) changed since it was archived, so Anchor left it where it is."
             return plan
         }
         let target = restoreTarget(item, fallback: fallback)

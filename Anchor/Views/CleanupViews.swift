@@ -90,7 +90,7 @@ struct LeftoversCard: View {
             }
             Button("Cancel", role: .cancel) {}
         } message: {
-            Text("No download in Drift uses these partial files.")
+            Text("No download in Anchor uses these partial files.")
         }
     }
 

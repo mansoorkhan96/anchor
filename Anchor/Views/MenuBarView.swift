@@ -52,7 +52,7 @@ struct MenuBarView: View {
                     showMain()
                     store.addRequest = AddRequest(url: text)
                 }
-                MenuButton(title: "Open Drift", symbol: "macwindow") { showMain() }
+                MenuButton(title: "Open Anchor", symbol: "macwindow") { showMain() }
                 MenuButton(title: "Quit", symbol: "power", shortcut: "⌘Q", muted: true) { NSApp.terminate(nil) }
             }
             .padding(.top, 10)
@@ -63,10 +63,10 @@ struct MenuBarView: View {
         .background(Color.anchorWindow)
     }
 
-    /// "Drift" and a one-tap icon button that pauses everything, or resumes everything when paused.
+    /// "Anchor" and a one-tap icon button that pauses everything, or resumes everything when paused.
     private var header: some View {
         HStack(alignment: .center) {
-            Text("Drift")
+            Text("Anchor")
                 .font(.system(size: 15, weight: .bold))
                 .foregroundStyle(Color.anchorText)
             Spacer()

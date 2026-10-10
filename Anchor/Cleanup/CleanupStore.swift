@@ -242,7 +242,7 @@ final class CleanupStore {
     private func perform(_ move: PendingMove, planned plan: ArchivePlan) async -> ArchiveError? {
         let id = plan.id
         guard CleanupRules.canLock(plan.item, revision: plan.revision, current: store.item(id), currentRevision: store.cleanupRevision) else {
-            return .failed("The download changed while Drift was preparing the move.")
+            return .failed("The download changed while Anchor was preparing the move.")
         }
         store.cleanupMutate(id) { $0.pendingMove = move }
         do {
@@ -278,7 +278,7 @@ final class CleanupStore {
                 failures.append(failure)
             } else if let move = plan.move, let error = await perform(move, planned: plan) {
                 switch error {
-                case .changed: failures.append("\(item.fileName) changed, so Drift left it in the archive.")
+                case .changed: failures.append("\(item.fileName) changed, so Anchor left it in the archive.")
                 case .targetExists: failures.append("Something named \(URL(filePath: move.to).lastPathComponent) appeared in the way. Try again.")
                 case .failed(let reason): failures.append("\(item.fileName): \(reason)")
                 }

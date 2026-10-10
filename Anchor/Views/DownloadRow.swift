@@ -336,7 +336,7 @@ enum LinkPrompt {
     static func ask(for item: DownloadItem) -> URL? {
         let alert = NSAlert()
         alert.messageText = "Update Link"
-        alert.informativeText = "Paste a new link for \(item.fileName). Drift keeps what's already downloaded if the file is the same size."
+        alert.informativeText = "Paste a new link for \(item.fileName). Anchor keeps what's already downloaded if the file is the same size."
         alert.addButton(withTitle: "Update")
         alert.addButton(withTitle: "Cancel")
         let field = NSTextField(frame: NSRect(x: 0, y: 0, width: 360, height: 24))

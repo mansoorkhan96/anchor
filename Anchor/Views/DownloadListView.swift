@@ -130,7 +130,7 @@ struct DownloadListView: View {
             spaceMonitor = NSEvent.addLocalMonitorForEvents(matching: .keyDown) { event in
                 // Space in the main window, unless typing in a text field: pause or resume.
                 guard event.keyCode == 49, event.modifierFlags.intersection(.deviceIndependentFlagsMask).isEmpty,
-                      let window = event.window, window.title == "Drift", window.attachedSheet == nil,
+                      let window = event.window, window.title == "Anchor", window.attachedSheet == nil,
                       !(window.firstResponder is NSText) else { return event }
                 let targets = selection.isEmpty ? (store.focusedID.map { [$0] } ?? []) : Array(selection)
                 guard !targets.isEmpty else { return event }
@@ -157,7 +157,7 @@ struct DownloadListView: View {
             }
             Button("Cancel", role: .cancel) {}
         } message: {
-            Text("Each file is checked again first. Anything that changed since Drift listed it is left alone.")
+            Text("Each file is checked again first. Anything that changed since Anchor listed it is left alone.")
         }
         .onChange(of: store.items.map(\.id)) { _, ids in
             selection.formIntersection(ids)
