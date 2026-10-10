@@ -1,5 +1,4 @@
 // Renders Drift's app icon to PNGs: swift scripts/make-icon.swift <out-dir>
-// The anchor on Harbor orange: a white anchor whose shank is a down arrow, upright at 86% size.
 import AppKit
 
 let out = URL(fileURLWithPath: CommandLine.arguments[1])
