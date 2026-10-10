@@ -625,7 +625,7 @@ private struct BrowserPage: View {
     }
 
     private func openSafariExtension() {
-        SFSafariApplication.showPreferencesForExtension(withIdentifier: "dev.mansoor.Drift.SafariExtension") { _ in }
+        SFSafariApplication.showPreferencesForExtension(withIdentifier: "dev.mansoor.Anchor.SafariExtension") { _ in }
     }
 }
 
