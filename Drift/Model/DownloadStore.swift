@@ -205,7 +205,7 @@ final class DownloadStore {
         return true
     }
 
-    /// FDM-style prompt in a floating panel, so it shows even while the browser is in front.
+    /// Prompt in a floating panel, so it shows even while the browser is in front.
     private func askAboutExisting(_ file: URL, renamedTo: String, then enqueue: @escaping (Bool) -> Void) {
         var decided = false
         FloatingPanels.present(onEscape: nil) { close in
@@ -338,7 +338,7 @@ final class DownloadStore {
         }
     }
 
-    /// Adds a torrent whose files are still loading in the New Download window (FDM lets you add without waiting).
+    /// Adds a torrent whose files are still loading in the New Download window, so adding doesn't wait for them.
     /// It shows in the list right away and picks up the files, then starts, when they arrive.
     func addPreparingTorrent(_ task: Task<PreparedTorrent, Error>, source: URL, name: String, directory: URL,
                              priority: Priority, startNow: Bool) {

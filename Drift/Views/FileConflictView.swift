@@ -4,7 +4,7 @@ enum FileConflictChoice {
     case rename, overwrite, abort
 }
 
-/// FDM-style "file exists already" prompt. Renames automatically when the countdown runs out.
+/// "File exists already" prompt. Renames automatically when the countdown runs out.
 struct FileConflictView: View {
     static let countdown = 50
 

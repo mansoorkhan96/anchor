@@ -63,7 +63,7 @@ enum Power {
     }
 }
 
-/// Quick speed presets (FDM's traffic modes), shared by the header menu and the app menu.
+/// Quick speed presets, shared by the header menu and the app menu.
 enum SpeedMode: String, CaseIterable, Identifiable {
     case full, high, medium, low, custom
 

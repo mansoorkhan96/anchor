@@ -437,7 +437,7 @@ struct AddDownloadSheet: View {
             close()
             return
         }
-        // Like FDM, adding doesn't wait for the link check: without a server answer yet (and no name typed),
+        // Adding doesn't wait for the link check: without a server answer yet (and no name typed),
         // the download takes the name the server sends.
         let name = fileName.trimmingCharacters(in: .whitespaces)
         let useName = !name.isEmpty && (nameEdited || probe != nil || !probing)

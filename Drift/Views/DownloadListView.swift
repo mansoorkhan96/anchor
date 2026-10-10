@@ -410,7 +410,7 @@ private struct HeaderBar: View {
     }
 }
 
-/// Quick speed modes (FDM's traffic modes) and the one-shot "when all downloads finish" action.
+/// Quick speed modes and the one-shot "when all downloads finish" action.
 private struct SpeedMenu: View {
     @Environment(DownloadStore.self) private var store
     @Environment(\.openSettings) private var openSettings

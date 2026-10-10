@@ -218,7 +218,7 @@ private struct FileCheckbox: View {
     }
 }
 
-/// One-click High / Normal / Low control (three small arrow buttons), FDM style. No menu, so it also works in
+/// One-click High / Normal / Low control (three small arrow buttons). No menu, so it also works in
 /// the floating New Download window, where pop-up menus don't deliver their choice.
 struct PriorityMenu: View {
     let priority: Priority

@@ -68,7 +68,7 @@ final class AppSettings {
     /// KB/s, 0 = unlimited.
     /// Torrent upload cap in KB/s: 0 is unlimited, -1 stops uploading (aria2 gets a 1 B/s cap, since 0 means unlimited there).
     var uploadLimitKB: Int { didSet { defaults.set(uploadLimitKB, forKey: "uploadLimitKB") } }
-    /// One-shot: resets to `.nothing` after it runs, like FDM's "when done" option.
+    /// One-shot: resets to `.nothing` after it runs.
     var whenDone: WhenDoneAction = .nothing
     var existingFileAction: ExistingFileAction { didSet { defaults.set(existingFileAction.rawValue, forKey: "existingFileAction") } }
     /// Days without recorded use before a file shows up in Cleanup, per category. Missing or 0 means Never.

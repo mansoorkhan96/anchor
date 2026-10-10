@@ -1,7 +1,7 @@
 import AppKit
 import SwiftUI
 
-/// Floating panels that appear above every app, FDM style.
+/// Floating panels that appear above every app.
 ///
 /// macOS won't let a background app activate itself (it bounces the Dock icon instead), but a
 /// non-activating panel can still come to the front and take keyboard focus while the browser stays active.
