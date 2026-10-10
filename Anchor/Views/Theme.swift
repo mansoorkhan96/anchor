@@ -6,7 +6,7 @@ import AppKit
 /// The app's primary color, like a CSS `--primary` variable. Every accent shade below is mixed from it,
 /// so changing the brand color is this one line.
 enum Brand {
-    static let primary: UInt32 = 0xFD6A0A
+    static let primary: UInt32 = 0xEB6840
 
     /// Light and dark window backgrounds the tints are mixed into.
     fileprivate static let lightGround: UInt32 = 0xFFFFFF
