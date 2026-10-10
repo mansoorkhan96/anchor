@@ -119,17 +119,8 @@ struct DownloadItem: Codable, Identifiable, Hashable, Sendable {
 
     var destination: URL { directory.appending(path: fileName) }
     var partialFile: URL { directory.appending(path: fileName + Self.partialSuffix) }
-    var legacyPartialFile: URL { directory.appending(path: fileName + Self.legacyPartialSuffix) }
 
     static let partialSuffix = ".anchor-part"
-    static let legacyPartialSuffix = ".drift-part"
-
-    static func adoptLegacyPartial(_ item: DownloadItem) {
-        let fm = FileManager.default
-        guard !item.state.isFinished, item.kind == .http,
-              fm.fileExists(atPath: item.legacyPartialFile.path), !fm.fileExists(atPath: item.partialFile.path) else { return }
-        try? fm.moveItem(at: item.legacyPartialFile, to: item.partialFile)
-    }
 
     var progress: Double {
         guard let totalBytes, totalBytes > 0 else { return 0 }
