@@ -46,17 +46,17 @@ struct AddDownloadSheet: View {
             HStack(spacing: 12) {
                 Image(systemName: "arrow.down")
                     .font(.system(size: 15, weight: .bold))
-                    .foregroundStyle(Color.driftAccent)
+                    .foregroundStyle(Color.anchorAccent)
                     .frame(width: 38, height: 38)
-                    .background(Color.driftAccentWash, in: .rect(cornerRadius: 11))
-                    .overlay(RoundedRectangle(cornerRadius: 11).strokeBorder(Color.driftAccentTint))
+                    .background(Color.anchorAccentWash, in: .rect(cornerRadius: 11))
+                    .overlay(RoundedRectangle(cornerRadius: 11).strokeBorder(Color.anchorAccentTint))
                 VStack(alignment: .leading, spacing: 2) {
                     Text("New Download")
                         .font(.system(size: 17, weight: .semibold))
-                        .foregroundStyle(Color.driftText)
+                        .foregroundStyle(Color.anchorText)
                     Text(subtitle)
                         .font(.system(size: 12))
-                        .foregroundStyle(Color.driftMuted)
+                        .foregroundStyle(Color.anchorMuted)
                 }
             }
 
@@ -64,7 +64,7 @@ struct AddDownloadSheet: View {
                 HStack(spacing: 8) {
                     Image(systemName: "link")
                         .font(.system(size: 12, weight: .semibold))
-                        .foregroundStyle(Color.driftMuted)
+                        .foregroundStyle(Color.anchorMuted)
                     TextField("https://… or magnet:?…", text: $address)
                         .textFieldStyle(.plain)
                         .font(.system(size: 13))
@@ -77,13 +77,13 @@ struct AddDownloadSheet: View {
                         }
                         .buttonStyle(.plain)
                         .font(.system(size: 12, weight: .semibold))
-                        .foregroundStyle(Color.driftAccentInk)
+                        .foregroundStyle(Color.anchorAccentInk)
                     } else {
                         Button {
                             address = ""
                             addressFocused = true
                         } label: {
-                            Image(systemName: "xmark.circle.fill").foregroundStyle(Color.driftMuted.opacity(0.7))
+                            Image(systemName: "xmark.circle.fill").foregroundStyle(Color.anchorMuted.opacity(0.7))
                         }
                         .buttonStyle(.plain)
                         .accessibilityLabel("Clear link")
@@ -95,11 +95,11 @@ struct AddDownloadSheet: View {
             if url == nil {
                 Text("File details appear here once you paste a link.")
                     .font(.system(size: 12))
-                    .foregroundStyle(Color.driftMuted)
+                    .foregroundStyle(Color.anchorMuted)
                     .frame(maxWidth: .infinity, minHeight: 76)
                     .overlay(
                         RoundedRectangle(cornerRadius: 14)
-                            .strokeBorder(Color.driftLine, style: StrokeStyle(lineWidth: 1.5, dash: [5, 4]))
+                            .strokeBorder(Color.anchorLine, style: StrokeStyle(lineWidth: 1.5, dash: [5, 4]))
                     )
             } else {
                 fileCard
@@ -131,16 +131,16 @@ struct AddDownloadSheet: View {
                         HStack(spacing: 8) {
                             Image(systemName: "folder.fill")
                                 .font(.system(size: 12))
-                                .foregroundStyle(Color.driftAccent)
+                                .foregroundStyle(Color.anchorAccent)
                             Text(folderLabel)
                                 .font(.system(size: 13))
-                                .foregroundStyle(Color.driftText)
+                                .foregroundStyle(Color.anchorText)
                                 .lineLimit(1)
                                 .truncationMode(.head)
                             Spacer(minLength: 4)
                             Text("Change")
                                 .font(.system(size: 12, weight: .medium))
-                                .foregroundStyle(Color.driftMuted)
+                                .foregroundStyle(Color.anchorMuted)
                         }
                         .fieldChrome()
                         .contentShape(.rect)
@@ -162,11 +162,11 @@ struct AddDownloadSheet: View {
                         } label: {
                             HStack(spacing: 8) {
                                 Circle().fill(category.color).frame(width: 8, height: 8)
-                                Text(category.title).font(.system(size: 13)).foregroundStyle(Color.driftText)
+                                Text(category.title).font(.system(size: 13)).foregroundStyle(Color.anchorText)
                                 Spacer(minLength: 4)
                                 Image(systemName: "chevron.up.chevron.down")
                                     .font(.system(size: 10, weight: .semibold))
-                                    .foregroundStyle(Color.driftMuted)
+                                    .foregroundStyle(Color.anchorMuted)
                             }
                             .fieldChrome()
                             .contentShape(.rect)
@@ -182,31 +182,31 @@ struct AddDownloadSheet: View {
             HStack(spacing: 10) {
                 if !isTorrent {
                     HStack(spacing: 8) {
-                        DriftSwitch(isOn: $openWhenDone, label: "Open when finished")
+                        AnchorSwitch(isOn: $openWhenDone, label: "Open when finished")
                         Text("Open when finished")
                             .font(.system(size: 13))
-                            .foregroundStyle(Color.driftMuted2)
+                            .foregroundStyle(Color.anchorMuted2)
                             .onTapGesture { openWhenDone.toggle() }
                     }
                 }
                 Spacer()
                 Button("Cancel") { close() }
-                    .buttonStyle(.driftPlain)
+                    .buttonStyle(.anchorPlain)
                     .keyboardShortcut(.cancelAction)
                 Button("Add to Queue") { add(startNow: false) }
-                    .buttonStyle(.driftSecondary)
+                    .buttonStyle(.anchorSecondary)
                     .disabled(!canAdd)
                 Button("Download") { add(startNow: true) }
-                    .buttonStyle(.driftPrimary)
+                    .buttonStyle(.anchorPrimary)
                     .keyboardShortcut(.defaultAction)
                     .disabled(!canAdd)
             }
         }
         .padding(24)
         .frame(width: 580)
-        .background(Color.driftWindow)
+        .background(Color.anchorWindow)
         .fixedSize(horizontal: false, vertical: true)
-        .tint(.driftAccent)
+        .tint(.anchorAccent)
         .task {
             address = request.url
             if let name = request.suggestedName, !name.isEmpty {
@@ -234,7 +234,7 @@ struct AddDownloadSheet: View {
         VStack(alignment: .leading, spacing: 6) {
             Text(title)
                 .font(.system(size: 12, weight: .medium))
-                .foregroundStyle(Color.driftMuted2)
+                .foregroundStyle(Color.anchorMuted2)
             content()
         }
         .frame(maxWidth: .infinity, alignment: .leading)
@@ -260,7 +260,7 @@ struct AddDownloadSheet: View {
                 TextField("File name", text: $fileName)
                     .textFieldStyle(.plain)
                     .font(.system(size: 14, weight: .semibold))
-                    .foregroundStyle(Color.driftText)
+                    .foregroundStyle(Color.anchorText)
                     .onChange(of: fileName) { _, new in
                         if new != autoName { nameEdited = true }
                         category = FileCategory.detect(fileName: new)
@@ -268,33 +268,33 @@ struct AddDownloadSheet: View {
                     .disabled(isTorrent)
                 HStack(spacing: 6) {
                     if let url, store.items.contains(where: { $0.url == url }) {
-                        Chip(text: "Already in your list", ink: .driftPausedInk, wash: Color.driftPaused.opacity(0.18))
+                        Chip(text: "Already in your list", ink: .anchorPausedInk, wash: Color.anchorPaused.opacity(0.18))
                     }
                     if probing {
                         ProgressView().controlSize(.mini)
-                        Text("Checking link…").font(.system(size: 11)).foregroundStyle(Color.driftMuted)
+                        Text("Checking link…").font(.system(size: 11)).foregroundStyle(Color.anchorMuted)
                     } else if let probeError {
-                        Chip(text: probeError, ink: .driftDanger, wash: .driftDangerWash)
+                        Chip(text: probeError, ink: .anchorDanger, wash: .anchorDangerWash)
                     } else if preparing {
                         ProgressView().controlSize(.mini)
-                        Text("Fetching file list…").font(.system(size: 11)).foregroundStyle(Color.driftMuted)
+                        Text("Fetching file list…").font(.system(size: 11)).foregroundStyle(Color.anchorMuted)
                     } else if let prepareError {
-                        Chip(text: prepareError, ink: .driftDanger, wash: .driftDangerWash)
+                        Chip(text: prepareError, ink: .anchorDanger, wash: .anchorDangerWash)
                     } else if let prepared {
-                        Chip(text: "Torrent", ink: .driftSuccess, wash: .driftSuccessWash)
-                        Chip(text: "\(prepared.files.count) file\(prepared.files.count == 1 ? "" : "s")", ink: .driftText.opacity(0.8))
-                        Chip(text: Format.bytes(prepared.files.filter(\.included).reduce(0) { $0 + $1.length }), ink: .driftText.opacity(0.8))
+                        Chip(text: "Torrent", ink: .anchorSuccess, wash: .anchorSuccessWash)
+                        Chip(text: "\(prepared.files.count) file\(prepared.files.count == 1 ? "" : "s")", ink: .anchorText.opacity(0.8))
+                        Chip(text: Format.bytes(prepared.files.filter(\.included).reduce(0) { $0 + $1.length }), ink: .anchorText.opacity(0.8))
                     } else if isMagnet {
-                        Chip(text: "Magnet link", ink: .driftSuccess, wash: .driftSuccessWash)
+                        Chip(text: "Magnet link", ink: .anchorSuccess, wash: .anchorSuccessWash)
                     } else if isTorrent {
-                        Chip(text: "Torrent", ink: .driftSuccess, wash: .driftSuccessWash)
+                        Chip(text: "Torrent", ink: .anchorSuccess, wash: .anchorSuccessWash)
                     } else if let probe {
-                        Chip(text: probe.totalBytes.map(Format.bytes) ?? "Unknown size", ink: .driftText.opacity(0.8))
+                        Chip(text: probe.totalBytes.map(Format.bytes) ?? "Unknown size", ink: .anchorText.opacity(0.8))
                         Chip(text: probe.supportsRanges ? "Resumable" : "Not resumable",
-                             ink: probe.supportsRanges ? .driftSuccess : .driftPausedInk,
-                             wash: probe.supportsRanges ? .driftSuccessWash : Color.driftPaused.opacity(0.18))
+                             ink: probe.supportsRanges ? .anchorSuccess : .anchorPausedInk,
+                             wash: probe.supportsRanges ? .anchorSuccessWash : Color.anchorPaused.opacity(0.18))
                         if probe.supportsRanges {
-                            Chip(text: "\(store.settings.connections) connections", ink: .driftAccentInk, wash: .driftAccentWash)
+                            Chip(text: "\(store.settings.connections) connections", ink: .anchorAccentInk, wash: .anchorAccentWash)
                         }
                     }
                 }
@@ -302,7 +302,7 @@ struct AddDownloadSheet: View {
             }
         }
         .padding(14)
-        .background(Color.driftCard, in: .rect(cornerRadius: 14))
+        .background(Color.anchorCard, in: .rect(cornerRadius: 14))
     }
 
     private func runProbe() async {
@@ -469,12 +469,12 @@ private struct PriorityField: View {
                         Text(option.title)
                             .font(.system(size: 12.5, weight: on ? .semibold : .medium))
                     }
-                    .foregroundStyle(on ? ink(option) : Color.driftMuted)
+                    .foregroundStyle(on ? ink(option) : Color.anchorMuted)
                     .frame(maxWidth: .infinity, maxHeight: .infinity)
                     .background {
                         if on {
                             RoundedRectangle(cornerRadius: 8)
-                                .fill(Color.driftWindow)
+                                .fill(Color.anchorWindow)
                                 .shadow(color: .black.opacity(0.08), radius: 2, y: 1)
                                 .matchedGeometryEffect(id: "pill", in: pill)
                         }
@@ -488,14 +488,14 @@ private struct PriorityField: View {
         }
         .padding(3)
         .frame(height: 40)
-        .background(Color.driftField, in: .rect(cornerRadius: 10))
+        .background(Color.anchorField, in: .rect(cornerRadius: 10))
     }
 
     private func ink(_ option: Priority) -> Color {
         switch option {
-        case .high: .driftAccentInk
-        case .normal: .driftText
-        case .low: .driftMuted2
+        case .high: .anchorAccentInk
+        case .normal: .anchorText
+        case .low: .anchorMuted2
         }
     }
 }

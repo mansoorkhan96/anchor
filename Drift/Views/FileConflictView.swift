@@ -20,16 +20,16 @@ struct FileConflictView: View {
             HStack(spacing: 12) {
                 Image(systemName: "doc.on.doc.fill")
                     .font(.system(size: 15, weight: .semibold))
-                    .foregroundStyle(Color.driftPausedInk)
+                    .foregroundStyle(Color.anchorPausedInk)
                     .frame(width: 38, height: 38)
-                    .background(Color.driftPaused.opacity(0.18), in: .rect(cornerRadius: 11))
+                    .background(Color.anchorPaused.opacity(0.18), in: .rect(cornerRadius: 11))
                 VStack(alignment: .leading, spacing: 2) {
                     Text("File already exists")
                         .font(.system(size: 17, weight: .semibold))
-                        .foregroundStyle(Color.driftText)
+                        .foregroundStyle(Color.anchorText)
                     Text("Choose what to do with the new download.")
                         .font(.system(size: 12))
-                        .foregroundStyle(Color.driftMuted)
+                        .foregroundStyle(Color.anchorMuted)
                 }
             }
 
@@ -37,44 +37,44 @@ struct FileConflictView: View {
                 HStack(spacing: 8) {
                     Image(systemName: "doc")
                         .font(.system(size: 12, weight: .semibold))
-                        .foregroundStyle(Color.driftMuted)
+                        .foregroundStyle(Color.anchorMuted)
                     Text(displayPath)
                         .font(.system(size: 13))
-                        .foregroundStyle(Color.driftText)
+                        .foregroundStyle(Color.anchorText)
                         .lineLimit(1)
                         .truncationMode(.middle)
                         .textSelection(.enabled)
                 }
-                Text("Rename saves the new file as \(Text(renamedTo).bold().foregroundStyle(Color.driftText)). Overwrite moves the existing file to the Trash once the download finishes.")
+                Text("Rename saves the new file as \(Text(renamedTo).bold().foregroundStyle(Color.anchorText)). Overwrite moves the existing file to the Trash once the download finishes.")
                     .font(.system(size: 12))
-                    .foregroundStyle(Color.driftMuted)
+                    .foregroundStyle(Color.anchorMuted)
                     .fixedSize(horizontal: false, vertical: true)
             }
             .padding(14)
             .frame(maxWidth: .infinity, alignment: .leading)
-            .background(Color.driftCard, in: .rect(cornerRadius: 14))
+            .background(Color.anchorCard, in: .rect(cornerRadius: 14))
 
             HStack(spacing: 10) {
                 Toggle("Remember my choice", isOn: $remember)
                     .toggleStyle(.checkbox)
                     .font(.system(size: 12))
-                    .foregroundStyle(Color.driftMuted2)
+                    .foregroundStyle(Color.anchorMuted2)
                 Spacer()
                 Button("Abort") { decide(.abort, false) }
-                    .buttonStyle(.driftPlain)
+                    .buttonStyle(.anchorPlain)
                     .keyboardShortcut(.cancelAction)
                 Button("Overwrite") { decide(.overwrite, remember) }
-                    .buttonStyle(.driftSecondary)
+                    .buttonStyle(.anchorSecondary)
                 Button("Rename (\(secondsLeft))") { decide(.rename, remember) }
-                    .buttonStyle(.driftPrimary)
+                    .buttonStyle(.anchorPrimary)
                     .keyboardShortcut(.defaultAction)
                     .monospacedDigit()
             }
         }
         .padding(24)
         .frame(width: 560)
-        .background(Color.driftWindow)
-        .tint(.driftAccent)
+        .background(Color.anchorWindow)
+        .tint(.anchorAccent)
         .task {
             while secondsLeft > 0 {
                 try? await Task.sleep(for: .seconds(1))

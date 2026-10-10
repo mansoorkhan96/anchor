@@ -21,23 +21,23 @@ struct DetailsPanel: View {
                 VStack(alignment: .leading, spacing: 3) {
                     Text(item.fileName)
                         .font(.system(size: 14, weight: .semibold))
-                        .foregroundStyle(Color.driftText)
+                        .foregroundStyle(Color.anchorText)
                         .lineLimit(2)
                         .truncationMode(.middle)
                     Text(kindLine)
                         .font(.system(size: 12))
-                        .foregroundStyle(Color.driftMuted)
+                        .foregroundStyle(Color.anchorMuted)
                 }
                 Spacer(minLength: 8)
                 HStack(spacing: 6) {
                     StatusAction(item: item)
-                    IconButton(symbol: "xmark", label: "Close details", tint: .driftMuted2, fill: .driftField, size: 28,
+                    IconButton(symbol: "xmark", label: "Close details", tint: .anchorMuted2, fill: .anchorField, size: 28,
                                outlined: true, action: close)
                 }
             }
 
             if tabs.count > 1 {
-                DriftSegmented(options: tabs, selection: $tab, title: \.rawValue, minWidth: 0,
+                AnchorSegmented(options: tabs, selection: $tab, title: \.rawValue, minWidth: 0,
                                symbol: { $0 == .files ? "doc.on.doc" : "info.circle" })
                     .frame(maxWidth: .infinity, alignment: .leading)
             }
@@ -58,11 +58,11 @@ struct DetailsPanel: View {
         .padding(18)
         .frame(width: width)
         .frame(maxHeight: .infinity, alignment: .top)
-        .background(Color.driftWindow)
+        .background(Color.anchorWindow)
         .overlay(alignment: .leading) {
             // Resize handle on the left edge
             Rectangle()
-                .fill(Color.driftLine)
+                .fill(Color.anchorLine)
                 .frame(width: 1)
                 .frame(width: 8)
                 .contentShape(.rect)
@@ -113,11 +113,11 @@ private struct StatusAction: View {
     var body: some View {
         switch item.state {
         case .downloading, .connecting, .queued:
-            IconButton(symbol: "pause.fill", label: "Pause", tint: .driftText, fill: .driftField, size: 28, outlined: true, glyphScale: 0.32) { store.pause(item.id) }
+            IconButton(symbol: "pause.fill", label: "Pause", tint: .anchorText, fill: .anchorField, size: 28, outlined: true, glyphScale: 0.32) { store.pause(item.id) }
         case .paused:
-            IconButton(symbol: "play.fill", label: "Resume", tint: .white, fill: .driftAccentStrong, size: 28, glyphScale: 0.32) { store.resume(item.id) }
+            IconButton(symbol: "play.fill", label: "Resume", tint: .white, fill: .anchorAccentStrong, size: 28, glyphScale: 0.32) { store.resume(item.id) }
         case .failed:
-            IconButton(symbol: "arrow.clockwise", label: "Retry", tint: .white, fill: .driftAccentStrong, size: 28, glyphScale: 0.34) { store.retry(item.id) }
+            IconButton(symbol: "arrow.clockwise", label: "Retry", tint: .white, fill: .anchorAccentStrong, size: 28, glyphScale: 0.34) { store.retry(item.id) }
         case .completed:
             RevealButton(size: 28, outlined: true) { store.reveal(item.id) }
         }
@@ -134,7 +134,7 @@ private struct GeneralDetails: View {
                 row("Status") { StatusPill(state: item.state, compact: true).opacity(item.state == .downloading ? 0 : 1)
                     .overlay(alignment: .leading) {
                         if item.state == .downloading {
-                            Text("Downloading · \(Format.speed(item.speed))").font(.system(size: 12.5)).foregroundStyle(Color.driftText)
+                            Text("Downloading · \(Format.speed(item.speed))").font(.system(size: 12.5)).foregroundStyle(Color.anchorText)
                         }
                     }
                 }
@@ -142,7 +142,7 @@ private struct GeneralDetails: View {
                     row("Error") {
                         Text(message)
                             .font(.system(size: 12.5))
-                            .foregroundStyle(Color.driftDanger)
+                            .foregroundStyle(Color.anchorDanger)
                             .fixedSize(horizontal: false, vertical: true)
                             .textSelection(.enabled)
                     }
@@ -150,7 +150,7 @@ private struct GeneralDetails: View {
                 row("Address") {
                     Text(item.url.absoluteString)
                         .font(.system(size: 12.5))
-                        .foregroundStyle(Color.driftText)
+                        .foregroundStyle(Color.anchorText)
                         .lineLimit(2)
                         .textSelection(.enabled)
                 }
@@ -158,14 +158,14 @@ private struct GeneralDetails: View {
                     HStack(spacing: 8) {
                         Text(displayPath(item.directory.appending(path: item.fileName)))
                             .font(.system(size: 12.5))
-                            .foregroundStyle(Color.driftText)
+                            .foregroundStyle(Color.anchorText)
                             .lineLimit(1)
                             .truncationMode(.middle)
                             .textSelection(.enabled)
                         Button("Show in Finder") { store.reveal(item.id) }
                             .buttonStyle(.plain)
                             .font(.system(size: 12, weight: .medium))
-                            .foregroundStyle(Color.driftAccentInk)
+                            .foregroundStyle(Color.anchorAccentInk)
                     }
                 }
                 row("Size") { value(Format.progress(item.receivedBytes, of: item.totalBytes)) }
@@ -183,12 +183,12 @@ private struct GeneralDetails: View {
                 if item.state.isFinished {
                     row("Keep") {
                         HStack(spacing: 8) {
-                            DriftSwitch(isOn: Binding(get: { item.keep == true }, set: { store.setKeep([item.id], $0) }), label: "Keep")
+                            AnchorSwitch(isOn: Binding(get: { item.keep == true }, set: { store.setKeep([item.id], $0) }), label: "Keep")
                                 .disabled(item.pendingMove != nil)
                                 .opacity(item.pendingMove != nil ? 0.45 : 1)
                             Text(item.pendingMove != nil ? "Waiting to finish moving" : "Never suggest for cleanup or archive")
                                 .font(.system(size: 12))
-                                .foregroundStyle(Color.driftMuted)
+                                .foregroundStyle(Color.anchorMuted)
                         }
                     }
                 }
@@ -205,10 +205,10 @@ private struct GeneralDetails: View {
                                     .font(.system(size: 12.5).monospacedDigit())
                                 Image(systemName: "chevron.up.chevron.down").font(.system(size: 9, weight: .semibold))
                             }
-                            .foregroundStyle(item.speedLimitKB == nil ? Color.driftText : Color.driftPausedInk)
+                            .foregroundStyle(item.speedLimitKB == nil ? Color.anchorText : Color.anchorPausedInk)
                             .padding(.horizontal, 10)
                             .frame(height: 26)
-                            .background(Color.driftField, in: .rect(cornerRadius: 7))
+                            .background(Color.anchorField, in: .rect(cornerRadius: 7))
                         }
                         .menuStyle(.button)
                         .buttonStyle(.plain)
@@ -220,14 +220,14 @@ private struct GeneralDetails: View {
             .frame(maxWidth: .infinity, alignment: .leading)
             .padding(16)
         }
-        .background(Color.driftCard, in: .rect(cornerRadius: 12))
+        .background(Color.anchorCard, in: .rect(cornerRadius: 12))
     }
 
     private func row<Content: View>(_ title: String, @ViewBuilder content: () -> Content) -> some View {
         GridRow {
             Text(title)
                 .font(.system(size: 12))
-                .foregroundStyle(Color.driftMuted)
+                .foregroundStyle(Color.anchorMuted)
                 .gridColumnAlignment(.trailing)
             content()
         }
@@ -236,7 +236,7 @@ private struct GeneralDetails: View {
     private func value(_ text: String) -> some View {
         Text(text)
             .font(.system(size: 12.5).monospacedDigit())
-            .foregroundStyle(Color.driftText)
+            .foregroundStyle(Color.anchorText)
     }
 
     private func displayPath(_ url: URL) -> String {

@@ -298,18 +298,18 @@ private struct HeaderBar: View {
         @Bindable var settings = store.settings
         HStack(spacing: 12) {
             if sidebarHidden {
-                IconButton(symbol: "sidebar.left", label: "Show Sidebar", tint: .driftMuted2, fill: .clear, size: 30,
+                IconButton(symbol: "sidebar.left", label: "Show Sidebar", tint: .anchorMuted2, fill: .clear, size: 30,
                            action: toggleSidebar)
             }
             HStack(alignment: .firstTextBaseline, spacing: 12) {
                 Text(title)
                     .font(.system(size: 20, weight: .bold))
                     .tracking(-0.2)
-                    .foregroundStyle(Color.driftText)
+                    .foregroundStyle(Color.anchorText)
                 if !subtitle.isEmpty {
                     Text(subtitle)
                         .font(.system(size: 12).monospacedDigit())
-                        .foregroundStyle(Color.driftMuted)
+                        .foregroundStyle(Color.anchorMuted)
                 }
             }
             Spacer(minLength: 12)
@@ -317,14 +317,14 @@ private struct HeaderBar: View {
             HStack(spacing: 8) {
                 Image(systemName: "magnifyingglass")
                     .font(.system(size: 12, weight: .medium))
-                    .foregroundStyle(Color.driftMuted)
+                    .foregroundStyle(Color.anchorMuted)
                 TextField("Search", text: $search)
                     .textFieldStyle(.plain)
                     .font(.system(size: 13))
                     .focused($searchFocused)
                 if !search.isEmpty {
                     Button { search = "" } label: {
-                        Image(systemName: "xmark.circle.fill").foregroundStyle(Color.driftMuted.opacity(0.7))
+                        Image(systemName: "xmark.circle.fill").foregroundStyle(Color.anchorMuted.opacity(0.7))
                     }
                     .buttonStyle(.plain)
                     .accessibilityLabel("Clear search")
@@ -332,8 +332,8 @@ private struct HeaderBar: View {
             }
             .padding(.horizontal, 12)
             .frame(width: 220, height: 32)
-            .background(Color.driftField, in: .capsule)
-            .overlay(Capsule().strokeBorder(searchFocused ? Color.driftAccent : Color.driftLine))
+            .background(Color.anchorField, in: .capsule)
+            .overlay(Capsule().strokeBorder(searchFocused ? Color.anchorAccent : Color.anchorLine))
 
             HStack(spacing: 2) {
                 Button {
@@ -362,10 +362,10 @@ private struct HeaderBar: View {
                         .accessibilityLabel("Sort")
                 }
             }
-            .foregroundStyle(Color.driftText)
+            .foregroundStyle(Color.anchorText)
             .padding(3)
-            .background(Color.driftField, in: .capsule)
-            .overlay(Capsule().strokeBorder(Color.driftLine))
+            .background(Color.anchorField, in: .capsule)
+            .overlay(Capsule().strokeBorder(Color.anchorLine))
 
             Button {
                 store.addRequest = AddRequest()
@@ -380,7 +380,7 @@ private struct HeaderBar: View {
                 .padding(.leading, 10)
                 .padding(.trailing, 14)
                 .frame(height: 32)
-                .background(Color.driftAccent, in: .capsule)
+                .background(Color.anchorAccent, in: .capsule)
                 .contentShape(.capsule)
             }
             .buttonStyle(.plain)
@@ -391,10 +391,10 @@ private struct HeaderBar: View {
             } label: {
                 Image(systemName: "gearshape")
                     .font(.system(size: 14, weight: .medium))
-                    .foregroundStyle(Color.driftText)
+                    .foregroundStyle(Color.anchorText)
                     .frame(width: 32, height: 32)
-                    .background(Color.driftField, in: .circle)
-                    .overlay(Circle().strokeBorder(Color.driftLine))
+                    .background(Color.anchorField, in: .circle)
+                    .overlay(Circle().strokeBorder(Color.anchorLine))
                     .contentShape(.circle)
             }
             .buttonStyle(.plain)
@@ -405,7 +405,7 @@ private struct HeaderBar: View {
         .padding(.trailing, 20)
         .padding(.top, 20)
         .padding(.bottom, 16)
-        .background(Color.driftWindow)
+        .background(Color.anchorWindow)
         .gesture(WindowDragGesture())
     }
 }
@@ -454,7 +454,7 @@ private struct SpeedMenu: View {
         } label: {
             Image(systemName: "gauge.with.dots.needle.67percent")
                 .font(.system(size: 13, weight: .semibold))
-                .foregroundStyle(limited ? Color.driftPausedInk : Color.driftText)
+                .foregroundStyle(limited ? Color.anchorPausedInk : Color.anchorText)
                 .frame(width: 32, height: 28)
                 .contentShape(.capsule)
         }
@@ -540,18 +540,18 @@ struct ThroughputCard: View {
                 Text(parts.value)
                     .font(.system(size: 22, weight: .heavy).monospacedDigit())
                     .tracking(-0.4)
-                    .foregroundStyle(Color.driftText)
+                    .foregroundStyle(Color.anchorText)
                     .contentTransition(.numericText())
                 Text(parts.unit)
                     .font(.system(size: 12))
-                    .foregroundStyle(Color.driftMuted2)
+                    .foregroundStyle(Color.anchorMuted2)
             }
             .frame(minWidth: 110, alignment: .leading)
 
             Chart(history, id: \.offset) { point in
                 LineMark(x: .value("t", point.offset), y: .value("speed", point.element))
                     .interpolationMethod(.catmullRom)
-                    .foregroundStyle(store.totalSpeed > 0 ? Color.driftAccent : Color.driftTrack)
+                    .foregroundStyle(store.totalSpeed > 0 ? Color.anchorAccent : Color.anchorTrack)
                     .lineStyle(StrokeStyle(lineWidth: 2, lineCap: .round))
             }
             .chartXAxis(.hidden)
@@ -562,12 +562,12 @@ struct ThroughputCard: View {
 
             Text(store.activeCount > 0 ? "\(Format.bytes(remaining)) left" : "Nothing downloading")
                 .font(.system(size: 12).monospacedDigit())
-                .foregroundStyle(Color.driftMuted2)
+                .foregroundStyle(Color.anchorMuted2)
                 .fixedSize()
             if store.totalSpeed > 1 {
                 Text("done in \(Format.duration(Double(remaining) / store.totalSpeed))")
                     .font(.system(size: 12).monospacedDigit())
-                    .foregroundStyle(Color.driftMuted2)
+                    .foregroundStyle(Color.anchorMuted2)
                     .fixedSize()
             }
             HStack(spacing: 4) {
@@ -576,7 +576,7 @@ struct ThroughputCard: View {
         }
         .padding(.horizontal, 18)
         .padding(.vertical, 12)
-        .overlay(RoundedRectangle(cornerRadius: 12).strokeBorder(Color.driftLine))
+        .overlay(RoundedRectangle(cornerRadius: 12).strokeBorder(Color.anchorLine))
     }
 }
 
@@ -587,11 +587,11 @@ private struct KeyHint: View {
     var body: some View {
         Text(text)
             .font(.system(size: 11, weight: .semibold))
-            .foregroundStyle(Color.driftMuted2)
+            .foregroundStyle(Color.anchorMuted2)
             .padding(.horizontal, 6)
             .padding(.vertical, 2)
-            .background(Color.driftField, in: .rect(cornerRadius: 5))
-            .overlay(RoundedRectangle(cornerRadius: 5).strokeBorder(Color.driftLine))
+            .background(Color.anchorField, in: .rect(cornerRadius: 5))
+            .overlay(RoundedRectangle(cornerRadius: 5).strokeBorder(Color.anchorLine))
     }
 }
 
@@ -617,45 +617,45 @@ private struct SelectionBar: View {
         HStack(spacing: 6) {
             HStack(spacing: 8) {
                 RoundedRectangle(cornerRadius: 4)
-                    .fill(Color.driftAccent)
+                    .fill(Color.anchorAccent)
                     .frame(width: 16, height: 16)
                     .overlay(Image(systemName: "checkmark").font(.system(size: 8.5, weight: .heavy)).foregroundStyle(.white))
                 Text("\(count) selected")
                     .font(.system(size: 12.5, weight: .semibold).monospacedDigit())
-                    .foregroundStyle(Color.driftText)
+                    .foregroundStyle(Color.anchorText)
             }
             .padding(.leading, 6)
             if !allSelected {
                 Button("Select all", action: selectAll)
                     .buttonStyle(.plain)
                     .font(.system(size: 12.5, weight: .medium))
-                    .foregroundStyle(Color.driftAccentInk)
+                    .foregroundStyle(Color.anchorAccentInk)
                     .padding(.horizontal, 6)
             }
-            Rectangle().fill(Color.driftLine).frame(width: 1, height: 16).padding(.horizontal, 4)
+            Rectangle().fill(Color.anchorLine).frame(width: 1, height: 16).padding(.horizontal, 4)
             switch mode {
             case .downloads:
                 if let toggle {
                     BarButton(title: anyRunning ? "Pause" : "Resume", symbol: anyRunning ? "pause.fill" : "play.fill",
-                              ink: anyRunning ? .driftText : .driftAccentStrong, wash: anyRunning ? .driftField : .driftAccentWash,
+                              ink: anyRunning ? .anchorText : .anchorAccentStrong, wash: anyRunning ? .anchorField : .anchorAccentWash,
                               action: toggle)
                 }
-                BarButton(title: "Move", symbol: "folder", ink: .driftText, wash: .driftField, action: move)
-                BarButton(title: "Delete", symbol: "trash", ink: .driftDanger, wash: .driftDangerWash, action: delete)
+                BarButton(title: "Move", symbol: "folder", ink: .anchorText, wash: .anchorField, action: move)
+                BarButton(title: "Delete", symbol: "trash", ink: .anchorDanger, wash: .anchorDangerWash, action: delete)
             case .cleanup:
-                BarButton(title: "Keep", symbol: "pin", ink: .driftText, wash: .driftField, action: keep)
-                BarButton(title: "Move to Trash", symbol: "trash", ink: .driftDanger, wash: .driftDangerWash, action: trash)
+                BarButton(title: "Keep", symbol: "pin", ink: .anchorText, wash: .anchorField, action: keep)
+                BarButton(title: "Move to Trash", symbol: "trash", ink: .anchorDanger, wash: .anchorDangerWash, action: trash)
             case .archive:
-                BarButton(title: "Restore", symbol: "arrow.uturn.backward", ink: .driftAccentStrong, wash: .driftAccentWash, action: restore)
-                BarButton(title: "Move to Trash", symbol: "trash", ink: .driftDanger, wash: .driftDangerWash, action: trash)
+                BarButton(title: "Restore", symbol: "arrow.uturn.backward", ink: .anchorAccentStrong, wash: .anchorAccentWash, action: restore)
+                BarButton(title: "Move to Trash", symbol: "trash", ink: .anchorDanger, wash: .anchorDangerWash, action: trash)
             }
-            IconButton(symbol: "xmark", label: "Clear selection", tint: .driftMuted, fill: .clear, size: 26,
+            IconButton(symbol: "xmark", label: "Clear selection", tint: .anchorMuted, fill: .clear, size: 26,
                        glyphScale: 0.38, action: clear)
         }
         .padding(.horizontal, 8)
         .frame(height: 42)
-        .background(Color.driftWindow, in: .rect(cornerRadius: 12))
-        .overlay(RoundedRectangle(cornerRadius: 12).strokeBorder(Color.driftLine))
+        .background(Color.anchorWindow, in: .rect(cornerRadius: 12))
+        .overlay(RoundedRectangle(cornerRadius: 12).strokeBorder(Color.anchorLine))
         .shadow(color: .black.opacity(0.10), radius: 14, y: 8)
         .shadow(color: .black.opacity(0.04), radius: 2, y: 1)
     }
@@ -697,30 +697,30 @@ private struct ClipboardBanner: View {
         HStack(spacing: 12) {
             Image(systemName: "doc.on.clipboard")
                 .font(.system(size: 14, weight: .semibold))
-                .foregroundStyle(Color.driftAccent)
+                .foregroundStyle(Color.anchorAccent)
                 .frame(width: 34, height: 34)
-                .background(Color.driftAccentWash, in: .rect(cornerRadius: 10))
+                .background(Color.anchorAccentWash, in: .rect(cornerRadius: 10))
             VStack(alignment: .leading, spacing: 2) {
                 Text("Download link on your clipboard")
                     .font(.system(size: 13, weight: .semibold))
-                    .foregroundStyle(Color.driftText)
+                    .foregroundStyle(Color.anchorText)
                 Text(url.scheme == "magnet" ? "Magnet link" : url.absoluteString)
                     .font(.system(size: 12))
-                    .foregroundStyle(Color.driftMuted)
+                    .foregroundStyle(Color.anchorMuted)
                     .lineLimit(1)
                     .truncationMode(.middle)
             }
             Spacer()
             Button("Dismiss") { store.clipboardSuggestion = nil }
-                .buttonStyle(.driftPlain)
+                .buttonStyle(.anchorPlain)
             Button("Add") {
                 store.addRequest = AddRequest(url: url.absoluteString)
                 store.clipboardSuggestion = nil
             }
-            .buttonStyle(.driftPrimary)
+            .buttonStyle(.anchorPrimary)
         }
         .padding(12)
-        .background(Color.driftCard, in: .rect(cornerRadius: 14))
+        .background(Color.anchorCard, in: .rect(cornerRadius: 14))
         .transition(.move(edge: .top).combined(with: .opacity))
     }
 }

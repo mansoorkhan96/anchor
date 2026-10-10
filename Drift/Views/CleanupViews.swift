@@ -13,27 +13,27 @@ struct CleanupBanner: View {
         HStack(spacing: 12) {
             Image(systemName: "sparkles")
                 .font(.system(size: 14, weight: .semibold))
-                .foregroundStyle(Color.driftSuccess)
+                .foregroundStyle(Color.anchorSuccess)
                 .frame(width: 34, height: 34)
-                .background(Color.driftSuccessWash, in: .rect(cornerRadius: 10))
+                .background(Color.anchorSuccessWash, in: .rect(cornerRadius: 10))
             VStack(alignment: .leading, spacing: 2) {
                 Text("\(Format.bytes(cleanup.attentionBytes)) ready for cleanup")
                     .font(.system(size: 13, weight: .semibold))
-                    .foregroundStyle(Color.driftText)
+                    .foregroundStyle(Color.anchorText)
                 Text("Old downloads and leftover files you can review. Nothing is removed until you choose to.")
                     .font(.system(size: 12))
-                    .foregroundStyle(Color.driftMuted)
+                    .foregroundStyle(Color.anchorMuted)
                     .lineLimit(1)
             }
             Spacer()
             Button("Review") { store.pendingFilter = .cleanup }
-                .buttonStyle(.driftPrimary)
-            IconButton(symbol: "xmark", label: "Close", tint: .driftMuted, fill: .clear, size: 26, glyphScale: 0.38) {
+                .buttonStyle(.anchorPrimary)
+            IconButton(symbol: "xmark", label: "Close", tint: .anchorMuted, fill: .clear, size: 26, glyphScale: 0.38) {
                 store.settings.cleanupBannerDismissedBytes = cleanup.attentionBytes
             }
         }
         .padding(12)
-        .background(Color.driftCard, in: .rect(cornerRadius: 14))
+        .background(Color.anchorCard, in: .rect(cornerRadius: 14))
         .transition(.move(edge: .top).combined(with: .opacity))
     }
 }
@@ -47,19 +47,19 @@ struct LeftoversCard: View {
     var body: some View {
         VStack(alignment: .leading, spacing: 10) {
             HStack(spacing: 12) {
-                CardIcon(symbol: "doc.badge.clock", ink: .driftPausedInk, wash: .driftPaused.opacity(0.18))
+                CardIcon(symbol: "doc.badge.clock", ink: .anchorPausedInk, wash: .anchorPaused.opacity(0.18))
                 Text("\(Format.bytes(cleanup.leftoverBytes)) of leftover partial files")
                     .font(.system(size: 13, weight: .semibold))
-                    .foregroundStyle(Color.driftText)
+                    .foregroundStyle(Color.anchorText)
                 Spacer()
                 if expanded {
                     Button("Move to Trash") { confirm = true }
-                        .buttonStyle(.driftSecondary)
+                        .buttonStyle(.anchorSecondary)
                 }
                 Button(expanded ? "Hide" : "Review") {
                     withAnimation(.snappy(duration: 0.2)) { expanded.toggle() }
                 }
-                .buttonStyle(.driftPlain)
+                .buttonStyle(.anchorPlain)
             }
             if expanded {
                 VStack(spacing: 4) {
@@ -67,14 +67,14 @@ struct LeftoversCard: View {
                         HStack(spacing: 8) {
                             Text(displayPath(leftover.path))
                                 .font(.system(size: 12))
-                                .foregroundStyle(Color.driftMuted2)
+                                .foregroundStyle(Color.anchorMuted2)
                                 .lineLimit(1)
                                 .truncationMode(.middle)
                                 .textSelection(.enabled)
                             Spacer(minLength: 8)
                             Text(Format.bytes(leftover.bytes))
                                 .font(.system(size: 12).monospacedDigit())
-                                .foregroundStyle(Color.driftMuted)
+                                .foregroundStyle(Color.anchorMuted)
                         }
                     }
                 }
@@ -82,7 +82,7 @@ struct LeftoversCard: View {
             }
         }
         .padding(12)
-        .background(Color.driftCard, in: .rect(cornerRadius: 14))
+        .background(Color.anchorCard, in: .rect(cornerRadius: 14))
         .confirmationDialog(trashTitle, isPresented: $confirm) {
             Button("Move to Trash", role: .destructive) {
                 let paths = Set(cleanup.leftovers.map(\.path))
@@ -111,31 +111,31 @@ struct MissingFilesCard: View {
         let items = cleanup.missing.compactMap { store.item($0) }
         VStack(alignment: .leading, spacing: 10) {
             HStack(spacing: 12) {
-                CardIcon(symbol: "questionmark.folder", ink: .driftMuted2, wash: .driftField)
+                CardIcon(symbol: "questionmark.folder", ink: .anchorMuted2, wash: .anchorField)
                 VStack(alignment: .leading, spacing: 2) {
                     Text("\(items.count) download\(items.count == 1 ? "" : "s") whose file\(items.count == 1 ? " is" : "s are") gone")
                         .font(.system(size: 13, weight: .semibold))
-                        .foregroundStyle(Color.driftText)
+                        .foregroundStyle(Color.anchorText)
                     Text("Removing them from the list doesn't touch any files.")
                         .font(.system(size: 12))
-                        .foregroundStyle(Color.driftMuted)
+                        .foregroundStyle(Color.anchorMuted)
                 }
                 Spacer()
                 if expanded {
                     Button("Remove from List") { Task { await cleanup.removeMissing() } }
-                        .buttonStyle(.driftSecondary)
+                        .buttonStyle(.anchorSecondary)
                 }
                 Button(expanded ? "Hide" : "Review") {
                     withAnimation(.snappy(duration: 0.2)) { expanded.toggle() }
                 }
-                .buttonStyle(.driftPlain)
+                .buttonStyle(.anchorPlain)
             }
             if expanded {
                 VStack(alignment: .leading, spacing: 4) {
                     ForEach(items) { item in
                         Text(displayPath(item.destination.path))
                             .font(.system(size: 12))
-                            .foregroundStyle(Color.driftMuted2)
+                            .foregroundStyle(Color.anchorMuted2)
                             .lineLimit(1)
                             .truncationMode(.middle)
                             .textSelection(.enabled)
@@ -145,7 +145,7 @@ struct MissingFilesCard: View {
             }
         }
         .padding(12)
-        .background(Color.driftCard, in: .rect(cornerRadius: 14))
+        .background(Color.anchorCard, in: .rect(cornerRadius: 14))
     }
 }
 
@@ -157,24 +157,24 @@ struct CleanupOffCard: View {
 
     var body: some View {
         HStack(spacing: 12) {
-            CardIcon(symbol: "sparkles", ink: .driftMuted2, wash: .driftField)
+            CardIcon(symbol: "sparkles", ink: .anchorMuted2, wash: .anchorField)
             VStack(alignment: .leading, spacing: 2) {
                 Text("Old downloads aren't suggested yet")
                     .font(.system(size: 13, weight: .semibold))
-                    .foregroundStyle(Color.driftText)
+                    .foregroundStyle(Color.anchorText)
                 Text("Choose which kinds of files to suggest, and after how long.")
                     .font(.system(size: 12))
-                    .foregroundStyle(Color.driftMuted)
+                    .foregroundStyle(Color.anchorMuted)
             }
             Spacer()
             Button("Open Cleanup Settings") {
                 store.settings.requestedSettingsPage = "cleanup"
                 openSettings()
             }
-            .buttonStyle(.driftSecondary)
+            .buttonStyle(.anchorSecondary)
         }
         .padding(12)
-        .background(Color.driftCard, in: .rect(cornerRadius: 14))
+        .background(Color.anchorCard, in: .rect(cornerRadius: 14))
     }
 }
 
@@ -216,7 +216,7 @@ struct CleanupEmptyState: View {
                     store.settings.requestedSettingsPage = "cleanup"
                     openSettings()
                 }
-                .buttonStyle(.driftSecondary)
+                .buttonStyle(.anchorSecondary)
             }
         }
         .frame(maxWidth: .infinity, minHeight: 320)

@@ -17,13 +17,13 @@ struct MainView: View {
             DownloadListView(filter: filter, sidebarHidden: columns == .detailOnly) {
                 withAnimation { columns = .all }
             }
-            .background(Color.driftWindow)
+            .background(Color.anchorWindow)
             // Let the header rise into the title bar row so it lines up with the window buttons, as in the design.
             .ignoresSafeArea(.container, edges: .top)
         }
         .toolbar(removing: .title)
         .toolbarBackgroundVisibility(.hidden, for: .windowToolbar)
-        .tint(.driftAccent)
+        .tint(.anchorAccent)
         .sheet(item: $store.addRequest) { request in
             AddDownloadSheet(request: request)
         }
@@ -86,12 +86,12 @@ struct SidebarView: View {
             VStack(alignment: .leading, spacing: 20) {
                 VStack(alignment: .leading, spacing: 2) {
                     SectionLabel("Library")
-                    row(.all, symbol: "tray.full", color: .driftMuted)
-                    row(.downloading, symbol: "arrow.down.circle", color: .driftAccent)
-                    row(.queued, symbol: "list.bullet.indent", color: .driftPausedInk)
-                    row(.completed, symbol: "checkmark.circle", color: .driftSuccess)
+                    row(.all, symbol: "tray.full", color: .anchorMuted)
+                    row(.downloading, symbol: "arrow.down.circle", color: .anchorAccent)
+                    row(.queued, symbol: "list.bullet.indent", color: .anchorPausedInk)
+                    row(.completed, symbol: "checkmark.circle", color: .anchorSuccess)
                     if store.count(.failed) > 0 {
-                        row(.failed, symbol: "exclamationmark.triangle", color: .driftDanger)
+                        row(.failed, symbol: "exclamationmark.triangle", color: .anchorDanger)
                     }
                 }
                 VStack(alignment: .leading, spacing: 2) {
@@ -99,13 +99,13 @@ struct SidebarView: View {
                     ForEach(FileCategory.allCases) { category in
                         row(.category(category), dot: category.color)
                     }
-                    row(.torrents, dot: .driftTorrent)
+                    row(.torrents, dot: .anchorTorrent)
                 }
                 VStack(alignment: .leading, spacing: 2) {
                     SectionLabel("Tidy")
                     let bytes = cleanup.attentionBytes
-                    row(.cleanup, symbol: "sparkles", color: .driftSuccess, badge: bytes > 0 ? Format.bytes(bytes) : nil)
-                    row(.archive, symbol: "archivebox", color: .driftMuted, badge: "\(store.archivedItems().count)")
+                    row(.cleanup, symbol: "sparkles", color: .anchorSuccess, badge: bytes > 0 ? Format.bytes(bytes) : nil)
+                    row(.archive, symbol: "archivebox", color: .anchorMuted, badge: "\(store.archivedItems().count)")
                 }
             }
             .padding(.horizontal, 10)
@@ -146,7 +146,7 @@ private struct SectionLabel: View {
         Text(text.uppercased())
             .font(.system(size: 11, weight: .semibold))
             .tracking(0.5)
-            .foregroundStyle(Color.driftMuted)
+            .foregroundStyle(Color.anchorMuted)
             .padding(.horizontal, 10)
             .padding(.bottom, 6)
     }
@@ -167,21 +167,21 @@ private struct SidebarRow<Icon: View>: View {
                 icon()
                 Text(title)
                     .font(.system(size: 13, weight: isSelected ? .semibold : .medium))
-                    .foregroundStyle(isSelected ? Color.driftAccentInk : Color.driftText)
+                    .foregroundStyle(isSelected ? Color.anchorAccentInk : Color.anchorText)
                 Spacer(minLength: 4)
                 if let badge {
                     Text(badge)
                         .font(.system(size: 11, weight: .semibold).monospacedDigit())
-                        .foregroundStyle(isSelected ? Color.white : Color.driftMuted)
+                        .foregroundStyle(isSelected ? Color.white : Color.anchorMuted)
                         .padding(.horizontal, 7)
                         .padding(.vertical, 1)
-                        .background(isSelected ? Color.driftAccent : .clear, in: .capsule)
+                        .background(isSelected ? Color.anchorAccent : .clear, in: .capsule)
                 }
             }
             .padding(.horizontal, 10)
             .frame(height: 32)
             .background(background, in: .rect(cornerRadius: 9))
-            .overlay(RoundedRectangle(cornerRadius: 9).strokeBorder(isSelected ? Color.driftAccentTint : .clear))
+            .overlay(RoundedRectangle(cornerRadius: 9).strokeBorder(isSelected ? Color.anchorAccentTint : .clear))
             .contentShape(.rect(cornerRadius: 9))
         }
         .buttonStyle(.plain)
@@ -190,8 +190,8 @@ private struct SidebarRow<Icon: View>: View {
     }
 
     private var background: Color {
-        if isSelected { return .driftAccentWash }
-        return hovering ? Color.driftText.opacity(0.05) : .clear
+        if isSelected { return .anchorAccentWash }
+        return hovering ? Color.anchorText.opacity(0.05) : .clear
     }
 }
 
@@ -203,22 +203,22 @@ private struct BrowserStatusCard: View {
         VStack(alignment: .leading, spacing: 4) {
             Text("Browser")
                 .font(.system(size: 11))
-                .foregroundStyle(Color.driftMuted)
+                .foregroundStyle(Color.anchorMuted)
             HStack(spacing: 6) {
-                Circle().fill(on ? Color.driftTorrent : Color.driftMuted).frame(width: 7, height: 7)
+                Circle().fill(on ? Color.anchorTorrent : Color.anchorMuted).frame(width: 7, height: 7)
                 Text(on ? "Listening for downloads" : "Off · turn on in Settings")
                     .font(.system(size: 12, weight: .semibold))
-                    .foregroundStyle(Color.driftText)
+                    .foregroundStyle(Color.anchorText)
             }
             if store.settings.speedLimitEnabled {
                 Text("Limited to \(Format.speed(Double(store.settings.effectiveSpeedLimit)))")
                     .font(.system(size: 11))
-                    .foregroundStyle(Color.driftPausedInk)
+                    .foregroundStyle(Color.anchorPausedInk)
             }
         }
         .frame(maxWidth: .infinity, alignment: .leading)
         .padding(12)
-        .background(Color.driftWindow, in: .rect(cornerRadius: 12))
-        .overlay(RoundedRectangle(cornerRadius: 12).strokeBorder(Color.driftLine))
+        .background(Color.anchorWindow, in: .rect(cornerRadius: 12))
+        .overlay(RoundedRectangle(cornerRadius: 12).strokeBorder(Color.anchorLine))
     }
 }

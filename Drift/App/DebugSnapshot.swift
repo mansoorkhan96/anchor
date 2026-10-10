@@ -30,7 +30,7 @@ enum DebugSnapshot {
             .background(scheme == .dark ? Color(hex: 0x1C1D21) : .white)
             .environment(store)
             .environment(\.colorScheme, scheme)
-            .tint(.driftAccent)
+            .tint(.anchorAccent)
             let renderer = ImageRenderer(content: view)
             renderer.scale = 2
             if let image = renderer.cgImage {

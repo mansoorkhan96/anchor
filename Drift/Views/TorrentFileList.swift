@@ -21,21 +21,21 @@ struct TorrentFileList: View {
                 if !compact {
                     Text("Files")
                     .font(.system(size: 13, weight: .semibold))
-                        .foregroundStyle(Color.driftText)
+                        .foregroundStyle(Color.anchorText)
                 }
                 Text("\(included.count) of \(files.count) · \(Format.bytes(included.reduce(0) { $0 + $1.length }))")
                     .font(.system(size: 12).monospacedDigit())
-                    .foregroundStyle(Color.driftMuted)
+                    .foregroundStyle(Color.anchorMuted)
                 Spacer()
                 Button("Select all") { onAll(true) }
                     .buttonStyle(.plain)
                     .font(.system(size: 12, weight: .medium))
-                    .foregroundStyle(Color.driftAccentInk)
+                    .foregroundStyle(Color.anchorAccentInk)
                     .disabled(included.count == files.count)
                 Button("Select none") { onAll(false) }
                     .buttonStyle(.plain)
                     .font(.system(size: 12, weight: .medium))
-                    .foregroundStyle(Color.driftAccentInk)
+                    .foregroundStyle(Color.anchorAccentInk)
                     .disabled(included.count <= 1)
                     .help("Skips every file except the first; a torrent needs at least one")
             }
@@ -54,7 +54,7 @@ struct TorrentFileList: View {
             .scrollBounceBehavior(.basedOnSize)
             .frame(maxHeight: maxHeight)
             .fixedSize(horizontal: false, vertical: files.count <= 6)
-            .background(Color.driftCard, in: .rect(cornerRadius: 12))
+            .background(Color.anchorCard, in: .rect(cornerRadius: 12))
         }
     }
 }
@@ -84,7 +84,7 @@ private struct FileRow: View {
         .padding(.horizontal, 10)
         .padding(.vertical, 7)
         .overlay(alignment: .bottom) {
-            if !isLast { Rectangle().fill(Color.driftLine).frame(height: 1).padding(.leading, 44) }
+            if !isLast { Rectangle().fill(Color.anchorLine).frame(height: 1).padding(.leading, 44) }
         }
     }
 
@@ -99,8 +99,8 @@ private struct FileRow: View {
     private var nameText: some View {
         Text(file.name)
             .font(.system(size: 12.5, weight: .medium))
-            .foregroundStyle(file.included ? Color.driftText : Color.driftMuted)
-            .strikethrough(!file.included, color: .driftMuted)
+            .foregroundStyle(file.included ? Color.anchorText : Color.anchorMuted)
+            .strikethrough(!file.included, color: .anchorMuted)
             .lineLimit(1)
             .truncationMode(.middle)
     }
@@ -112,22 +112,22 @@ private struct FileRow: View {
             HStack(spacing: 5) {
                 Text(compactInfo)
                     .font(.system(size: 11).monospacedDigit())
-                    .foregroundStyle(Color.driftMuted)
+                    .foregroundStyle(Color.anchorMuted)
                     .lineLimit(1)
                 if !folder.isEmpty {
-                    Text("·").font(.system(size: 11)).foregroundStyle(Color.driftMuted)
+                    Text("·").font(.system(size: 11)).foregroundStyle(Color.anchorMuted)
                     Image(systemName: "folder")
                         .font(.system(size: 9.5, weight: .medium))
-                        .foregroundStyle(Color.driftMuted)
+                        .foregroundStyle(Color.anchorMuted)
                     Text(folder)
                         .font(.system(size: 11))
-                        .foregroundStyle(Color.driftMuted)
+                        .foregroundStyle(Color.anchorMuted)
                         .lineLimit(1)
                         .truncationMode(.head)
                 }
             }
             if showProgress, file.included {
-                ProgressLine(fraction: file.progress, color: file.isDone ? .driftSuccess : .driftTorrent, height: 4)
+                ProgressLine(fraction: file.progress, color: file.isDone ? .anchorSuccess : .anchorTorrent, height: 4)
                     .padding(.top, 2)
             }
         }
@@ -151,14 +151,14 @@ private struct FileRow: View {
             VStack(alignment: .leading, spacing: 1) {
                 Text(file.name)
                     .font(.system(size: 12.5, weight: .medium))
-                    .foregroundStyle(file.included ? Color.driftText : Color.driftMuted)
-                    .strikethrough(!file.included, color: .driftMuted)
+                    .foregroundStyle(file.included ? Color.anchorText : Color.anchorMuted)
+                    .strikethrough(!file.included, color: .anchorMuted)
                     .lineLimit(1)
                     .truncationMode(.middle)
                 if !folder.isEmpty {
                     Text(folder)
                         .font(.system(size: 10.5))
-                        .foregroundStyle(Color.driftMuted)
+                        .foregroundStyle(Color.anchorMuted)
                         .lineLimit(1)
                         .truncationMode(.head)
                 }
@@ -167,17 +167,17 @@ private struct FileRow: View {
 
             Text(Format.bytes(file.length))
                 .font(.system(size: 12).monospacedDigit())
-                .foregroundStyle(Color.driftMuted2)
+                .foregroundStyle(Color.anchorMuted2)
                 .frame(width: 70, alignment: .trailing)
 
             if showProgress {
                 HStack(spacing: 8) {
                     ProgressLine(fraction: file.progress,
-                                 color: file.isDone ? .driftSuccess : file.included ? .driftTorrent : .driftTrack, height: 5)
+                                 color: file.isDone ? .anchorSuccess : file.included ? .anchorTorrent : .anchorTrack, height: 5)
                         .frame(width: 90)
                     Text(file.included ? "\(Int(file.progress * 100))%" : "Skipped")
                         .font(.system(size: 11).monospacedDigit())
-                        .foregroundStyle(Color.driftMuted)
+                        .foregroundStyle(Color.anchorMuted)
                         .frame(width: 46, alignment: .trailing)
                 }
             }
@@ -198,8 +198,8 @@ private struct FileCheckbox: View {
     var body: some View {
         Button(action: toggle) {
             RoundedRectangle(cornerRadius: 5)
-                .fill(isOn ? Color.driftAccent : Color.driftWindow)
-                .overlay(RoundedRectangle(cornerRadius: 5).strokeBorder(isOn ? Color.clear : Color.driftText.opacity(0.28), lineWidth: 1.5))
+                .fill(isOn ? Color.anchorAccent : Color.anchorWindow)
+                .overlay(RoundedRectangle(cornerRadius: 5).strokeBorder(isOn ? Color.clear : Color.anchorText.opacity(0.28), lineWidth: 1.5))
                 .overlay {
                     if isOn {
                         Image(systemName: "checkmark")
@@ -233,9 +233,9 @@ struct PriorityMenu: View {
                 } label: {
                     Image(systemName: option.symbol)
                         .font(.system(size: 9.5, weight: .bold))
-                        .foregroundStyle(on ? (option == .high ? Color.driftAccentInk : Color.driftText) : Color.driftMuted)
+                        .foregroundStyle(on ? (option == .high ? Color.anchorAccentInk : Color.anchorText) : Color.anchorMuted)
                         .frame(width: 24, height: 20)
-                        .background(on ? Color.driftWindow : .clear, in: .rect(cornerRadius: 5))
+                        .background(on ? Color.anchorWindow : .clear, in: .rect(cornerRadius: 5))
                         .shadow(color: .black.opacity(on ? 0.08 : 0), radius: 1, y: 1)
                         .contentShape(.rect)
                 }
@@ -246,6 +246,6 @@ struct PriorityMenu: View {
             }
         }
         .padding(2)
-        .background(Color.driftField, in: .rect(cornerRadius: 7))
+        .background(Color.anchorField, in: .rect(cornerRadius: 7))
     }
 }

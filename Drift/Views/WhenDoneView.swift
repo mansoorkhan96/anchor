@@ -13,31 +13,31 @@ struct WhenDoneView: View {
             HStack(spacing: 12) {
                 Image(systemName: action.symbol)
                     .font(.system(size: 15, weight: .semibold))
-                    .foregroundStyle(Color.driftAccent)
+                    .foregroundStyle(Color.anchorAccent)
                     .frame(width: 38, height: 38)
-                    .background(Color.driftAccentWash, in: .rect(cornerRadius: 11))
+                    .background(Color.anchorAccentWash, in: .rect(cornerRadius: 11))
                 VStack(alignment: .leading, spacing: 2) {
                     Text("All downloads finished")
                         .font(.system(size: 16, weight: .semibold))
-                        .foregroundStyle(Color.driftText)
+                        .foregroundStyle(Color.anchorText)
                     Text(message)
                         .font(.system(size: 12).monospacedDigit())
-                        .foregroundStyle(Color.driftMuted)
+                        .foregroundStyle(Color.anchorMuted)
                 }
             }
             HStack(spacing: 10) {
                 Spacer()
                 Button("Cancel") { finish(false) }
-                    .buttonStyle(.driftSecondary)
+                    .buttonStyle(.anchorSecondary)
                     .keyboardShortcut(.cancelAction)
                 Button("\(action.title) Now") { finish(true) }
-                    .buttonStyle(.driftPrimary)
+                    .buttonStyle(.anchorPrimary)
                     .keyboardShortcut(.defaultAction)
             }
         }
         .padding(22)
         .frame(width: 420)
-        .background(Color.driftWindow)
+        .background(Color.anchorWindow)
         .task {
             while left > 0 {
                 try? await Task.sleep(for: .seconds(1))

@@ -26,31 +26,31 @@ struct DownloadRow: View {
                 if let priority = item.priority, priority != .normal {
                     Image(systemName: priority.symbol)
                         .font(.system(size: 9, weight: .bold))
-                        .foregroundStyle(priority == .high ? Color.driftAccentInk : Color.driftMuted)
+                        .foregroundStyle(priority == .high ? Color.anchorAccentInk : Color.anchorMuted)
                         .help("\(priority.title) priority")
                 }
                 if let kb = item.speedLimitKB, !item.state.isFinished {
                     Image(systemName: "gauge.with.dots.needle.33percent")
                         .font(.system(size: 10, weight: .semibold))
-                        .foregroundStyle(Color.driftPausedInk)
+                        .foregroundStyle(Color.anchorPausedInk)
                         .help("Limited to \(Format.speed(Double(kb * 1000)))")
                 }
                 if item.keep == true {
                     Image(systemName: "pin.fill")
                         .font(.system(size: 9, weight: .bold))
-                        .foregroundStyle(Color.driftMuted)
+                        .foregroundStyle(Color.anchorMuted)
                         .help("Kept: never suggested for cleanup or archived")
                 }
                 VStack(alignment: .leading, spacing: 1) {
                     Text(item.fileName)
                         .font(.system(size: 13, weight: .medium))
-                        .foregroundStyle(Color.driftText)
+                        .foregroundStyle(Color.anchorText)
                         .lineLimit(1)
                         .truncationMode(.middle)
                     if let note {
                         Text(note)
                             .font(.system(size: 11.5))
-                            .foregroundStyle(Color.driftMuted)
+                            .foregroundStyle(Color.anchorMuted)
                             .lineLimit(1)
                     }
                 }
@@ -63,11 +63,11 @@ struct DownloadRow: View {
                 .frame(width: 84, alignment: .trailing)
             Text(percentText)
                 .font(.system(size: 12).monospacedDigit())
-                .foregroundStyle(Color.driftMuted)
+                .foregroundStyle(Color.anchorMuted)
                 .frame(width: 38, alignment: .trailing)
             Text(sizeText)
                 .font(.system(size: 12).monospacedDigit())
-                .foregroundStyle(item.state.isFailed ? Color.driftDanger : Color.driftMuted2)
+                .foregroundStyle(item.state.isFailed ? Color.anchorDanger : Color.anchorMuted2)
                 .lineLimit(1)
                 .truncationMode(.tail)
                 .frame(width: 120, alignment: .trailing)
@@ -76,7 +76,7 @@ struct DownloadRow: View {
         .padding(.horizontal, 12)
         .frame(height: note == nil ? 40 : 50)
         .background(background, in: .rect(cornerRadius: 8))
-        .overlay(RoundedRectangle(cornerRadius: 8).strokeBorder(isSelected ? Color.driftAccentEdge : .clear, lineWidth: 1))
+        .overlay(RoundedRectangle(cornerRadius: 8).strokeBorder(isSelected ? Color.anchorAccentEdge : .clear, lineWidth: 1))
         // Anywhere on the row except its buttons: one click shows details, a double click opens or pauses/resumes.
         // The click count comes from the mouse event, so single clicks fire immediately.
         .contentShape(.rect(cornerRadius: 8))
@@ -96,24 +96,24 @@ struct DownloadRow: View {
         if item.kind == .torrent, item.state == .downloading || item.seeding == true {
             VStack(alignment: .trailing, spacing: 1) {
                 if item.state == .downloading {
-                    SpeedLabel(symbol: "arrow.down", speed: item.speed, color: .driftAccentStrong)
+                    SpeedLabel(symbol: "arrow.down", speed: item.speed, color: .anchorAccentStrong)
                         .help("Downloading")
                 }
-                SpeedLabel(symbol: "arrow.up", speed: item.uploadSpeed, color: .driftSuccess)
+                SpeedLabel(symbol: "arrow.up", speed: item.uploadSpeed, color: .anchorSuccess)
                     .help(item.seeding == true ? "Seeding · \(Format.bytes(item.uploadedBytes)) uploaded" : "Uploading to other peers")
             }
         } else {
             Text(item.state == .downloading ? Format.speed(item.speed) : "")
                 .font(.system(size: 12, weight: .semibold).monospacedDigit())
-                .foregroundStyle(Color.driftAccentStrong)
+                .foregroundStyle(Color.anchorAccentStrong)
                 .contentTransition(.numericText())
         }
     }
 
     private var background: Color {
-        if isSelected { return .driftAccentWash }
-        if isFocused { return .driftField }
-        return hovering ? .driftCard : .clear
+        if isSelected { return .anchorAccentWash }
+        if isFocused { return .anchorField }
+        return hovering ? .anchorCard : .clear
     }
 
     private var percentText: String {
@@ -145,7 +145,7 @@ struct DownloadRow: View {
                        fill: item.stateColor.opacity(0.12), size: 26, glyphScale: 0.45) { store.toggle(item.id) }
                 .overlay(ProgressRing(item: item))
         case .failed:
-            IconButton(symbol: "arrow.clockwise", label: "Retry", tint: .driftDanger, fill: .driftDangerWash, size: 26) { store.retry(item.id) }
+            IconButton(symbol: "arrow.clockwise", label: "Retry", tint: .anchorDanger, fill: .anchorDangerWash, size: 26) { store.retry(item.id) }
         case .completed:
             RevealButton(size: 26, outlined: true) { store.reveal(item.id) }
         }
@@ -223,10 +223,10 @@ extension DownloadItem {
     /// The state's color, used by the progress ring on Pause/Resume buttons.
     var stateColor: Color {
         switch state {
-        case .downloading: kind == .torrent ? .driftTorrent : .driftAccent
-        case .connecting: .driftAccent
-        case .paused: .driftIdle
-        default: .driftQueued
+        case .downloading: kind == .torrent ? .anchorTorrent : .anchorAccent
+        case .connecting: .anchorAccent
+        case .paused: .anchorIdle
+        default: .anchorQueued
         }
     }
 }
@@ -317,7 +317,7 @@ struct ProgressLine: View {
     var body: some View {
         GeometryReader { geo in
             ZStack(alignment: .leading) {
-                Capsule().fill(Color.driftTrack)
+                Capsule().fill(Color.anchorTrack)
                 Capsule()
                     .fill(color)
                     .frame(width: fraction > 0 ? max(height, geo.size.width * min(1, fraction)) : 0)

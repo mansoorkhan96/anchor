@@ -41,8 +41,8 @@ private enum SettingsSection: String, CaseIterable, Identifiable {
     var badge: Color {
         switch self {
         case .general: .adaptive(light: 0x5E5E63, dark: 0x6E6E73)
-        case .speed: .driftAccent
-        case .browser: .driftAccentInk
+        case .speed: .anchorAccent
+        case .browser: .anchorAccentInk
         case .cleanup: .adaptive(light: 0x46902E, dark: 0x5BA845)
         case .about: .adaptive(light: 0x737378, dark: 0x7C7C81)
         }
@@ -65,8 +65,8 @@ struct SettingsView: View {
             .padding(.top, 14)
             .frame(width: 210)
             .frame(maxHeight: .infinity)
-            .background(Color.driftCard)
-            .overlay(alignment: .trailing) { Rectangle().fill(Color.driftLine).frame(width: 1) }
+            .background(Color.anchorCard)
+            .overlay(alignment: .trailing) { Rectangle().fill(Color.anchorLine).frame(width: 1) }
 
             ScrollView {
                 VStack(alignment: .leading, spacing: 22) {
@@ -74,10 +74,10 @@ struct SettingsView: View {
                         VStack(alignment: .leading, spacing: 4) {
                             Text(section.title)
                                 .font(.system(size: 20, weight: .bold))
-                                .foregroundStyle(Color.driftText)
+                                .foregroundStyle(Color.anchorText)
                             Text(section.subtitle)
                                 .font(.system(size: 12))
-                                .foregroundStyle(Color.driftMuted)
+                                .foregroundStyle(Color.anchorMuted)
                         }
                     }
                     switch section {
@@ -92,10 +92,10 @@ struct SettingsView: View {
                 .padding(.vertical, 26)
                 .frame(maxWidth: .infinity, alignment: .leading)
             }
-            .background(Color.driftWindow)
+            .background(Color.anchorWindow)
         }
         .frame(width: 760, height: 740)
-        .tint(.driftAccent)
+        .tint(.anchorAccent)
         .onAppear(perform: openRequestedPage)
         .onChange(of: store.settings.requestedSettingsPage) { openRequestedPage() }
     }
@@ -124,12 +124,12 @@ private struct SectionButton: View {
                     .background(section.badge, in: .rect(cornerRadius: 6))
                 Text(section.title)
                     .font(.system(size: 13, weight: isSelected ? .semibold : .medium))
-                    .foregroundStyle(isSelected ? Color.driftAccentInk : Color.driftText)
+                    .foregroundStyle(isSelected ? Color.anchorAccentInk : Color.anchorText)
                 Spacer()
             }
             .padding(.horizontal, 8)
             .frame(height: 34)
-            .background(isSelected ? Color.driftAccentWash : hovering ? Color.driftText.opacity(0.05) : .clear,
+            .background(isSelected ? Color.anchorAccentWash : hovering ? Color.anchorText.opacity(0.05) : .clear,
                         in: .rect(cornerRadius: 9))
             .contentShape(.rect)
         }
@@ -148,7 +148,7 @@ private struct SettingsCard<Content: View>: View {
 
     var body: some View {
         VStack(spacing: 0) { content() }
-            .background(Color.driftCard, in: .rect(cornerRadius: 14))
+            .background(Color.anchorCard, in: .rect(cornerRadius: 14))
     }
 }
 
@@ -163,11 +163,11 @@ private struct SettingsRow<Control: View>: View {
             VStack(alignment: .leading, spacing: 2) {
                 Text(title)
                     .font(.system(size: 13, weight: .semibold))
-                    .foregroundStyle(Color.driftText)
+                    .foregroundStyle(Color.anchorText)
                 if let detail {
                     Text(detail)
                         .font(.system(size: 12))
-                        .foregroundStyle(Color.driftMuted)
+                        .foregroundStyle(Color.anchorMuted)
                         .fixedSize(horizontal: false, vertical: true)
                 }
             }
@@ -177,7 +177,7 @@ private struct SettingsRow<Control: View>: View {
         .padding(.horizontal, 18)
         .padding(.vertical, 14)
         .overlay(alignment: .bottom) {
-            if divider { Rectangle().fill(Color.driftLine).frame(height: 1) }
+            if divider { Rectangle().fill(Color.anchorLine).frame(height: 1) }
         }
     }
 }
@@ -193,13 +193,13 @@ private struct GeneralPage: View {
         VStack(spacing: 16) {
             SettingsCard {
                 SettingsRow(title: "Save downloads to", detail: displayPath(settings.downloadFolder), divider: true) {
-                    Button("Change…", action: chooseFolder).buttonStyle(.driftSecondary)
+                    Button("Change…", action: chooseFolder).buttonStyle(.anchorSecondary)
                 }
                 SettingsRow(title: "Sort into category folders", detail: "Video, Music, Apps and others get their own subfolder", divider: true) {
-                    DriftSwitch(isOn: $settings.categorySubfolders, label: "Sort into category folders")
+                    AnchorSwitch(isOn: $settings.categorySubfolders, label: "Sort into category folders")
                 }
                 SettingsRow(title: "If the file already exists", detail: "Ask each time, or always rename or overwrite") {
-                    DriftSegmented(options: ExistingFileAction.allCases, selection: $settings.existingFileAction, title: \.title,
+                    AnchorSegmented(options: ExistingFileAction.allCases, selection: $settings.existingFileAction, title: \.title,
                                    minWidth: 0, symbol: { action in
                                        switch action {
                                        case .ask: "questionmark.bubble"
@@ -211,26 +211,26 @@ private struct GeneralPage: View {
             }
             SettingsCard {
                 SettingsRow(title: "Open Drift at login", detail: "Stays in the menu bar so browser downloads always work", divider: true) {
-                    DriftSwitch(isOn: $launchAtLogin, label: "Open Drift at login")
+                    AnchorSwitch(isOn: $launchAtLogin, label: "Open Drift at login")
                 }
                 SettingsRow(title: "Keep Mac awake while downloading", detail: "Stops idle sleep until downloads finish; the screen can still turn off", divider: true) {
-                    DriftSwitch(isOn: $settings.keepAwake, label: "Keep Mac awake while downloading")
+                    AnchorSwitch(isOn: $settings.keepAwake, label: "Keep Mac awake while downloading")
                 }
                 SettingsRow(title: "Notify when downloads finish", detail: "Also tells you when a download fails", divider: true) {
-                    DriftSwitch(isOn: $settings.notifications, label: "Notify when downloads finish")
+                    AnchorSwitch(isOn: $settings.notifications, label: "Notify when downloads finish")
                 }
                 SettingsRow(title: "Offer to download copied links", detail: "Links to files and magnet links") {
-                    DriftSwitch(isOn: $settings.clipboardMonitoring, label: "Offer to download copied links")
+                    AnchorSwitch(isOn: $settings.clipboardMonitoring, label: "Offer to download copied links")
                 }
             }
             SettingsCard {
                 SettingsRow(title: "Show speed bar", detail: "Live speed and time left above the download list") {
-                    DriftSwitch(isOn: $settings.showSpeedStrip, label: "Show speed bar")
+                    AnchorSwitch(isOn: $settings.showSpeedStrip, label: "Show speed bar")
                 }
             }
             SettingsCard {
                 SettingsRow(title: "Show Drift in the menu bar", detail: "Live speed and recent downloads, one click away", divider: true) {
-                    DriftSwitch(isOn: $settings.showMenuBarIcon, label: "Show Drift in the menu bar")
+                    AnchorSwitch(isOn: $settings.showMenuBarIcon, label: "Show Drift in the menu bar")
                 }
                 SettingsRow(title: "Recent downloads in menu bar", detail: "How many show in the menu bar list") {
                     NumberStepper(value: $settings.menuBarCount, range: 3...15)
@@ -271,7 +271,7 @@ private struct SpeedPage: View {
             SpeedLimitCard()
             SettingsCard {
                 SettingsRow(title: "Connections per download", detail: "More connections are faster on most servers", divider: true) {
-                    DriftSegmented(options: [1, 4, 8, 16, 32], selection: $settings.connections, title: { "\($0)" }, minWidth: 34)
+                    AnchorSegmented(options: [1, 4, 8, 16, 32], selection: $settings.connections, title: { "\($0)" }, minWidth: 34)
                 }
                 SettingsRow(title: "Simultaneous downloads", detail: "The rest wait in the queue") {
                     NumberStepper(value: $settings.maxConcurrent, range: 1...10)
@@ -304,11 +304,11 @@ private struct TorrentCard: View {
                             .font(.system(size: 12.5, weight: .medium).monospacedDigit())
                         Image(systemName: "chevron.up.chevron.down").font(.system(size: 9, weight: .semibold))
                     }
-                    .foregroundStyle(settings.uploadLimitKB < 0 ? Color.driftPausedInk : Color.driftText)
+                    .foregroundStyle(settings.uploadLimitKB < 0 ? Color.anchorPausedInk : Color.anchorText)
                     .padding(.horizontal, 10)
                     .frame(height: 30)
-                    .background(Color.driftWindow, in: .rect(cornerRadius: 9))
-                    .overlay(RoundedRectangle(cornerRadius: 9).strokeBorder(Color.driftLine))
+                    .background(Color.anchorWindow, in: .rect(cornerRadius: 9))
+                    .overlay(RoundedRectangle(cornerRadius: 9).strokeBorder(Color.anchorLine))
                 }
                 .menuStyle(.button)
                 .buttonStyle(.plain)
@@ -317,7 +317,7 @@ private struct TorrentCard: View {
             }
             SettingsRow(title: "Seed torrents after downloading",
                         detail: "Keep sharing finished torrents with other people", divider: settings.seedTorrents) {
-                DriftSwitch(isOn: $settings.seedTorrents, label: "Seed torrents after downloading")
+                AnchorSwitch(isOn: $settings.seedTorrents, label: "Seed torrents after downloading")
             }
             if settings.seedTorrents {
                 SettingsRow(title: "Stop seeding at ratio",
@@ -351,21 +351,21 @@ private struct RatioStepper: View {
             step("minus") { value = max(0.5, value - 0.5) }
             Text(String(format: "%.1f", value))
                 .font(.system(size: 13, weight: .bold).monospacedDigit())
-                .foregroundStyle(Color.driftText)
+                .foregroundStyle(Color.anchorText)
                 .frame(width: 42, height: 30)
-                .overlay(alignment: .leading) { Rectangle().fill(Color.driftLine).frame(width: 1) }
-                .overlay(alignment: .trailing) { Rectangle().fill(Color.driftLine).frame(width: 1) }
+                .overlay(alignment: .leading) { Rectangle().fill(Color.anchorLine).frame(width: 1) }
+                .overlay(alignment: .trailing) { Rectangle().fill(Color.anchorLine).frame(width: 1) }
             step("plus") { value = min(10, value + 0.5) }
         }
-        .background(Color.driftWindow, in: .rect(cornerRadius: 9))
-        .overlay(RoundedRectangle(cornerRadius: 9).strokeBorder(Color.driftLine))
+        .background(Color.anchorWindow, in: .rect(cornerRadius: 9))
+        .overlay(RoundedRectangle(cornerRadius: 9).strokeBorder(Color.anchorLine))
     }
 
     private func step(_ symbol: String, action: @escaping () -> Void) -> some View {
         Button(action: action) {
             Image(systemName: symbol)
                 .font(.system(size: 11, weight: .bold))
-                .foregroundStyle(Color.driftMuted2)
+                .foregroundStyle(Color.anchorMuted2)
                 .frame(width: 32, height: 30)
                 .contentShape(.rect)
         }
@@ -394,13 +394,13 @@ private struct SpeedLimitCard: View {
                 VStack(alignment: .leading, spacing: 2) {
                     Text("Limit download speed")
                         .font(.system(size: 13, weight: .semibold))
-                        .foregroundStyle(Color.driftText)
+                        .foregroundStyle(Color.anchorText)
                     Text("Applies to all downloads, including torrents")
                         .font(.system(size: 12))
-                        .foregroundStyle(Color.driftMuted)
+                        .foregroundStyle(Color.anchorMuted)
                 }
                 Spacer()
-                DriftSwitch(isOn: $settings.speedLimitEnabled, label: "Limit download speed")
+                AnchorSwitch(isOn: $settings.speedLimitEnabled, label: "Limit download speed")
             }
 
             if settings.speedLimitEnabled {
@@ -422,33 +422,33 @@ private struct SpeedLimitCard: View {
                     HStack(spacing: 10) {
                         Text("Custom limit")
                             .font(.system(size: 12))
-                            .foregroundStyle(Color.driftMuted2)
+                            .foregroundStyle(Color.anchorMuted2)
                             .frame(width: 86, alignment: .leading)
                         TextField("2.5", text: $customText)
                             .textFieldStyle(.plain)
                             .font(.system(size: 14, weight: .bold).monospacedDigit())
-                            .foregroundStyle(Color.driftText)
+                            .foregroundStyle(Color.anchorText)
                             .focused($customFocused)
                             .frame(width: 70)
                             .fieldChrome(focused: customFocused, height: 34)
                             .onChange(of: customText) { applyCustom() }
-                        DriftSegmented(options: Unit.allCases, selection: $unit, title: \.rawValue, minWidth: 48)
+                        AnchorSegmented(options: Unit.allCases, selection: $unit, title: \.rawValue, minWidth: 48)
                             .onChange(of: unit) { applyCustom() }
                     }
                 }
 
-                Text("Drift will stay under \(Text(Format.speed(Double(settings.effectiveSpeedLimit))).bold().foregroundStyle(Color.driftText)) across all downloads.")
+                Text("Drift will stay under \(Text(Format.speed(Double(settings.effectiveSpeedLimit))).bold().foregroundStyle(Color.anchorText)) across all downloads.")
                     .font(.system(size: 12).monospacedDigit())
-                    .foregroundStyle(Color.driftMuted)
+                    .foregroundStyle(Color.anchorMuted)
             } else {
                 Text("Downloads use your full connection.")
                     .font(.system(size: 12))
-                    .foregroundStyle(Color.driftMuted)
+                    .foregroundStyle(Color.anchorMuted)
             }
         }
         .padding(.horizontal, 18)
         .padding(.vertical, 16)
-        .background(Color.driftCard, in: .rect(cornerRadius: 14))
+        .background(Color.anchorCard, in: .rect(cornerRadius: 14))
         .animation(.snappy(duration: 0.2), value: settings.speedLimitEnabled)
         .animation(.snappy(duration: 0.2), value: customSelected)
         .onAppear {
@@ -463,11 +463,11 @@ private struct SpeedLimitCard: View {
         Button(action: action) {
             Text(label)
                 .font(.system(size: 12, weight: .semibold))
-                .foregroundStyle(on ? Color.driftAccentInk : Color.driftText.opacity(0.85))
+                .foregroundStyle(on ? Color.anchorAccentInk : Color.anchorText.opacity(0.85))
                 .padding(.horizontal, 12)
                 .frame(height: 30)
-                .background(on ? Color.driftAccentWash : Color.driftWindow, in: .rect(cornerRadius: 8))
-                .overlay(RoundedRectangle(cornerRadius: 8).strokeBorder(on ? Color.driftAccentRing : Color.driftLine))
+                .background(on ? Color.anchorAccentWash : Color.anchorWindow, in: .rect(cornerRadius: 8))
+                .overlay(RoundedRectangle(cornerRadius: 8).strokeBorder(on ? Color.anchorAccentRing : Color.anchorLine))
                 .contentShape(.rect)
         }
         .buttonStyle(.plain)
@@ -504,22 +504,22 @@ private struct NumberStepper: View {
                 .disabled(value <= range.lowerBound)
             Text("\(value)")
                 .font(.system(size: 13, weight: .bold).monospacedDigit())
-                .foregroundStyle(Color.driftText)
+                .foregroundStyle(Color.anchorText)
                 .frame(width: 36, height: 30)
-                .overlay(alignment: .leading) { Rectangle().fill(Color.driftLine).frame(width: 1) }
-                .overlay(alignment: .trailing) { Rectangle().fill(Color.driftLine).frame(width: 1) }
+                .overlay(alignment: .leading) { Rectangle().fill(Color.anchorLine).frame(width: 1) }
+                .overlay(alignment: .trailing) { Rectangle().fill(Color.anchorLine).frame(width: 1) }
             stepButton("plus", label: "More") { value = min(range.upperBound, value + 1) }
                 .disabled(value >= range.upperBound)
         }
-        .background(Color.driftWindow, in: .rect(cornerRadius: 9))
-        .overlay(RoundedRectangle(cornerRadius: 9).strokeBorder(Color.driftLine))
+        .background(Color.anchorWindow, in: .rect(cornerRadius: 9))
+        .overlay(RoundedRectangle(cornerRadius: 9).strokeBorder(Color.anchorLine))
     }
 
     private func stepButton(_ symbol: String, label: String, action: @escaping () -> Void) -> some View {
         Button(action: action) {
             Image(systemName: symbol)
                 .font(.system(size: 11, weight: .bold))
-                .foregroundStyle(Color.driftMuted2)
+                .foregroundStyle(Color.anchorMuted2)
                 .frame(width: 32, height: 30)
                 .contentShape(.rect)
         }
@@ -537,7 +537,7 @@ private struct CleanupPage: View {
         VStack(alignment: .leading, spacing: 16) {
             Text("Clean up after")
                 .font(.system(size: 12, weight: .semibold))
-                .foregroundStyle(Color.driftMuted)
+                .foregroundStyle(Color.anchorMuted)
                 .padding(.horizontal, 4)
                 .padding(.bottom, -8)
             SettingsCard {
@@ -551,7 +551,7 @@ private struct CleanupPage: View {
             SettingsCard {
                 SettingsRow(title: "Archive installers once installed",
                             detail: "Moves a dmg to Downloads/Drift Archive once the same or a newer version of its app is installed. Restore puts it back.") {
-                    DriftSwitch(isOn: $settings.archiveInstallers, label: "Archive installers once installed")
+                    AnchorSwitch(isOn: $settings.archiveInstallers, label: "Archive installers once installed")
                 }
             }
         }
@@ -578,11 +578,11 @@ private struct DaysMenu: View {
                     .font(.system(size: 12.5, weight: .medium).monospacedDigit())
                 Image(systemName: "chevron.up.chevron.down").font(.system(size: 9, weight: .semibold))
             }
-            .foregroundStyle(days == 0 ? Color.driftMuted2 : Color.driftText)
+            .foregroundStyle(days == 0 ? Color.anchorMuted2 : Color.anchorText)
             .padding(.horizontal, 10)
             .frame(height: 30)
-            .background(Color.driftWindow, in: .rect(cornerRadius: 9))
-            .overlay(RoundedRectangle(cornerRadius: 9).strokeBorder(Color.driftLine))
+            .background(Color.anchorWindow, in: .rect(cornerRadius: 9))
+            .overlay(RoundedRectangle(cornerRadius: 9).strokeBorder(Color.anchorLine))
         }
         .menuStyle(.button)
         .buttonStyle(.plain)
@@ -604,10 +604,10 @@ private struct BrowserPage: View {
             SettingsCard {
                 SettingsRow(title: "Take over browser downloads",
                             detail: settings.browserIntegration ? "Listening on 127.0.0.1:47821" : "Off", divider: true) {
-                    DriftSwitch(isOn: $settings.browserIntegration, label: "Take over browser downloads")
+                    AnchorSwitch(isOn: $settings.browserIntegration, label: "Take over browser downloads")
                 }
                 SettingsRow(title: "Confirm each download", detail: "Show the New Download window before starting") {
-                    DriftSwitch(isOn: $settings.confirmBrowserDownloads, label: "Confirm each download")
+                    AnchorSwitch(isOn: $settings.confirmBrowserDownloads, label: "Confirm each download")
                 }
                 .opacity(settings.browserIntegration ? 1 : 0.45)
                 .disabled(!settings.browserIntegration)
@@ -616,7 +616,7 @@ private struct BrowserPage: View {
                 SettingsRow(title: "Safari extension",
                             detail: "Turn on Drift in Safari's Extensions settings. Unsigned builds also need Develop > Allow Unsigned Extensions.",
                             divider: true) {
-                    Button("Open Safari…", action: openSafariExtension).buttonStyle(.driftSecondary)
+                    Button("Open Safari…", action: openSafariExtension).buttonStyle(.anchorSecondary)
                 }
                 SettingsRow(title: "Chrome, Arc, Brave and Edge extension",
                             detail: "In chrome://extensions turn on Developer mode, choose Load unpacked, and pick the drift-browser-extension folder.") {}
@@ -644,10 +644,10 @@ private struct DefaultAppCard: View {
             SettingsRow(title: "Open magnet links and .torrent files",
                         detail: isDefault ? "Drift opens them" : "Currently: \(describe())") {
                 if isDefault {
-                    Chip(text: "Drift is the default", ink: .driftSuccess, wash: .driftSuccessWash)
+                    Chip(text: "Drift is the default", ink: .anchorSuccess, wash: .anchorSuccessWash)
                 } else {
                     Button(working ? "Waiting…" : "Make Drift the Default", action: makeDefault)
-                        .buttonStyle(.driftPrimary)
+                        .buttonStyle(.anchorPrimary)
                         .disabled(working)
                 }
             }
@@ -699,13 +699,13 @@ private struct AboutPage: View {
                 .frame(width: 96, height: 96)
             Text("Drift")
                 .font(.system(size: 22, weight: .bold))
-                .foregroundStyle(Color.driftText)
+                .foregroundStyle(Color.anchorText)
             Text(version)
                 .font(.system(size: 12))
-                .foregroundStyle(Color.driftMuted)
+                .foregroundStyle(Color.anchorMuted)
             Text("Fast, segmented downloads for macOS. Torrents powered by aria2.")
                 .font(.system(size: 12))
-                .foregroundStyle(Color.driftMuted)
+                .foregroundStyle(Color.anchorMuted)
                 .padding(.top, 4)
         }
         .frame(maxWidth: .infinity)

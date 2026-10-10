@@ -21,7 +21,7 @@ struct MenuBarView: View {
                 HStack(spacing: 8) {
                     Text("Downloads")
                         .font(.system(size: 13, weight: .semibold))
-                        .foregroundStyle(Color.driftText)
+                        .foregroundStyle(Color.anchorText)
                     Spacer()
                     OrderTabs(selection: $settings.menuBarOrder)
                 }
@@ -30,7 +30,7 @@ struct MenuBarView: View {
                 if recent.isEmpty {
                     Text("No downloads yet")
                         .font(.system(size: 13))
-                        .foregroundStyle(Color.driftMuted)
+                        .foregroundStyle(Color.anchorMuted)
                         .frame(maxWidth: .infinity, minHeight: 56)
                 } else {
                     ScrollView {
@@ -56,11 +56,11 @@ struct MenuBarView: View {
                 MenuButton(title: "Quit", symbol: "power", shortcut: "⌘Q", muted: true) { NSApp.terminate(nil) }
             }
             .padding(.top, 10)
-            .overlay(alignment: .top) { Rectangle().fill(Color.driftLine).frame(height: 1) }
+            .overlay(alignment: .top) { Rectangle().fill(Color.anchorLine).frame(height: 1) }
         }
         .padding(16)
         .frame(width: 480)
-        .background(Color.driftWindow)
+        .background(Color.anchorWindow)
     }
 
     /// "Drift" and a one-tap icon button that pauses everything, or resumes everything when paused.
@@ -68,14 +68,14 @@ struct MenuBarView: View {
         HStack(alignment: .center) {
             Text("Drift")
                 .font(.system(size: 15, weight: .bold))
-                .foregroundStyle(Color.driftText)
+                .foregroundStyle(Color.anchorText)
             Spacer()
             if anyRunning {
-                IconButton(symbol: "pause.fill", label: "Pause all downloads", fill: .driftField, size: 30, outlined: true,
+                IconButton(symbol: "pause.fill", label: "Pause all downloads", fill: .anchorField, size: 30, outlined: true,
                            glyphScale: 0.33) { store.pauseAll() }
             } else if canResume {
                 IconButton(symbol: "play.fill", label: "Resume all paused downloads", tint: .white,
-                           fill: .driftAccentStrong, size: 30, glyphScale: 0.33) { store.resumeAll() }
+                           fill: .anchorAccentStrong, size: 30, glyphScale: 0.33) { store.resumeAll() }
             }
         }
         .padding(.horizontal, 4)
@@ -100,18 +100,18 @@ private struct CleanupLine: View {
             HStack(spacing: 6) {
                 Image(systemName: "sparkles")
                     .font(.system(size: 11, weight: .semibold))
-                    .foregroundStyle(Color.driftSuccess)
+                    .foregroundStyle(Color.anchorSuccess)
                 Text("\(Format.bytes(bytes)) ready for cleanup")
                     .font(.system(size: 12.5, weight: .medium).monospacedDigit())
-                    .foregroundStyle(Color.driftText)
+                    .foregroundStyle(Color.anchorText)
                 Image(systemName: "chevron.right")
                     .font(.system(size: 9.5, weight: .bold))
-                    .foregroundStyle(Color.driftMuted)
+                    .foregroundStyle(Color.anchorMuted)
                 Spacer()
             }
             .padding(.horizontal, 8)
             .frame(height: 30)
-            .background(hovering ? Color.driftField : Color.driftCard, in: .rect(cornerRadius: 8))
+            .background(hovering ? Color.anchorField : Color.anchorCard, in: .rect(cornerRadius: 8))
             .contentShape(.rect)
         }
         .buttonStyle(.plain)
@@ -131,7 +131,7 @@ private struct OrderTabs: View {
             tab(.unfinishedFirst, title: "Unfinished", symbol: "arrow.down.circle")
         }
         .padding(2)
-        .background(Color.driftField, in: .rect(cornerRadius: 8))
+        .background(Color.anchorField, in: .rect(cornerRadius: 8))
     }
 
     private func tab(_ order: MenuBarOrder, title: String, symbol: String) -> some View {
@@ -145,13 +145,13 @@ private struct OrderTabs: View {
                 Text(title)
                     .font(.system(size: 11, weight: .semibold))
             }
-            .foregroundStyle(on ? Color.driftAccentInk : Color.driftMuted)
+            .foregroundStyle(on ? Color.anchorAccentInk : Color.anchorMuted)
                 .padding(.horizontal, 9)
                 .frame(height: 22)
                 .background {
                     if on {
                         RoundedRectangle(cornerRadius: 6)
-                            .fill(Color.driftWindow)
+                            .fill(Color.anchorWindow)
                             .shadow(color: .black.opacity(0.08), radius: 1.5, y: 1)
                             .matchedGeometryEffect(id: "pill", in: pill)
                     }
@@ -174,20 +174,20 @@ private struct RecentRow: View {
             action
             Text(item.fileName)
                 .font(.system(size: 12.5, weight: .semibold))
-                .foregroundStyle(Color.driftText)
+                .foregroundStyle(Color.anchorText)
                 .lineLimit(1)
                 .truncationMode(.middle)
             Spacer(minLength: 4)
             Text(sizeText)
                 .font(.system(size: 11.5, weight: .medium).monospacedDigit())
-                .foregroundStyle(Color.driftMuted2)
+                .foregroundStyle(Color.anchorMuted2)
                 .lineLimit(1)
                 .fixedSize()
             DeleteButton(label: "Delete \(item.fileName)", makeMenu: deleteMenu)
         }
         .padding(.horizontal, 6)
         .padding(.vertical, 7)
-        .background(hovering ? Color.driftField : .clear, in: .rect(cornerRadius: 9))
+        .background(hovering ? Color.anchorField : .clear, in: .rect(cornerRadius: 9))
         .contentShape(.rect)
         .onHover { hovering = $0 }
         .onTapGesture { AppRouter.shared.showDetails(item.id) }
@@ -205,7 +205,7 @@ private struct RecentRow: View {
                        fill: item.stateColor.opacity(0.12), size: 26, glyphScale: 0.45) { store.toggle(item.id) }
                 .overlay(ProgressRing(item: item))
         case .failed:
-            IconButton(symbol: "arrow.clockwise", label: "Retry", tint: .driftDanger, fill: .driftDangerWash, size: 26) { store.retry(item.id) }
+            IconButton(symbol: "arrow.clockwise", label: "Retry", tint: .anchorDanger, fill: .anchorDangerWash, size: 26) { store.retry(item.id) }
         case .completed:
             RevealButton(size: 26) { store.reveal(item.id) }
         }
@@ -235,8 +235,8 @@ private struct DeleteButton: View {
     @State private var hovering = false
 
     var body: some View {
-        IconButton(symbol: "trash", label: label, tint: hovering ? .driftDanger : .driftMuted2,
-                   fill: hovering ? .driftDangerWash : .driftText.opacity(0.07), size: 26) {}
+        IconButton(symbol: "trash", label: label, tint: hovering ? .anchorDanger : .anchorMuted2,
+                   fill: hovering ? .anchorDangerWash : .anchorText.opacity(0.07), size: 26) {}
             .overlay(TrailingMenu(makeMenu: makeMenu))
             .onHover { hovering = $0 }
             .animation(.easeOut(duration: 0.12), value: hovering)
@@ -265,10 +265,10 @@ private struct MenuButton: View {
                 if let shortcut {
                     Text(shortcut)
                         .font(.system(size: 12, weight: .medium))
-                        .foregroundStyle(prominent ? Color.driftAccent : Color.driftMuted)
+                        .foregroundStyle(prominent ? Color.anchorAccent : Color.anchorMuted)
                 }
             }
-            .foregroundStyle(prominent ? Color.driftAccentInk : muted ? Color.driftMuted : Color.driftText)
+            .foregroundStyle(prominent ? Color.anchorAccentInk : muted ? Color.anchorMuted : Color.anchorText)
             .padding(.horizontal, 10)
             .frame(height: 32)
             .background(background, in: .rect(cornerRadius: 8))
@@ -279,7 +279,7 @@ private struct MenuButton: View {
     }
 
     private var background: Color {
-        if prominent { return hovering ? .driftAccentTint : .driftAccentWash }
-        return hovering ? .driftField : .clear
+        if prominent { return hovering ? .anchorAccentTint : .anchorAccentWash }
+        return hovering ? .anchorField : .clear
     }
 }
