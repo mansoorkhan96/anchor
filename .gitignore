@@ -4,3 +4,4 @@ Vendor/
 *.xcodeproj/xcuserdata/
 *.xcodeproj/project.xcworkspace/xcuserdata/
 .DS_Store
+docs/
