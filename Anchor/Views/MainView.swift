@@ -11,6 +11,7 @@ struct MainView: View {
         @Bindable var store = store
         NavigationSplitView(columnVisibility: $columns) {
             SidebarView(selection: $filter)
+                .frame(minWidth: 210)
                 .navigationSplitViewColumnWidth(min: 210, ideal: 228, max: 280)
                 .toolbar(removing: .sidebarToggle)
         } detail: {
