@@ -70,7 +70,10 @@ private struct MenuBarLabel: View {
         let dot = cleanup.attentionBytes >= 1_000_000_000
         Group {
             if store.activeCount > 0 {
-                Text("\(Image(nsImage: MenuBarIcon.image(filled: true, dot: dot))) \(Format.speed(store.totalSpeed))")
+                HStack(spacing: 4) {
+                    Image(nsImage: MenuBarIcon.image(filled: true, dot: dot))
+                    Text(Format.speed(store.totalSpeed))
+                }
             } else {
                 Image(nsImage: MenuBarIcon.image(filled: false, dot: dot))
             }
