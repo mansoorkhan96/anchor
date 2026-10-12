@@ -45,8 +45,9 @@ struct DownloadListView: View {
                 } else if !filter.isTidy, CleanupBanner.isVisible(cleanup: cleanup, settings: store.settings) {
                     CleanupBanner()
                 }
-                if store.settings.showSpeedStrip, !filter.isTidy {
+                if store.settings.showSpeedStrip, !filter.isTidy, store.activeCount > 0 {
                     ThroughputCard()
+                        .transition(.opacity.combined(with: .move(edge: .top)))
                 }
                 if items.isEmpty {
                     switch filter {
@@ -81,6 +82,7 @@ struct DownloadListView: View {
             .padding(.bottom, 84)
             .animation(.snappy(duration: 0.25), value: items.map(\.id))
             .animation(.snappy(duration: 0.25), value: store.clipboardSuggestion)
+            .animation(.snappy(duration: 0.25), value: store.activeCount > 0)
         }
         .overlay(alignment: .bottom) {
             ZStack {
