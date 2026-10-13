@@ -101,6 +101,10 @@ struct DetailsPanel: View {
     private var kindLine: String {
         if let files = item.files { return "Torrent · \(files.count) file\(files.count == 1 ? "" : "s")" }
         if item.kind == .torrent { return "Torrent" }
+        if item.kind == .media {
+            let kind = item.mediaQuality?.isAudio == true ? "Audio" : "Video"
+            return [kind, item.mediaInfo?.extractor ?? item.url.host()].compactMap { $0 }.joined(separator: " · ")
+        }
         return item.url.host() ?? item.category.title
     }
 }
@@ -134,7 +138,7 @@ private struct GeneralDetails: View {
                 row("Status") { StatusPill(state: item.state, compact: true).opacity(item.state == .downloading ? 0 : 1)
                     .overlay(alignment: .leading) {
                         if item.state == .downloading {
-                            Text("Downloading · \(Format.speed(item.speed))").font(.system(size: 12.5)).foregroundStyle(Color.anchorText)
+                            Text(item.mediaPhase?.detail ?? "Downloading · \(Format.speed(item.speed))").font(.system(size: 12.5)).foregroundStyle(Color.anchorText)
                         }
                     }
                 }
@@ -173,7 +177,12 @@ private struct GeneralDetails: View {
                 if let done = item.completedAt {
                     row("Finished") { value(done.formatted(date: .abbreviated, time: .shortened)) }
                 }
-                row(item.kind == .torrent ? "Peers" : "Connections") { value("\(item.connections)") }
+                if item.kind == .media {
+                    if let quality = item.mediaQuality { row("Quality") { value(quality.title + (item.mediaConvertHeight != nil ? " (Convert to MP4)" : "")) } }
+                    if let title = item.mediaInfo?.title { row("Title") { value(title) } }
+                } else {
+                    row(item.kind == .torrent ? "Peers" : "Connections") { value("\(item.connections)") }
+                }
                 if item.kind == .http {
                     row("Resumable") { value(item.supportsRanges ? "Yes" : "No") }
                 }
