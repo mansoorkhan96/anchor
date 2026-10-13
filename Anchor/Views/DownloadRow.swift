@@ -41,12 +41,24 @@ struct DownloadRow: View {
                         .foregroundStyle(Color.anchorMuted)
                         .help("Kept: never suggested for cleanup or archived")
                 }
-                VStack(alignment: .leading, spacing: 1) {
-                    Text(item.fileName)
-                        .font(.system(size: 13, weight: .medium))
-                        .foregroundStyle(Color.anchorText)
-                        .lineLimit(1)
-                        .truncationMode(.middle)
+                VStack(alignment: .leading, spacing: 4) {
+                    HStack(spacing: 8) {
+                        Text(item.fileName)
+                            .font(.system(size: 13, weight: .medium))
+                            .foregroundStyle(Color.anchorText)
+                            .lineLimit(1)
+                            .truncationMode(.middle)
+                        Spacer(minLength: 4)
+                        Text(sizeText)
+                            .font(.system(size: 12).monospacedDigit())
+                            .foregroundStyle(item.state.isFailed ? Color.anchorDanger : Color.anchorMuted2)
+                            .lineLimit(1)
+                            .truncationMode(.tail)
+                            .frame(maxWidth: 260, alignment: .trailing)
+                            .fixedSize(horizontal: !item.state.isFailed, vertical: false)
+                            .help(item.state.isFailed ? sizeText : "")
+                    }
+                    StatusLine(item: item)
                     if let note {
                         Text(note)
                             .font(.system(size: 11.5))
@@ -56,25 +68,9 @@ struct DownloadRow: View {
                 }
             }
             .frame(maxWidth: .infinity, alignment: .leading)
-
-            CategoryTag(item: item)
-
-            speedColumn
-                .frame(width: 84, alignment: .trailing)
-            Text(percentText)
-                .font(.system(size: 12).monospacedDigit())
-                .foregroundStyle(Color.anchorMuted)
-                .frame(width: 38, alignment: .trailing)
-            Text(sizeText)
-                .font(.system(size: 12).monospacedDigit())
-                .foregroundStyle(item.state.isFailed ? Color.anchorDanger : Color.anchorMuted2)
-                .lineLimit(1)
-                .truncationMode(.tail)
-                .frame(width: 120, alignment: .trailing)
-                .help(item.state.isFailed ? sizeText : "")
         }
         .padding(.horizontal, 12)
-        .frame(height: note == nil ? 40 : 50)
+        .frame(height: 40 + (ProgressStatus(item: item).stage() == nil ? 0 : 12) + (note == nil ? 0 : 12))
         .background(background, in: .rect(cornerRadius: 8))
         .overlay(RoundedRectangle(cornerRadius: 8).strokeBorder(isSelected ? Color.anchorAccentEdge : .clear, lineWidth: 1))
         // Anywhere on the row except its buttons: one click shows details, a double click opens or pauses/resumes.
@@ -91,34 +87,10 @@ struct DownloadRow: View {
         .contextMenu { menu }
     }
 
-    /// HTTP: the download speed. Torrents: download and upload speeds on two lines, or only upload while seeding.
-    @ViewBuilder private var speedColumn: some View {
-        if item.kind == .torrent, item.state == .downloading || item.seeding == true {
-            VStack(alignment: .trailing, spacing: 1) {
-                if item.state == .downloading {
-                    SpeedLabel(symbol: "arrow.down", speed: item.speed, color: .anchorAccentStrong)
-                        .help("Downloading")
-                }
-                SpeedLabel(symbol: "arrow.up", speed: item.uploadSpeed, color: .anchorSuccess)
-                    .help(item.seeding == true ? "Seeding · \(Format.bytes(item.uploadedBytes)) uploaded" : "Uploading to other peers")
-            }
-        } else {
-            Text(item.state == .downloading ? Format.speed(item.speed) : "")
-                .font(.system(size: 12, weight: .semibold).monospacedDigit())
-                .foregroundStyle(Color.anchorAccentStrong)
-                .contentTransition(.numericText())
-        }
-    }
-
     private var background: Color {
         if isSelected { return .anchorAccentWash }
         if isFocused { return .anchorField }
         return hovering ? .anchorCard : .clear
-    }
-
-    private var percentText: String {
-        guard !item.state.isFinished, item.totalBytes != nil else { return "" }
-        return "\(Int(item.progress * 100))%"
     }
 
     private var sizeText: String {
@@ -139,11 +111,9 @@ struct DownloadRow: View {
         case .downloading, .connecting, .queued:
             IconButton(symbol: "pause.fill", label: "Pause", tint: item.stateColor,
                        fill: item.stateColor.opacity(0.12), size: 26, glyphScale: 0.45) { store.toggle(item.id) }
-                .overlay(ProgressRing(item: item))
         case .paused:
             IconButton(symbol: "play.fill", label: "Resume", tint: item.stateColor,
                        fill: item.stateColor.opacity(0.12), size: 26, glyphScale: 0.45) { store.toggle(item.id) }
-                .overlay(ProgressRing(item: item))
         case .failed:
             IconButton(symbol: "arrow.clockwise", label: "Retry", tint: .anchorDanger, fill: .anchorDangerWash, size: 26) { store.retry(item.id) }
         case .completed:
@@ -194,7 +164,7 @@ struct DownloadRow: View {
                 }
             }
         }
-        if item.files != nil || item.kind == .http {
+        if item.files != nil || item.kind != .torrent {
             Button("Show Details") { onFocus() }
         }
         if item.state.isFinished {
@@ -220,7 +190,7 @@ struct DownloadRow: View {
 }
 
 extension DownloadItem {
-    /// The state's color, used by the progress ring on Pause/Resume buttons.
+    /// The state's color, used by the Pause/Resume buttons and the progress line.
     var stateColor: Color {
         switch state {
         case .downloading: kind == .torrent ? .anchorTorrent : .anchorAccent
@@ -228,31 +198,6 @@ extension DownloadItem {
         case .paused: .anchorIdle
         default: .anchorQueued
         }
-    }
-}
-
-/// A ring around a Pause/Resume button that fills with progress, in the state's color.
-/// Both strokes sit flush with the button's outer edge and grow inward. Dashed while queued or connecting.
-struct ProgressRing: View {
-    let item: DownloadItem
-    private let track: CGFloat = 1.5
-    private let arc: CGFloat = 2.5
-
-    var body: some View {
-        let color = item.stateColor
-        let dashed = item.state == .queued || item.state == .connecting
-        ZStack {
-            Circle()
-                .stroke(color.opacity(0.25), style: StrokeStyle(lineWidth: track, dash: dashed ? [2.5, 2] : []))
-                .padding(track / 2)
-            Circle()
-                .trim(from: 0, to: min(1, max(0, item.progress)))
-                .stroke(color, style: StrokeStyle(lineWidth: arc, lineCap: .round))
-                .rotationEffect(.degrees(-90))
-                .padding(arc / 2)
-                .animation(.linear(duration: 0.4), value: item.progress)
-        }
-        .allowsHitTesting(false)
     }
 }
 
@@ -370,21 +315,161 @@ struct SpeedLimitMenuItems: View {
     }
 }
 
-/// A small arrow and speed, used for a torrent's download and upload rates.
-private struct SpeedLabel: View {
-    let symbol: String
-    let speed: Double
-    let color: Color
+/// The line under a download's name, in the main window and the menu bar: the stage chip, a thin bar and the
+/// numbers. Nothing once the download has finished. `compact` (the menu bar) shortens the wording.
+struct StatusLine: View {
+    let item: DownloadItem
+    var compact = false
 
     var body: some View {
-        HStack(spacing: 3) {
-            Image(systemName: symbol)
-                .font(.system(size: 8.5, weight: .bold))
-            Text(Format.speed(speed))
-                .font(.system(size: 11, weight: .semibold).monospacedDigit())
-                .contentTransition(.numericText())
+        let status = ProgressStatus(item: item)
+        if let stage = status.stage(short: compact) {
+            HStack(spacing: 8) {
+                StageChip(text: stage, status: status, compact: true)
+                if status.showsBar {
+                    ThinBar(status: status)
+                } else {
+                    Spacer(minLength: 0)
+                }
+                let detail = compact ? status.compactDetail : status.detail
+                if !detail.isEmpty {
+                    Text(detail)
+                        .font(.system(size: 11).monospacedDigit())
+                        .foregroundStyle(Color.anchorMuted2)
+                        .lineLimit(1)
+                        .fixedSize()
+                        .contentTransition(.numericText())
+                }
+            }
+            .help(item.mediaPhase?.detail ?? "")
         }
-        .foregroundStyle(color)
-        .lineLimit(1)
+    }
+}
+
+/// What a download is doing, worded and colored the same in the main window and the menu bar.
+struct ProgressStatus {
+    let item: DownloadItem
+
+    /// nil once finished. `short` trims "Converting to MP4" for narrow places.
+    func stage(short: Bool = false) -> String? {
+        if item.seeding == true { return "Seeding" }
+        switch item.state {
+        case .completed: return nil
+        case .failed: return "Failed"
+        case .queued: return "Queued"
+        case .connecting: return "Connecting"
+        case .paused:
+            switch item.mediaPhase {
+            case .merging where !short: return "Merging paused"
+            case .converting where !short: return "Conversion paused"
+            default: return "Paused"
+            }
+        case .downloading:
+            switch item.mediaPhase {
+            case .merging: return "Merging"
+            case .converting: return short ? "Converting" : "Converting to MP4"
+            case .processing: return "Processing"
+            case nil: return "Downloading"
+            }
+        }
+    }
+
+    var color: Color {
+        if item.seeding == true { return .anchorTorrent }
+        switch item.state {
+        case .failed: return .anchorDanger
+        default: return item.stateColor
+        }
+    }
+
+    var ink: Color {
+        switch item.state {
+        case .failed: .anchorDanger
+        case .downloading where item.kind == .torrent: .anchorSuccess
+        case .downloading, .connecting: .anchorAccentInk
+        case .paused: .anchorIdleInk
+        default: item.seeding == true ? .anchorSuccess : .anchorMuted2
+        }
+    }
+
+    var fraction: Double { item.mediaPhase == .merging ? 1 : min(1, max(0, item.progress)) }
+    var dimmed: Bool { item.mediaPhase == .merging }
+    var showsBar: Bool { item.seeding != true && !item.state.isFailed && item.state != .queued }
+
+    private var percent: String? {
+        let converting = item.mediaPhase.map { if case .converting(_?, _) = $0 { true } else { false } } ?? false
+        return (item.totalBytes ?? 0) > 0 || converting ? "\(Int(item.progress * 100))%" : nil
+    }
+
+    private var silent: Bool { item.state.isFailed || item.state == .queued }
+
+    /// "38% · 8.4 MB/s", "42% · 1m 12s left" while converting, the upload speed while seeding.
+    var detail: String {
+        if item.seeding == true { return "↑ \(Format.speed(item.uploadSpeed))" }
+        guard !silent else { return "" }
+        var parts: [String] = []
+        switch item.mediaPhase {
+        case .merging, .processing:
+            break
+        case .converting(_, let eta):
+            parts = [percent, item.state == .paused ? nil : eta.map { "\(Format.duration($0)) left" }].compactMap { $0 }
+        case nil:
+            parts = [percent].compactMap { $0 }
+            if item.state == .downloading {
+                if item.kind == .torrent {
+                    parts.append("↓ \(Format.speed(item.speed))")
+                    if item.uploadSpeed > 0 { parts.append("↑ \(Format.speed(item.uploadSpeed))") }
+                } else {
+                    parts.append(Format.speed(item.speed))
+                }
+            }
+        }
+        return parts.joined(separator: " · ")
+    }
+
+    /// The menu bar's shorter version: the percentage, plus the time left while converting.
+    var compactDetail: String {
+        if item.seeding == true { return "↑ \(Format.speed(item.uploadSpeed))" }
+        guard !silent else { return "" }
+        if case .converting(_, let eta?) = item.mediaPhase, item.state != .paused {
+            return [percent, Format.duration(eta)].compactMap { $0 }.joined(separator: " · ")
+        }
+        if item.mediaPhase == .merging || item.mediaPhase == .processing { return "" }
+        return percent ?? ""
+    }
+}
+
+/// The stage name on a tinted background.
+struct StageChip: View {
+    let text: String
+    let status: ProgressStatus
+    var compact = false
+
+    var body: some View {
+        Text(text)
+            .font(.system(size: compact ? 10.5 : 11.5, weight: .semibold))
+            .foregroundStyle(status.ink)
+            .lineLimit(1)
+            .fixedSize()
+            .padding(.horizontal, compact ? 6 : 8)
+            .padding(.vertical, compact ? 1 : 2)
+            .background(status.color.opacity(0.12), in: .rect(cornerRadius: compact ? 5 : 6))
+    }
+}
+
+/// A 3 pt progress bar in the stage's color.
+struct ThinBar: View {
+    let status: ProgressStatus
+
+    var body: some View {
+        GeometryReader { proxy in
+            ZStack(alignment: .leading) {
+                Capsule().fill(Color.anchorTrack)
+                Capsule().fill(status.color.opacity(status.dimmed ? 0.4 : 1))
+                    .frame(width: proxy.size.width * status.fraction)
+            }
+        }
+        .frame(height: 3)
+        .animation(.linear(duration: 0.4), value: status.fraction)
     }
 }
