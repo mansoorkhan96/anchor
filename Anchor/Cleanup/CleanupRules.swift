@@ -31,8 +31,8 @@ enum CleanupRules {
     static func reason(for item: DownloadItem, now: Date, days: Int, current: FileStamp?,
                        lastUsed: Date?, sharedPath: Bool) -> CleanupReason? {
         guard item.state == .completed,
-              // Torrents qualify only when their payload is a single regular file (a stamp exists).
-              item.kind == .http || item.kind == .torrent,
+              // Torrents qualify only when their payload is a single regular file (a stamp exists); media items are one file.
+              item.kind == .http || item.kind == .torrent || item.kind == .media,
               item.seeding != true, item.keep != true, item.pendingMove == nil,
               let current, let stamp = item.stamp, current == stamp,
               !sharedPath, days > 0 else { return nil }
