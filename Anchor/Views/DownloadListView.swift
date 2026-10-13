@@ -115,7 +115,13 @@ struct DownloadListView: View {
         }
         .overlay(alignment: .trailing) {
             ZStack {
-                if let id = store.focusedID, let item = store.item(id) {
+                // Details and Video Tools share the slot: opening one closes the other.
+                if ToolManager.shared.panelOpen {
+                    VideoToolsPanel(width: $panelWidth) {
+                        withAnimation(.snappy(duration: 0.25)) { ToolManager.shared.togglePanel() }
+                    }
+                    .transition(.move(edge: .trailing))
+                } else if let id = store.focusedID, let item = store.item(id) {
                     DetailsPanel(item: item, width: $panelWidth) {
                         withAnimation(.snappy(duration: 0.25)) { store.focusedID = nil }
                     }
@@ -123,6 +129,7 @@ struct DownloadListView: View {
                 }
             }
             .animation(.snappy(duration: 0.25), value: store.focusedID)
+            .animation(.snappy(duration: 0.25), value: ToolManager.shared.panelOpen)
         }
         .safeAreaInset(edge: .top, spacing: 0) {
             HeaderBar(title: filter.title, subtitle: subtitle, search: $search,
@@ -145,6 +152,9 @@ struct DownloadListView: View {
             spaceMonitor = nil
         }
         .onChange(of: filter) { selection.removeAll() }
+        .onChange(of: store.focusedID) { _, id in
+            if id != nil, ToolManager.shared.panelOpen { ToolManager.shared.togglePanel() }
+        }
         // Tidy lists change with each scan; keep the selection to rows that are still listed.
         .onChange(of: filter.isTidy ? visible.map(\.id) : []) { _, ids in
             if filter.isTidy { selection.formIntersection(ids) }
@@ -387,6 +397,8 @@ private struct HeaderBar: View {
             }
             .buttonStyle(.plain)
             .help("New download (⌘N)")
+
+            VideoToolsButton()
 
             Button {
                 openSettings()
