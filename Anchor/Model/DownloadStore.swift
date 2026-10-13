@@ -42,7 +42,7 @@ enum SidebarFilter: Hashable {
         case .queued: item.state == .queued || item.state == .paused
         case .completed: item.state == .completed
         case .failed: item.state.isFailed
-        case .category(let c): item.kind == .http && item.category == c
+        case .category(let c): item.kind != .torrent && item.category == c
         case .torrents: item.kind == .torrent
         case .cleanup, .archive: false
         }
@@ -131,6 +131,8 @@ final class DownloadStore {
     }
 
     var activeCount: Int { items.count { $0.state.isActive } }
+    /// Running downloads plus media processes still shutting down: those keep their slot until they exit.
+    private var busySlots: Int { activeCount + MediaJobs.shared.stopping.count { item($0)?.state.isActive != true } }
     var queuedCount: Int { items.count { $0.state == .queued } }
 
     var remainingBytes: Int64 {
@@ -252,6 +254,23 @@ final class DownloadStore {
         if startNow { startOrQueue(item.id) } else { schedule() }
     }
 
+    /// Adds a video page reviewed in the New Download window; yt-dlp downloads it.
+    func addMedia(_ url: URL, name: String, directory: URL?, quality: MediaQuality, info: MediaInfo?,
+                  convertHeight: Int? = nil, startNow: Bool, openWhenDone: Bool) {
+        let folder = directory ?? settings.folder(for: quality.category)
+        let stem = MediaNaming.stem(FileNaming.sanitize(name.isEmpty ? (info?.title ?? "Video") : name))
+        var item = DownloadItem(url: url, fileName: uniqueName("\(stem).\(quality.expectedExtension)", in: folder),
+                                directory: folder, category: quality.category, kind: .media)
+        item.mediaQuality = quality
+        item.mediaInfo = info
+        item.mediaConvertHeight = quality.isAudio ? nil : convertHeight
+        item.openWhenDone = openWhenDone
+        items.insert(item, at: 0)
+        bumpCleanupRevision()
+        markDirty()
+        if startNow { startOrQueue(item.id) } else { schedule() }
+    }
+
     private func uniqueName(_ name: String, in folder: URL, ignoringFinished: Bool = false) -> String {
         let taken = Set(items.filter { $0.directory == folder && !$0.state.isFinished }.map(\.fileName))
         guard ignoringFinished else { return FileNaming.unique(name, in: folder, taken: taken) }
@@ -279,6 +298,21 @@ final class DownloadStore {
             engine.start()
         case .torrent:
             Task { await startTorrent(item) }
+        case .media:
+            items[index].mediaPhase = nil
+            // At launch the tools are still being looked up: wait in the queue, ToolManager schedules again after.
+            guard ToolManager.shared.refreshed else {
+                items[index].state = .queued
+                return markDirty()
+            }
+            guard let tools = ToolManager.shared.paths else {
+                items[index].state = .failed("Video tools aren't installed. Open Video Tools to install them.")
+                return markDirty()
+            }
+            let limit = MediaCommand.limit(global: settings.effectiveSpeedLimit, itemKB: item.speedLimitKB)
+            MediaJobs.shared.start(item, tools: tools, limit: limit) { id, event in
+                DownloadStore.shared.handleMedia(id, event)
+            }
         }
         markDirty()
     }
@@ -460,11 +494,17 @@ final class DownloadStore {
         if item.kind == .torrent, let gid = item.torrentGID {
             Task { await Aria2.shared.pause(gid) }
         }
+        // Merging or converting: freeze it so Resume continues where it stopped (stopping would start it over).
+        let frozen = item.kind == .media && item.mediaPhase != nil && MediaJobs.shared.suspend(id)
+        if item.kind == .media, !frozen {
+            MediaJobs.shared.stop(id) { DownloadStore.shared.schedule() }
+        }
         if item.state.isActive || item.state == .queued {
             mutate(id) {
                 $0.state = .paused
                 $0.speed = 0
                 $0.connections = 0
+                if !frozen { $0.mediaPhase = nil }
             }
         }
         schedule()
@@ -472,12 +512,16 @@ final class DownloadStore {
 
     func resume(_ id: UUID) {
         guard let item = item(id), !item.state.isActive, !item.state.isFinished else { return }
+        if item.kind == .media, MediaJobs.shared.resumeSuspended(id) {
+            mutate(id) { $0.state = .downloading }
+            return
+        }
         startOrQueue(id)
     }
 
     /// Starts now if there's a free slot under "Simultaneous downloads", otherwise joins the back of the queue.
     private func startOrQueue(_ id: UUID) {
-        if activeCount < settings.maxConcurrent {
+        if busySlots < settings.maxConcurrent {
             start(id)
         } else {
             mutate(id) {
@@ -529,6 +573,9 @@ final class DownloadStore {
                     try? fm.trashItem(at: url, resultingItemURL: nil)
                 }
             }
+            // Unfinished media: stop yt-dlp, wait for it, then delete its working folder (both remove variants).
+            let unfinishedMedia = item.kind == .media && !item.state.isFinished
+            if item.kind == .media { MediaJobs.shared.discard(id) }
             if item.kind == .torrent, let gid = item.torrentGID {
                 liveGIDs.remove(gid)
                 // Stop aria2 first: it rewrites its .aria2 progress file while shutting a torrent down.
@@ -536,7 +583,7 @@ final class DownloadStore {
                     await Aria2.shared.remove(gid)
                     if deleteFiles { trash() }
                 }
-            } else if deleteFiles {
+            } else if deleteFiles, !unfinishedMedia {
                 trash()
             }
             if !deleteFiles, !item.state.isFinished, item.kind == .http {
@@ -685,6 +732,71 @@ final class DownloadStore {
         }
     }
 
+    // MARK: Media events
+
+    private func handleMedia(_ id: UUID, _ event: MediaEvent) {
+        guard let item = item(id), item.state.isActive else { return }
+        switch event {
+        case .progress(let received, let total, let speed):
+            mutate(id, dirty: false) {
+                if $0.state == .connecting { $0.state = .downloading }
+                $0.receivedBytes = received
+                if let total { $0.totalBytes = total }
+                $0.speed = speed
+                $0.mediaPhase = nil
+            }
+        case .phase(let phase):
+            mutate(id, dirty: false) {
+                $0.state = .downloading
+                $0.mediaPhase = phase
+                $0.speed = 0
+            }
+        case .finished(let path):
+            mutate(id, dirty: false) {
+                if $0.mediaPhase == nil { $0.mediaPhase = .processing }
+                $0.speed = 0
+            }
+            let taken = Set(items.filter { $0.id != id && $0.directory == item.directory && !$0.state.isFinished }.map(\.fileName))
+            let work = MediaJobs.workDirectory(for: id)
+            let (stem, folder) = ((item.fileName as NSString).deletingPathExtension, item.directory)
+            Task.detached(priority: .userInitiated) {
+                let result = Result { try MediaFinisher.finish(printedPath: path, workDirectory: work, stem: stem, into: folder, taken: taken) }
+                await MainActor.run { DownloadStore.shared.finishMedia(id, result) }
+            }
+        case .failed(let message):
+            mutate(id) {
+                $0.state = .failed(message)
+                $0.speed = 0
+                $0.mediaPhase = nil
+            }
+            notify(title: "Download failed", body: "\(item.fileName): \(message)")
+            schedule()
+        }
+    }
+
+    private func finishMedia(_ id: UUID, _ result: Result<String, Error>) {
+        guard let item = item(id) else { return }
+        switch result {
+        case .success(let name):
+            let size = (try? FileManager.default.attributesOfItem(atPath: item.directory.appending(path: name).path))?[.size] as? NSNumber
+            mutate(id) {
+                $0.fileName = name
+                $0.mediaPhase = nil
+                if let size = size?.int64Value {
+                    $0.totalBytes = size
+                    $0.receivedBytes = size
+                }
+            }
+            complete(id)
+        case .failure(let error):
+            mutate(id) {
+                $0.state = .failed((error as? LocalizedError)?.errorDescription ?? error.localizedDescription)
+                $0.mediaPhase = nil
+            }
+            schedule()
+        }
+    }
+
     private func complete(_ id: UUID) {
         mutate(id) {
             $0.state = .completed
@@ -732,7 +844,7 @@ final class DownloadStore {
 
     /// Starts queued downloads while there are free slots.
     func schedule() {
-        var active = activeCount
+        var active = busySlots
         let waiting = items.filter { $0.state == .queued }
             .sorted {
                 let (p0, p1) = (($0.priority ?? .normal).rawValue, ($1.priority ?? .normal).rawValue)
@@ -759,7 +871,7 @@ final class DownloadStore {
                 total += $0.speed
             }
         }
-        total += items.filter { $0.kind == .torrent && $0.state.isActive }.reduce(0) { $0 + $1.speed }
+        total += items.filter { $0.kind != .http && $0.state.isActive }.reduce(0) { $0 + $1.speed }
         totalSpeed = total
         speedHistory.append(total)
         if speedHistory.count > Self.historyLength { speedHistory.removeFirst(speedHistory.count - Self.historyLength) }
@@ -1021,6 +1133,10 @@ final class DownloadStore {
             mutate(id) { $0.state = .queued }
         }
         engines.removeAll()
+        MediaJobs.shared.shutdown()
+        for item in items where item.kind == .media && item.state.isActive {
+            mutate(item.id) { $0.state = .queued }
+        }
         // Drains queued writes first, so the newest state is the last one on disk.
         if let data = try? JSONEncoder().encode(items) {
             _ = writer.writeNowSync(data, seq: tracker.beginSave().seq)
