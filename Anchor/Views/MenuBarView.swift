@@ -172,17 +172,22 @@ private struct RecentRow: View {
     var body: some View {
         HStack(spacing: 10) {
             action
-            Text(item.fileName)
-                .font(.system(size: 12.5, weight: .semibold))
-                .foregroundStyle(Color.anchorText)
-                .lineLimit(1)
-                .truncationMode(.middle)
-            Spacer(minLength: 4)
-            Text(sizeText)
-                .font(.system(size: 11.5, weight: .medium).monospacedDigit())
-                .foregroundStyle(Color.anchorMuted2)
-                .lineLimit(1)
-                .fixedSize()
+            VStack(alignment: .leading, spacing: 5) {
+                HStack(spacing: 8) {
+                    Text(item.fileName)
+                        .font(.system(size: 12.5, weight: .semibold))
+                        .foregroundStyle(Color.anchorText)
+                        .lineLimit(1)
+                        .truncationMode(.middle)
+                    Spacer(minLength: 4)
+                    Text(sizeText)
+                        .font(.system(size: 11.5, weight: .medium).monospacedDigit())
+                        .foregroundStyle(Color.anchorMuted2)
+                        .lineLimit(1)
+                        .fixedSize()
+                }
+                StatusLine(item: item, compact: true)
+            }
             DeleteButton(label: "Delete \(item.fileName)", makeMenu: deleteMenu)
         }
         .padding(.horizontal, 6)
@@ -199,11 +204,9 @@ private struct RecentRow: View {
         case .downloading, .connecting, .queued:
             IconButton(symbol: "pause.fill", label: "Pause", tint: item.stateColor,
                        fill: item.stateColor.opacity(0.12), size: 26, glyphScale: 0.45) { store.toggle(item.id) }
-                .overlay(ProgressRing(item: item))
         case .paused:
             IconButton(symbol: "play.fill", label: "Resume", tint: item.stateColor,
                        fill: item.stateColor.opacity(0.12), size: 26, glyphScale: 0.45) { store.toggle(item.id) }
-                .overlay(ProgressRing(item: item))
         case .failed:
             IconButton(symbol: "arrow.clockwise", label: "Retry", tint: .anchorDanger, fill: .anchorDangerWash, size: 26) { store.retry(item.id) }
         case .completed:
