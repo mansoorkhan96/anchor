@@ -15,6 +15,8 @@ struct Segment: Codable, Hashable, Sendable {
 enum DownloadKind: String, Codable, Sendable {
     case http
     case torrent
+    /// A video or audio page downloaded with yt-dlp.
+    case media
 }
 
 enum DownloadState: Codable, Hashable, Sendable {
@@ -92,6 +94,12 @@ struct DownloadItem: Codable, Identifiable, Hashable, Sendable {
     /// Extra request headers forwarded from the browser (cookies, referer, user agent).
     var headers: [String: String] = [:]
 
+    // Media fields (optional, so libraries saved before video downloads still load)
+    var mediaQuality: MediaQuality?
+    var mediaInfo: MediaInfo?
+    /// Set when the chosen quality is only available as VP9 or AV1: the video's shorter side, for the H.264 bitrate.
+    var mediaConvertHeight: Int?
+
     // Torrent fields
     var torrentGID: String?
     var torrentFile: URL?
@@ -101,12 +109,16 @@ struct DownloadItem: Codable, Identifiable, Hashable, Sendable {
     // Live, not persisted
     var speed: Double = 0
     var connections: Int = 0
+    /// Media: merging, converting or otherwise finishing up after the download; nil while downloading.
+    var mediaPhase: MediaPhase?
+    var mediaProcessing: Bool { mediaPhase != nil }
 
     enum CodingKeys: String, CodingKey {
         case id, kind, url, fileName, directory, category, totalBytes, receivedBytes, segments
         case supportsRanges, validator, state, createdAt, completedAt, openWhenDone, headers, nameFromServer, overwrite, queuedAt, priority, files, appliedSelection, speedLimitKB, seeding
         case torrentGID, torrentFile
         case keep, stamp, stampIsBaseline, openedAt, archivedAt, archivedFrom, archivedName, pendingMove, installer
+        case mediaQuality, mediaInfo, mediaConvertHeight
     }
 
     init(url: URL, fileName: String, directory: URL, category: FileCategory, kind: DownloadKind = .http) {
@@ -123,11 +135,13 @@ struct DownloadItem: Codable, Identifiable, Hashable, Sendable {
     static let partialSuffix = ".anchor-part"
 
     var progress: Double {
+        if case .converting(let fraction?, _) = mediaPhase { return fraction }
         guard let totalBytes, totalBytes > 0 else { return 0 }
         return min(1, Double(receivedBytes) / Double(totalBytes))
     }
 
     var eta: TimeInterval? {
+        if case .converting(_, let eta) = mediaPhase { return eta }
         guard let totalBytes, speed > 1, state == .downloading else { return nil }
         return Double(totalBytes - receivedBytes) / speed
     }
