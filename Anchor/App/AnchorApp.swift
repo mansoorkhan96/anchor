@@ -149,6 +149,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
             BrowserBridge.shared.start()
             NativeHost.register()
             ClipboardWatcher.shared.start()
+            ToolManager.shared.start()
             // Switching to another app (⌘-Tab, Dock, clicking a window) closes the menu bar popover.
             NSWorkspace.shared.notificationCenter.addObserver(
                 forName: NSWorkspace.didActivateApplicationNotification, object: nil, queue: .main
