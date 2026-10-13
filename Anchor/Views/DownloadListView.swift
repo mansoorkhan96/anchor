@@ -91,7 +91,7 @@ struct DownloadListView: View {
                                  allSelected: selection.count == items.count,
                                  selectAll: { selection = Set(items.map(\.id)) },
                                  clear: { selection.removeAll() },
-                                 move: moveSelection,
+                                 move: moveAction,
                                  delete: { confirmDelete = true },
                                  toggle: toggleSelection,
                                  anyRunning: selectionRunning,
@@ -265,16 +265,29 @@ struct DownloadListView: View {
         }
     }
 
+    /// The selected downloads that have finished: the only ones Move applies to.
+    private var finishedSelection: Set<UUID> {
+        selection.filter { store.item($0)?.state.isFinished == true }
+    }
+
+    /// Move shows only when the selection has a finished download.
+    private var moveAction: (() -> Void)? {
+        finishedSelection.isEmpty ? nil : { moveSelection() }
+    }
+
+    /// Moves the finished downloads in the selection; unfinished ones are left where they are.
     private func moveSelection() {
+        let ids = finishedSelection
+        guard !ids.isEmpty else { return }
         let panel = NSOpenPanel()
         panel.canChooseDirectories = true
         panel.canChooseFiles = false
         panel.canCreateDirectories = true
         panel.prompt = "Move Here"
-        panel.message = "Choose a folder for \(selection.count) download\(selection.count == 1 ? "" : "s")"
+        panel.message = "Choose a folder for \(ids.count) download\(ids.count == 1 ? "" : "s")"
         panel.directoryURL = store.settings.downloadFolder
         guard panel.runModal() == .OK, let folder = panel.url else { return }
-        store.move(selection, to: folder)
+        store.move(ids, to: folder)
         selection.removeAll()
     }
 }
@@ -618,7 +631,8 @@ private struct SelectionBar: View {
     let allSelected: Bool
     let selectAll: () -> Void
     let clear: () -> Void
-    let move: () -> Void
+    /// nil hides Move: only finished downloads can be moved.
+    let move: (() -> Void)?
     let delete: () -> Void
     var toggle: (() -> Void)? = nil
     var anyRunning = false
@@ -654,7 +668,9 @@ private struct SelectionBar: View {
                               ink: anyRunning ? .anchorText : .anchorAccentStrong, wash: anyRunning ? .anchorField : .anchorAccentWash,
                               action: toggle)
                 }
-                BarButton(title: "Move", symbol: "folder", ink: .anchorText, wash: .anchorField, action: move)
+                if let move {
+                    BarButton(title: "Move", symbol: "folder", ink: .anchorText, wash: .anchorField, action: move)
+                }
                 BarButton(title: "Delete", symbol: "trash", ink: .anchorDanger, wash: .anchorDangerWash, action: delete)
             case .cleanup:
                 BarButton(title: "Keep", symbol: "pin", ink: .anchorText, wash: .anchorField, action: keep)
