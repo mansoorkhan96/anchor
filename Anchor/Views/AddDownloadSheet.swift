@@ -26,7 +26,17 @@ struct AddDownloadSheet: View {
     @State private var localTorrent: URL?
     @State private var torrentPriority: Priority = .normal
     @State private var added = false
+    // Video links: a known host or a page yt-dlp recognizes.
+    @State private var mediaCandidate = false
+    @State private var media: MediaProbeResult?
+    @State private var mediaProbing = false
+    @State private var quality: MediaQuality = .best
     @FocusState private var addressFocused: Bool
+
+    private var tools: ToolManager { .shared }
+    private var isMedia: Bool { mediaCandidate || media != nil }
+    /// Re-checks the link when the tools become ready, so a waiting video link gets probed.
+    private struct ProbeKey: Hashable { var address: String; var toolsReady: Bool }
 
     private var url: URL? {
         URL(string: address.trimmingCharacters(in: .whitespacesAndNewlines)).flatMap { $0.scheme == nil ? nil : $0 }
@@ -35,9 +45,21 @@ struct AddDownloadSheet: View {
     private var isTorrent: Bool {
         isMagnet || url?.pathExtension.lowercased() == "torrent" || probe?.mimeType == "application/x-bittorrent"
     }
-    private var targetFolder: URL { folder ?? store.settings.folder(for: category) }
+    /// "1080p · about 444 MB" when yt-dlp gave sizes, otherwise just the quality; "(Convert to MP4)" when the
+    /// quality only exists as VP9 or AV1 and Anchor re-encodes it so QuickTime can play it.
+    private func qualityLabel(_ option: MediaQuality) -> String {
+        var label = option.title
+        if option == .playable, let height = media?.chosenVideo(.playable)?.height { label = "\(height)p, no conversion" }
+        if let size = media?.estimatedSize(option) { label += " · about \(Format.bytes(size))" }
+        if media?.conversionHeight(option) != nil { label += " (Convert to MP4)" }
+        return label
+    }
+
+    private var targetFolder: URL { folder ?? store.settings.folder(for: isMedia ? quality.category : category) }
     private var canAdd: Bool {
         guard let scheme = url?.scheme?.lowercased() else { return false }
+        // Video links wait for the tools and for yt-dlp's answer.
+        if isMedia, media == nil || !tools.isReady { return false }
         return ["http", "https", "magnet", "file"].contains(scheme)
     }
 
@@ -101,8 +123,43 @@ struct AddDownloadSheet: View {
                         RoundedRectangle(cornerRadius: 14)
                             .strokeBorder(Color.anchorLine, style: StrokeStyle(lineWidth: 1.5, dash: [5, 4]))
                     )
+            } else if isMedia {
+                MediaCard(fileName: $fileName, result: media, probing: mediaProbing, quality: quality)
             } else {
                 fileCard
+            }
+
+            if isMedia {
+                field("Quality") {
+                    Menu {
+                        ForEach(media?.availableQualities ?? [.best, .audio]) { option in
+                            Button {
+                                quality = option
+                            } label: {
+                                if option == quality { Label(qualityLabel(option), systemImage: "checkmark") } else { Text(qualityLabel(option)) }
+                            }
+                        }
+                    } label: {
+                        HStack(spacing: 8) {
+                            Image(systemName: quality.isAudio ? "music.note" : "film")
+                                .font(.system(size: 12, weight: .semibold))
+                                .foregroundStyle(Color.anchorAccent)
+                            Text(qualityLabel(quality)).font(.system(size: 13)).foregroundStyle(Color.anchorText)
+                            Spacer(minLength: 4)
+                            Image(systemName: "chevron.up.chevron.down")
+                                .font(.system(size: 10, weight: .semibold))
+                                .foregroundStyle(Color.anchorMuted)
+                        }
+                        .fieldChrome()
+                        .contentShape(.rect)
+                    }
+                    .menuStyle(.button)
+                    .buttonStyle(.plain)
+                    .menuIndicator(.hidden)
+                    .onChange(of: media?.availableQualities ?? []) { _, options in
+                        if !options.isEmpty, !options.contains(quality) { quality = .best }
+                    }
+                }
             }
 
             if let files = prepared?.files {
@@ -148,7 +205,9 @@ struct AddDownloadSheet: View {
                     .buttonStyle(.plain)
                 }
 
-                if isTorrent {
+                if isMedia {
+                    EmptyView()
+                } else if isTorrent {
                     field("Priority") {
                         PriorityField(selection: $torrentPriority)
                     }
@@ -220,7 +279,7 @@ struct AddDownloadSheet: View {
             }
             addressFocused = address.isEmpty
         }
-        .task(id: address) { await runProbe() }
+        .task(id: ProbeKey(address: address, toolsReady: tools.isReady)) { await runProbe() }
         .onChange(of: folder) {
             guard let gid = prepared?.gid else { return }
             let target = targetFolder
@@ -308,6 +367,8 @@ struct AddDownloadSheet: View {
     private func runProbe() async {
         probe = nil
         probeError = nil
+        media = nil
+        mediaCandidate = false
         releasePrepared()
         guard let url, let scheme = url.scheme?.lowercased() else { return }
 
@@ -322,6 +383,19 @@ struct AddDownloadSheet: View {
 
         try? await Task.sleep(for: .milliseconds(350))
         guard !Task.isCancelled else { return }
+
+        // A known video site: without the tools, show what's needed and let the user start the install; then yt-dlp decides.
+        if MediaLinkDetector.isLikelyMedia(url) {
+            mediaCandidate = true
+            guard tools.isReady else {
+                tools.requestForVideo()
+                return
+            }
+            if await probeMedia(url) { return }
+            guard !Task.isCancelled else { return }
+            mediaCandidate = false
+        }
+
         setName(FileNaming.fileName(from: url))
         probing = true
         defer { probing = false }
@@ -330,10 +404,29 @@ struct AddDownloadSheet: View {
             guard !Task.isCancelled else { return }
             probe = result
             setName(result.fileName)
+            // A web page on another site: yt-dlp may still know it.
+            if result.mimeType == "text/html", tools.isReady, !MediaLinkDetector.isLikelyMedia(url) {
+                probing = false
+                if await probeMedia(url) { probe = nil }
+            }
         } catch is CancellationError {
         } catch {
             if !Task.isCancelled { probeError = (error as? LocalizedError)?.errorDescription ?? "Couldn't reach server" }
         }
+    }
+
+    /// Asks yt-dlp about the link; true (and the card filled in) when it is a video.
+    private func probeMedia(_ url: URL) async -> Bool {
+        guard let paths = tools.paths else { return false }
+        mediaProbing = true
+        defer { mediaProbing = false }
+        let outcome = await MediaProber.shared.probe(url, tools: paths)
+        guard !Task.isCancelled, case .media(let result) = outcome else { return false }
+        media = result
+        quality = result.defaultQuality
+        nameEdited = false
+        setName(FileNaming.sanitize(result.title ?? "Video"))
+        return true
     }
 
     /// Adds the torrent to aria2 paused and loads its file list for review.
@@ -434,6 +527,13 @@ struct AddDownloadSheet: View {
             added = true
             store.addPreparingTorrent(prepareTask, source: url, name: fileName, directory: targetFolder,
                                       priority: torrentPriority, startNow: startNow)
+            close()
+            return
+        }
+        if let media, let url {
+            added = true
+            store.addMedia(url, name: fileName.trimmingCharacters(in: .whitespaces), directory: targetFolder, quality: quality,
+                           info: media.info, convertHeight: media.conversionHeight(quality), startNow: startNow, openWhenDone: openWhenDone)
             close()
             return
         }
