@@ -610,40 +610,30 @@ final class DownloadStore {
         bumpCleanupRevision()
     }
 
-    /// Moves downloads (finished files or in-progress partials) to another folder.
+    /// Moves finished downloads to another folder. Unfinished ones (downloading, converting, paused, queued,
+    /// failed) are skipped and stay where they are.
     func move(_ ids: Set<UUID>, to folder: URL) {
         let fm = FileManager.default
-        var skipped: [String] = []
+        var failed: [String] = []
         defer { bumpCleanupRevision() }
         for id in CleanupRules.unlocked(ids, in: items) {
-            guard let item = item(id), item.directory.standardizedFileURL != folder.standardizedFileURL else { continue }
-            if item.kind == .torrent, !item.state.isFinished {
-                skipped.append(item.fileName)
-                continue
-            }
-            let wasActive = item.state.isActive
-            if wasActive { pause(id) }
-
+            guard let item = item(id), item.state.isFinished,
+                  item.directory.standardizedFileURL != folder.standardizedFileURL else { continue }
             let name = FileNaming.unique(item.fileName, in: folder)
             do {
-                if item.state.isFinished {
-                    if fm.fileExists(atPath: item.destination.path) {
-                        try fm.moveItem(at: item.destination, to: folder.appending(path: name))
-                    }
-                } else if fm.fileExists(atPath: item.partialFile.path) {
-                    try fm.moveItem(at: item.partialFile, to: folder.appending(path: name + DownloadItem.partialSuffix))
+                if fm.fileExists(atPath: item.destination.path) {
+                    try fm.moveItem(at: item.destination, to: folder.appending(path: name))
                 }
                 mutate(id) {
                     $0.directory = folder
                     $0.fileName = name
                 }
-                if wasActive { resume(id) }
             } catch {
-                skipped.append(item.fileName)
+                failed.append(item.fileName)
             }
         }
-        if !skipped.isEmpty {
-            alert = "Couldn't move: \(skipped.joined(separator: ", ")). Torrents can be moved once they finish."
+        if !failed.isEmpty {
+            alert = "Couldn't move: \(failed.joined(separator: ", "))."
         }
     }
 
