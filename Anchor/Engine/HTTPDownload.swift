@@ -45,8 +45,14 @@ final class HTTPDownload: NSObject, URLSessionDataDelegate, @unchecked Sendable 
     private var taskErrors: [ObjectIdentifier: Error] = [:]
     private var retries: [Int: Int] = [:]
     private var cooling: Set<Int> = []
-    /// Lowered when the server pushes back (429/503) so we stop opening more connections than it allows.
+    /// Lowered when the server pushes back (429/503) so we stop opening more connections than it allows; raised
+    /// again by one every 30 s without pushback.
     private var connectionCap: Int
+    private var lastPushback: ContinuousClock.Instant?
+    /// How long a 429/503 asked us to wait (Retry-After), by task.
+    private var retryAfter: [ObjectIdentifier: Double] = [:]
+    /// A server answered a range request with the whole file: the download continues as one stream.
+    private var rangesRejected = false
     private var fd: Int32 = -1
     private var stopped = false
     private var sampled: Int64 = 0
@@ -202,6 +208,10 @@ final class HTTPDownload: NSObject, URLSessionDataDelegate, @unchecked Sendable 
 
     private func fillSlots() {
         guard !stopped else { return }
+        if connectionCap < maxConnections, let last = lastPushback, ContinuousClock.now - last > .seconds(30) {
+            connectionCap += 1
+            lastPushback = .now
+        }
         while !freeSlots.isEmpty, tasks.count + cooling.count < connectionCap {
             var index = SegmentPlanner.nextPending(segments, busy: busy)
             if index == nil, supportsRanges {
@@ -286,9 +296,12 @@ final class HTTPDownload: NSObject, URLSessionDataDelegate, @unchecked Sendable 
             guard let http = response as? HTTPURLResponse, let entry = tasks[key] else { return .cancel }
             if !(200..<300).contains(http.statusCode) {
                 taskErrors[key] = DownloadError.badResponse(http.statusCode)
+                if let wait = Self.retryAfterSeconds(http.value(forHTTPHeaderField: "Retry-After")) { retryAfter[key] = wait }
                 return .cancel
             }
             if supportsRanges, http.statusCode != 206, segments[entry.segment].nextOffset != 0 || segments.count > 1 {
+                // The server ignored the Range header (some mirrors and CDNs do, even after saying they support it).
+                rangesRejected = true
                 taskErrors[key] = DownloadError.badResponse(http.statusCode)
                 return .cancel
             }
@@ -337,7 +350,12 @@ final class HTTPDownload: NSObject, URLSessionDataDelegate, @unchecked Sendable 
             guard let entry = tasks.removeValue(forKey: key) else { return }
             freeSlots.append(entry.slot)
             let taskError = taskErrors.removeValue(forKey: key)
+            let waitHint = retryAfter.removeValue(forKey: key)
             guard !stopped else { return }
+            if rangesRejected, supportsRanges {
+                switchToSingleStream()
+                return
+            }
 
             let index = entry.segment
             let streamEnded = error == nil && taskError == nil && totalBytes == nil
@@ -352,6 +370,7 @@ final class HTTPDownload: NSObject, URLSessionDataDelegate, @unchecked Sendable 
             let reason = taskError ?? error ?? DownloadError.badResponse(0)
             if case .badResponse(let code)? = taskError as? DownloadError, code == 429 || code == 503 {
                 connectionCap = max(1, min(connectionCap - 1, tasks.count + 1))
+                lastPushback = .now
             }
             if attempt > Self.maxRetries || (taskError as? DownloadError).map(Self.isPermanent) == true {
                 fatal = reason
@@ -359,7 +378,10 @@ final class HTTPDownload: NSObject, URLSessionDataDelegate, @unchecked Sendable 
             }
             if !supportsRanges { segments[index].received = 0 }
             cooling.insert(index)
-            let delay = min(pow(2, Double(attempt - 1)), 20)
+            // Exponential backoff, or longer if the server said so, with jitter so connections don't retry in step.
+            var delay = min(pow(2, Double(attempt - 1)), 20)
+            if let waitHint { delay = max(delay, min(waitHint, 60)) }
+            delay *= Double.random(in: 1...1.2)
             DispatchQueue.global().asyncAfter(deadline: .now() + delay) { [self] in
                 lock.withLock {
                     cooling.remove(index)
@@ -369,6 +391,34 @@ final class HTTPDownload: NSObject, URLSessionDataDelegate, @unchecked Sendable 
             fillSlots()
         }
         if let fatal { fail(fatal) }
+    }
+
+    /// Starts over as a single full-file stream after the server ignored a Range request. Call with the lock held.
+    private func switchToSingleStream() {
+        supportsRanges = false
+        connectionCap = 1
+        lastPushback = nil
+        tasks.values.forEach { $0.task.cancel() }
+        tasks.removeAll()
+        taskErrors.removeAll()
+        retryAfter.removeAll()
+        retries.removeAll()
+        cooling.removeAll()
+        freeSlots = Array(sessions.indices)
+        segments = Self.initialSegments(total: totalBytes, ranges: false, connections: 1)
+        sampled = 0
+        fillSlots()
+    }
+
+    /// Retry-After as seconds: a number, or an HTTP date. nil when missing or unreadable.
+    static func retryAfterSeconds(_ value: String?, now: Date = Date()) -> Double? {
+        guard let value = value?.trimmingCharacters(in: .whitespaces), !value.isEmpty else { return nil }
+        if let seconds = Double(value) { return max(0, seconds) }
+        let formatter = DateFormatter()
+        formatter.locale = Locale(identifier: "en_US_POSIX")
+        formatter.timeZone = TimeZone(identifier: "GMT")
+        formatter.dateFormat = "EEE, dd MMM yyyy HH:mm:ss zzz"
+        return formatter.date(from: value).map { max(0, $0.timeIntervalSince(now)) }
     }
 
     private static func isPermanent(_ error: DownloadError) -> Bool {
