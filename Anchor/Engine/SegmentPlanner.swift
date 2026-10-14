@@ -3,6 +3,9 @@ import Foundation
 /// Pure segment arithmetic used by the HTTP engine.
 enum SegmentPlanner {
     static let minimumSegment: Int64 = 1 << 20 // 1 MiB
+    /// Splitting a busy segment costs a reconnect when its connection reaches the new end, so each half must be
+    /// at least this big to be worth it (only segments with 4 MiB or more left are split).
+    static let minimumSplitHalf: Int64 = 2 << 20
 
     /// Splits `total` bytes into at most `connections` contiguous segments of at least `minimumSegment`.
     static func plan(total: Int64, connections: Int, minimumSegment: Int64 = minimumSegment) -> [Segment] {
@@ -26,11 +29,11 @@ enum SegmentPlanner {
 
     /// Steals the back half of the busy segment with the most bytes left, appending it as a new segment.
     /// Returns the new segment's index, or nil when nothing is big enough to be worth splitting.
-    static func splitLargest(_ segments: inout [Segment], busy: Set<Int>, minimumSegment: Int64 = minimumSegment) -> Int? {
+    static func splitLargest(_ segments: inout [Segment], busy: Set<Int>, minimumHalf: Int64 = minimumSplitHalf) -> Int? {
         guard let index = busy
             .filter({ segments.indices.contains($0) })
             .max(by: { segments[$0].remaining < segments[$1].remaining }),
-            segments[index].remaining >= minimumSegment * 2
+            segments[index].remaining >= minimumHalf * 2
         else { return nil }
 
         let old = segments[index]
