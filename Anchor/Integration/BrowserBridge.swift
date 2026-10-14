@@ -4,7 +4,7 @@ import AppKit
 
 /// Tiny HTTP server on 127.0.0.1 that the browser extension talks to.
 ///
-/// `GET /ping` reports that Anchor is running; `POST /add` with JSON `{url, filename?, referrer?, cookies?, userAgent?}`
+/// `GET /ping` reports that Anchor is running; `POST /add` with JSON `{url, filename?, referrer?, cookies?, cookieJar?, userAgent?}`
 /// queues a download. Requests from web pages are refused: only browser-extension origins, or callers that
 /// send no Origin at all (e.g. curl), are accepted.
 @MainActor
@@ -81,12 +81,16 @@ final class BrowserBridge {
             if let referrer = json["referrer"] as? String, !referrer.isEmpty { headers["Referer"] = referrer }
             if let agent = json["userAgent"] as? String, !agent.isEmpty { headers["User-Agent"] = agent }
             let name = json["filename"] as? String
+            // Structured cookies (extension 1.2+), for video sites; yt-dlp needs their domains and paths.
+            let jar = (json["cookieJar"] as? [[String: Any]]).flatMap { list in
+                (try? JSONSerialization.data(withJSONObject: list)).flatMap { try? JSONDecoder().decode([BrowserCookie].self, from: $0) }
+            } ?? []
             Task { @MainActor in
                 // Switched off in Settings: refuse, so the extension lets the browser keep the download.
                 guard AppSettings.shared.browserIntegration else {
                     return send("409 Conflict", #"{"error":"disabled"}"#)
                 }
-                AppRouter.shared.handleBrowserDownload(url: url, fileName: name, headers: headers)
+                AppRouter.shared.handleBrowserDownload(url: url, fileName: name, headers: headers, cookieJar: jar)
                 send("200 OK", #"{"ok":true}"#)
             }
         case ("OPTIONS", _):
