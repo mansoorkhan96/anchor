@@ -19,6 +19,7 @@ final class MediaDownload {
     private var stopping: Task<Void, Never>?
     private var tracker = MediaProgressTracker()
     private var lastError: String?
+    private var rateLimited = false
     private var printedPath: String?
     private var conversion: MediaConversion?
     private var tools: MediaToolPaths?
@@ -40,6 +41,7 @@ final class MediaDownload {
             guard gate.accepts(generation) else { return }
             tracker = MediaProgressTracker()
             lastError = nil
+            rateLimited = false
             printedPath = nil
             self.conversion = conversion
             self.tools = tools
@@ -110,6 +112,8 @@ final class MediaDownload {
             onEvent(.phase(phase))
         case .error(let message):
             lastError = message
+        case .rateLimited:
+            rateLimited = true
         case .path(let path):
             printedPath = path
         }
@@ -134,7 +138,8 @@ final class MediaDownload {
                 onEvent(.finished(printedPath))
             }
         } else {
-            onEvent(.failed(lastError ?? "yt-dlp stopped unexpectedly (code \(status))"))
+            let message = lastError ?? "yt-dlp stopped unexpectedly (code \(status))"
+            onEvent(.failed(rateLimited ? message + " " + MediaErrors.rateLimitNote : message))
         }
     }
 
@@ -200,7 +205,8 @@ final class MediaJobs {
         AppPaths.mediaWork.appending(path: id.uuidString, directoryHint: .isDirectory)
     }
 
-    func start(_ item: DownloadItem, tools: MediaToolPaths, limit: Int64, onEvent: @escaping @MainActor (UUID, MediaEvent) -> Void) {
+    func start(_ item: DownloadItem, tools: MediaToolPaths, limit: Int64, cookies: MediaCookies = .none,
+               onEvent: @escaping @MainActor (UUID, MediaEvent) -> Void) {
         let id = item.id
         let work = Self.workDirectory(for: id)
         let quality = item.mediaQuality ?? .best
@@ -209,7 +215,8 @@ final class MediaJobs {
                             duration: item.mediaInfo?.duration)
         }
         let arguments = MediaCommand.downloadArguments(url: item.url, quality: quality, convert: conversion != nil,
-                                                       workDirectory: work, tools: tools, limitBytesPerSecond: limit)
+                                                       workDirectory: work, tools: tools, limitBytesPerSecond: limit,
+                                                       cookies: cookies.arguments(writingTo: work))
         let download = downloads[id] ?? MediaDownload(id: id)
         downloads[id] = download
         download.start(arguments: arguments, conversion: conversion, tools: tools, workDirectory: work) { onEvent(id, $0) }
@@ -237,10 +244,11 @@ final class MediaJobs {
     }
 
     /// Stops the process, waits for it, deletes the working folder and forgets the item.
-    func discard(_ id: UUID) {
+    func discard(_ id: UUID, then: (@MainActor () -> Void)? = nil) {
         stop(id) { [weak self] in
             try? FileManager.default.removeItem(at: Self.workDirectory(for: id))
             self?.downloads[id] = nil
+            then?()
         }
     }
 
