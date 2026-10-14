@@ -153,7 +153,7 @@ final class MediaProcess: @unchecked Sendable {
 }
 
 /// Splits a byte stream into lines (on \n or \r).
-private final class LineReader: @unchecked Sendable {
+final class LineReader: @unchecked Sendable {
     private var buffer = Data()
     private let lock = NSLock()
     private let emit: (String) -> Void
