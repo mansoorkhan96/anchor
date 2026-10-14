@@ -30,6 +30,14 @@ struct DetailsPanel: View {
                 }
                 Spacer(minLength: 8)
                 HStack(spacing: 6) {
+                    if let kind = DownloadStore.startOverKind(item) {
+                        let again = kind == .downloadAgain
+                        IconButton(symbol: "arrow.clockwise",
+                                   label: again ? "Download Again" : "Start Over", tint: .anchorText, fill: .anchorField,
+                                   size: 28, outlined: true, glyphScale: 0.34) { store.startOver(item.id) }
+                            .help(again ? "Download a fresh copy as a new download"
+                                        : "Start Over: discard what was downloaded and start from the beginning")
+                    }
                     StatusAction(item: item)
                     IconButton(symbol: "xmark", label: "Close details", tint: .anchorMuted2, fill: .anchorField, size: 28,
                                outlined: true, action: close)
@@ -121,7 +129,7 @@ private struct StatusAction: View {
         case .paused:
             IconButton(symbol: "play.fill", label: "Resume", tint: .white, fill: .anchorAccentStrong, size: 28, glyphScale: 0.32) { store.resume(item.id) }
         case .failed:
-            IconButton(symbol: "arrow.clockwise", label: "Retry", tint: .white, fill: .anchorAccentStrong, size: 28, glyphScale: 0.34) { store.retry(item.id) }
+            IconButton(symbol: "play.fill", label: "Retry", tint: .white, fill: .anchorAccentStrong, size: 28, glyphScale: 0.32) { store.retry(item.id) }
         case .completed:
             RevealButton(size: 28, outlined: true) { store.reveal(item.id) }
         }
@@ -135,20 +143,35 @@ private struct GeneralDetails: View {
     var body: some View {
         ScrollView {
             Grid(alignment: .leadingFirstTextBaseline, horizontalSpacing: 18, verticalSpacing: 10) {
-                row("Status") { StatusPill(state: item.state, compact: true).opacity(item.state == .downloading ? 0 : 1)
-                    .overlay(alignment: .leading) {
-                        if item.state == .downloading {
-                            Text(item.mediaPhase?.detail ?? "Downloading · \(Format.speed(item.speed))").font(.system(size: 12.5)).foregroundStyle(Color.anchorText)
+                row("Status") {
+                    HStack(spacing: 12) {
+                        StatusPill(state: item.state, compact: true).opacity(item.state == .downloading ? 0 : 1)
+                            .overlay(alignment: .leading) {
+                                if item.state == .downloading {
+                                    Text(item.mediaPhase?.detail ?? "Downloading · \(Format.speed(item.speed))").font(.system(size: 12.5)).foregroundStyle(Color.anchorText)
+                                }
+                            }
+                        if let kind = DownloadStore.startOverKind(item) {
+                            Button(kind == .downloadAgain ? "Download Again" : "Start Over") { store.startOver(item.id) }
+                                .buttonStyle(.plain)
+                                .font(.system(size: 12.5, weight: .semibold))
+                                .foregroundStyle(Color.anchorAccentInk)
+                                .help(kind == .downloadAgain ? "Download a fresh copy as a new download"
+                                                             : "Discard what was downloaded and start from the beginning")
                         }
                     }
                 }
                 if case .failed(let message) = item.state {
                     row("Error") {
-                        Text(message)
-                            .font(.system(size: 12.5))
-                            .foregroundStyle(Color.anchorDanger)
-                            .fixedSize(horizontal: false, vertical: true)
-                            .textSelection(.enabled)
+                        if item.kind == .media {
+                            MediaErrorNote(raw: item.mediaError ?? message, plain: message, failedAt: item.failedAt) { store.retry(item.id) }
+                        } else {
+                            Text(message)
+                                .font(.system(size: 12.5))
+                                .foregroundStyle(Color.anchorDanger)
+                                .fixedSize(horizontal: false, vertical: true)
+                                .textSelection(.enabled)
+                        }
                     }
                 }
                 row("Address") {
