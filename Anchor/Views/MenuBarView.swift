@@ -208,7 +208,7 @@ private struct RecentRow: View {
             IconButton(symbol: "play.fill", label: "Resume", tint: item.stateColor,
                        fill: item.stateColor.opacity(0.12), size: 26, glyphScale: 0.45) { store.toggle(item.id) }
         case .failed:
-            IconButton(symbol: "arrow.clockwise", label: "Retry", tint: .anchorDanger, fill: .anchorDangerWash, size: 26) { store.retry(item.id) }
+            IconButton(symbol: "play.fill", label: "Retry", tint: .anchorDanger, fill: .anchorDangerWash, size: 26, glyphScale: 0.45) { store.retry(item.id) }
         case .completed:
             RevealButton(size: 26) { store.reveal(item.id) }
         }
