@@ -89,19 +89,24 @@ final class ToolManager {
         let original = manifest
         for tool in ToolID.allCases {
             guard let record = manifest[tool] else { continue }
-            // System copies are looked for again each launch; managed ones must still be there.
+            // System copies are kept while unchanged (running ffmpeg -version can take seconds under Rosetta),
+            // else looked for again; managed ones must still be there.
+            if record.source == .system {
+                if !ToolDiscovery.isUnchanged(record, tool: tool) { manifest[tool] = nil }
+                continue
+            }
             let present = ToolDiscovery.isExecutable(record.url)
                 && (tool != .ffmpeg || ToolDiscovery.isExecutable(record.url.deletingLastPathComponent().appending(path: "ffprobe")))
-            if record.source == .system || !present { manifest[tool] = nil }
+            if !present { manifest[tool] = nil }
         }
         let directories = ToolDiscovery.searchDirectories()
         if manifest[.ffmpeg] == nil, let found = await ToolDiscovery.findFFmpeg(in: directories) {
             manifest[.ffmpeg] = ToolRecord(version: found.version, source: .system, path: found.path.path, installedAt: Date(),
-                                           sha256: nil, runtime: nil)
+                                           sha256: nil, runtime: nil, fingerprint: ToolDiscovery.fingerprint(of: found.path))
         }
         if manifest[.deno] == nil, let found = await ToolDiscovery.findJSRuntime(in: directories) {
             manifest[.deno] = ToolRecord(version: found.version, source: .system, path: found.path.path, installedAt: Date(),
-                                         sha256: nil, runtime: found.name)
+                                         sha256: nil, runtime: found.name, fingerprint: ToolDiscovery.fingerprint(of: found.path))
         }
         records = Dictionary(uniqueKeysWithValues: ToolID.allCases.compactMap { tool in manifest[tool].map { (tool, $0) } })
         if manifest != original { try? manifest.save(to: Self.manifestURL) }
