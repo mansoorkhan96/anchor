@@ -1,8 +1,15 @@
-// Renders Anchor's app icon to PNGs: swift scripts/make-icon.swift <out-dir>
+// Renders Anchor's icons to PNGs, with no drop shadow:
+//   swift scripts/make-icon.swift <out-dir>               the app icon (icon_16.png … icon_1024.png)
+//   swift scripts/make-icon.swift --extension <out-dir>   the browser extension's icons: the tile fills the canvas
+//                                                         so it isn't small in the toolbar, plus status variants with
+//                                                         a dot in the top left (green: Anchor running, grey: not)
 import AppKit
 
-let out = URL(fileURLWithPath: CommandLine.arguments[1])
+let extensionMode = CommandLine.arguments.contains("--extension")
+let out = URL(fileURLWithPath: CommandLine.arguments.last!)
 try? FileManager.default.createDirectory(at: out, withIntermediateDirectories: true)
+
+enum Dot { case running, stopped }
 
 /// Top to bottom: the Swift icon's amber shades into `Brand.primary` (0xEB6840).
 let gradientStops: [UInt32] = [0xE0A24A, 0xDF9946, 0xDE8741, 0xE4783F, 0xEB6840, 0xE95F40]
@@ -14,7 +21,8 @@ func color(_ hex: UInt32, _ alpha: CGFloat = 1) -> CGColor {
             blue: CGFloat(hex & 0xFF) / 255, alpha: alpha).cgColor
 }
 
-func render(_ px: Int) -> Data {
+/// `fill`: the tile covers the whole canvas (toolbar icons) instead of the macOS app icon grid.
+func render(_ px: Int, fill: Bool = false, dot: Dot? = nil) -> Data {
     let s = CGFloat(px)
     let rep = NSBitmapImageRep(bitmapDataPlanes: nil, pixelsWide: px, pixelsHigh: px, bitsPerSample: 8,
                                samplesPerPixel: 4, hasAlpha: true, isPlanar: false, colorSpaceName: .deviceRGB,
@@ -26,19 +34,18 @@ func render(_ px: Int) -> Data {
     // Draw in a 1024-point, y-down space so the coordinates match the design canvas.
     ctx.translateBy(x: 0, y: s)
     ctx.scaleBy(x: s / 1024, y: -s / 1024)
+    ctx.saveGState()
+    if fill {
+        // Scale the 824-point tile up to the full 1024-point canvas.
+        ctx.translateBy(x: 512, y: 512)
+        ctx.scaleBy(x: 1024 / 824, y: 1024 / 824)
+        ctx.translateBy(x: -512, y: -512)
+    }
 
     // macOS icon grid: 824/1024 body with ~185 corner radius.
     let body = CGRect(x: 100, y: 100, width: 824, height: 824)
     let path = CGPath(roundedRect: body, cornerWidth: 185, cornerHeight: 185, transform: nil)
     let space = CGColorSpaceCreateDeviceRGB()
-
-    // Drop shadow under the tile.
-    ctx.saveGState()
-    ctx.setShadow(offset: CGSize(width: 0, height: 12), blur: 30, color: color(0xEB6840, 0.30))
-    ctx.addPath(path)
-    ctx.setFillColor(color(0xEB6840))
-    ctx.fillPath()
-    ctx.restoreGState()
 
     ctx.saveGState()
     ctx.addPath(path)
@@ -76,11 +83,33 @@ func render(_ px: Int) -> Data {
         ctx.move(to: CGPoint(x: 676, y: 596)); ctx.addLine(to: CGPoint(x: 728, y: 556)); ctx.addLine(to: CGPoint(x: 772, y: 608))
     }
     ctx.strokePath()
+    ctx.restoreGState()
+
+    if let dot {
+        // A status dot in the top left, ringed in white so it reads on light and dark toolbars.
+        // Sized to sit in the corner, clear of the anchor's ring and crossbar.
+        let center = CGPoint(x: 180, y: 180), ring: CGFloat = 175, inner: CGFloat = 122
+        ctx.setFillColor(color(0xFFFFFF))
+        ctx.fillEllipse(in: CGRect(x: center.x - ring, y: center.y - ring, width: ring * 2, height: ring * 2))
+        ctx.setFillColor(color(dot == .running ? 0x34C759 : 0x8E8E93))
+        ctx.fillEllipse(in: CGRect(x: center.x - inner, y: center.y - inner, width: inner * 2, height: inner * 2))
+    }
 
     NSGraphicsContext.restoreGraphicsState()
     return rep.representation(using: .png, properties: [:])!
 }
 
-for size in [16, 32, 64, 128, 256, 512, 1024] {
-    try! render(size).write(to: out.appendingPathComponent("icon_\(size).png"))
+if extensionMode {
+    for size in [16, 32, 48, 128] {
+        try! render(size, fill: true).write(to: out.appendingPathComponent("icon\(size).png"))
+    }
+    // The toolbar icon, swapped by the extension as Anchor starts and quits.
+    for size in [16, 32] {
+        try! render(size, fill: true, dot: .running).write(to: out.appendingPathComponent("icon\(size)-running.png"))
+        try! render(size, fill: true, dot: .stopped).write(to: out.appendingPathComponent("icon\(size)-stopped.png"))
+    }
+} else {
+    for size in [16, 32, 64, 128, 256, 512, 1024] {
+        try! render(size).write(to: out.appendingPathComponent("icon_\(size).png"))
+    }
 }
