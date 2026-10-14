@@ -7,6 +7,8 @@ struct AddRequest: Identifiable, Equatable {
     let id = UUID()
     var url: String = ""
     var headers: [String: String] = [:]
+    /// The site's cookies from the browser extension, for video links.
+    var cookieJar: [BrowserCookie] = []
     var suggestedName: String?
     var torrentFile: URL?
     var fromBrowser = false
@@ -57,6 +59,11 @@ final class DownloadStore {
 
     private(set) var items: [DownloadItem] = []
     private(set) var speedHistory: [Double] = Array(repeating: 0, count: historyLength)
+    /// Media downloads that already had their one automatic retry this run.
+    private var autoRetried: Set<UUID> = []
+    static let mediaRetryDelay: Double = 30
+    /// Notification permission is asked for at the first notification, once per run.
+    private var askedForNotifications = false
     private(set) var totalSpeed: Double = 0
     var addRequest: AddRequest?
     var clipboardSuggestion: URL?
@@ -88,8 +95,8 @@ final class DownloadStore {
         timer = Timer.scheduledTimer(withTimeInterval: Self.tick, repeats: true) { _ in
             MainActor.assumeIsolated { DownloadStore.shared.update() }
         }
-        UNUserNotificationCenter.current().requestAuthorization(options: [.alert, .sound]) { _, _ in }
-        schedule()
+        // Downloads that were running at quit start one runloop turn later, after the window is up.
+        Task { @MainActor in DownloadStore.shared.schedule() }
     }
 
     // MARK: Queries
@@ -256,7 +263,7 @@ final class DownloadStore {
 
     /// Adds a video page reviewed in the New Download window; yt-dlp downloads it.
     func addMedia(_ url: URL, name: String, directory: URL?, quality: MediaQuality, info: MediaInfo?,
-                  convertHeight: Int? = nil, startNow: Bool, openWhenDone: Bool) {
+                  convertHeight: Int? = nil, cookieJar: [BrowserCookie] = [], startNow: Bool, openWhenDone: Bool) {
         let folder = directory ?? settings.folder(for: quality.category)
         let stem = MediaNaming.stem(FileNaming.sanitize(name.isEmpty ? (info?.title ?? "Video") : name))
         var item = DownloadItem(url: url, fileName: uniqueName("\(stem).\(quality.expectedExtension)", in: folder),
@@ -264,6 +271,7 @@ final class DownloadStore {
         item.mediaQuality = quality
         item.mediaInfo = info
         item.mediaConvertHeight = quality.isAudio ? nil : convertHeight
+        item.cookieJar = cookieJar.isEmpty ? nil : cookieJar
         item.openWhenDone = openWhenDone
         items.insert(item, at: 0)
         bumpCleanupRevision()
@@ -300,6 +308,7 @@ final class DownloadStore {
             Task { await startTorrent(item) }
         case .media:
             items[index].mediaPhase = nil
+            items[index].mediaError = nil
             // At launch the tools are still being looked up: wait in the queue, ToolManager schedules again after.
             guard ToolManager.shared.refreshed else {
                 items[index].state = .queued
@@ -310,7 +319,8 @@ final class DownloadStore {
                 return markDirty()
             }
             let limit = MediaCommand.limit(global: settings.effectiveSpeedLimit, itemKB: item.speedLimitKB)
-            MediaJobs.shared.start(item, tools: tools, limit: limit) { id, event in
+            let cookies = MediaCookies.choose(browser: settings.mediaCookieBrowser, jar: item.cookieJar)
+            MediaJobs.shared.start(item, tools: tools, limit: limit, cookies: cookies) { id, event in
                 DownloadStore.shared.handleMedia(id, event)
             }
         }
@@ -610,15 +620,24 @@ final class DownloadStore {
         bumpCleanupRevision()
     }
 
+    /// The downloads Move applies to: finished, not locked by a pending cleanup move, and not already in `folder`.
+    nonisolated static func movable(_ ids: Set<UUID>, in items: [DownloadItem], to folder: URL) -> [UUID] {
+        let unlocked = CleanupRules.unlocked(ids, in: items)
+        return items.filter {
+            unlocked.contains($0.id) && $0.state.isFinished
+                // Compare paths: a folder from the Open panel ends in "/", a saved one doesn't.
+                && $0.directory.standardizedFileURL.path != folder.standardizedFileURL.path
+        }.map(\.id)
+    }
+
     /// Moves finished downloads to another folder. Unfinished ones (downloading, converting, paused, queued,
     /// failed) are skipped and stay where they are.
     func move(_ ids: Set<UUID>, to folder: URL) {
         let fm = FileManager.default
         var failed: [String] = []
         defer { bumpCleanupRevision() }
-        for id in CleanupRules.unlocked(ids, in: items) {
-            guard let item = item(id), item.state.isFinished,
-                  item.directory.standardizedFileURL != folder.standardizedFileURL else { continue }
+        for id in Self.movable(ids, in: items, to: folder) {
+            guard let item = item(id) else { continue }
             let name = FileNaming.unique(item.fileName, in: folder)
             do {
                 if fm.fileExists(atPath: item.destination.path) {
@@ -634,6 +653,58 @@ final class DownloadStore {
         }
         if !failed.isEmpty {
             alert = "Couldn't move: \(failed.joined(separator: ", "))."
+        }
+    }
+
+    /// What Start Over does for this download, or nil when it doesn't apply (torrents, running, being moved).
+    nonisolated static func startOverKind(_ item: DownloadItem) -> StartOverKind? {
+        guard item.kind != .torrent, item.pendingMove == nil else { return nil }
+        switch item.state {
+        case .completed: return .downloadAgain
+        case .failed, .paused: return .startOver
+        case .queued, .connecting, .downloading: return nil
+        }
+    }
+
+    enum StartOverKind: Sendable {
+        /// Unfinished: throw away what was downloaded and begin again from zero.
+        case startOver
+        /// Finished: a fresh copy as a new download, leaving the existing file alone.
+        case downloadAgain
+    }
+
+    /// Start Over (unfinished) or Download Again (finished); see `StartOverKind`.
+    func startOver(_ id: UUID) {
+        guard let item = item(id), let kind = Self.startOverKind(item) else { return }
+        switch kind {
+        case .downloadAgain:
+            if item.kind == .media {
+                addMedia(item.url, name: MediaNaming.stem((item.fileName as NSString).deletingPathExtension),
+                         directory: item.directory, quality: item.mediaQuality ?? .best, info: item.mediaInfo,
+                         convertHeight: item.mediaConvertHeight, cookieJar: item.cookieJar ?? [], startNow: true,
+                         openWhenDone: false)
+            } else {
+                _ = add(item.url.absoluteString, fileName: item.fileName, directory: item.directory, headers: item.headers)
+            }
+        case .startOver:
+            autoRetried.remove(id)
+            mutate(id) {
+                $0.state = .paused
+                $0.receivedBytes = 0
+                $0.segments = []
+                $0.validator = nil
+                $0.speed = 0
+                $0.mediaPhase = nil
+                $0.mediaError = nil
+                $0.failedAt = nil
+            }
+            if item.kind == .media {
+                // Stops anything still running (a frozen conversion), deletes the working folder, then starts.
+                MediaJobs.shared.discard(id) { DownloadStore.shared.startOrQueue(id) }
+            } else {
+                try? FileManager.default.removeItem(at: item.partialFile)
+                startOrQueue(id)
+            }
         }
     }
 
@@ -754,12 +825,27 @@ final class DownloadStore {
                 await MainActor.run { DownloadStore.shared.finishMedia(id, result) }
             }
         case .failed(let message):
+            let kind = MediaErrors.kind(of: message)
+            let plain = MediaErrors.friendly(message)
+            // A bot check or dropped connection is often gone a little later: try once more by itself.
+            let retrying = kind.retryable && !autoRetried.contains(id)
+            if retrying { autoRetried.insert(id) }
             mutate(id) {
-                $0.state = .failed(message)
+                $0.state = .failed(retrying ? plain + " Trying again in 30 seconds." : plain)
+                $0.mediaError = plain == message ? nil : message
+                $0.failedAt = Date()
                 $0.speed = 0
                 $0.mediaPhase = nil
             }
-            notify(title: "Download failed", body: "\(item.fileName): \(message)")
+            if retrying {
+                Task { @MainActor in
+                    try? await Task.sleep(for: .seconds(Self.mediaRetryDelay))
+                    guard let current = DownloadStore.shared.item(id), current.state.isFailed else { return }
+                    DownloadStore.shared.retry(id)
+                }
+            } else {
+                notify(title: "Download failed", body: "\(item.fileName): \(plain)")
+            }
             schedule()
         }
     }
@@ -851,6 +937,15 @@ final class DownloadStore {
 
     private func update() {
         Power.keepAwake(settings.keepAwake && activeCount > 0)
+        let idle = engines.isEmpty && !items.contains { $0.kind != .http && $0.state.isActive }
+        // Nothing downloading and the speed graph already flat: leave the observed values alone so idle
+        // windows don't re-render twice a second.
+        if idle, totalSpeed == 0, speedHistory.allSatisfy({ $0 == 0 }) {
+            pollTorrents()
+            ticksSinceSave += 1
+            if tracker.isDirty, ticksSinceSave >= 4 { save() }
+            return
+        }
         var total: Double = 0
         for (id, engine) in engines {
             let snap = engine.snapshot()
@@ -1064,27 +1159,36 @@ final class DownloadStore {
     private func load() {
         let url = AppPaths.library
         guard let data = try? Data(contentsOf: url) else { return }
-        guard let raw = try? JSONSerialization.jsonObject(with: data) as? [Any] else {
-            preserveUnreadable(url)
-            return
-        }
         let decoder = JSONDecoder()
         var loaded: [DownloadItem] = []
         var skipped = 0
-        for entry in raw {
-            guard let itemData = try? JSONSerialization.data(withJSONObject: entry),
-                  var item = try? decoder.decode(DownloadItem.self, from: itemData) else {
-                skipped += 1
-                continue
+        if let all = try? decoder.decode([DownloadItem].self, from: data) {
+            // The usual case: one pass over the whole library.
+            loaded = all
+        } else {
+            // Something in it doesn't decode: keep every item that does.
+            guard let raw = try? JSONSerialization.jsonObject(with: data) as? [Any] else {
+                preserveUnreadable(url)
+                return
             }
-            if item.state.isActive { item.state = .queued }
-            item.seeding = nil
-            loaded.append(item)
+            for entry in raw {
+                guard let itemData = try? JSONSerialization.data(withJSONObject: entry),
+                      let item = try? decoder.decode(DownloadItem.self, from: itemData) else {
+                    skipped += 1
+                    continue
+                }
+                loaded.append(item)
+            }
+        }
+        for index in loaded.indices {
+            if loaded[index].state.isActive { loaded[index].state = .queued }
+            loaded[index].seeding = nil
         }
         if skipped > 0 { preserveUnreadable(url) }
         items = loaded
-        try? FileManager.default.removeItem(at: AppPaths.libraryBackup)
-        try? FileManager.default.copyItem(at: url, to: AppPaths.libraryBackup)
+        // The backup is written off the main thread, from the bytes already read.
+        let backup = AppPaths.libraryBackup
+        Task.detached(priority: .utility) { try? data.write(to: backup, options: .atomic) }
     }
 
     private func preserveUnreadable(_ url: URL) {
@@ -1139,7 +1243,17 @@ final class DownloadStore {
         let content = UNMutableNotificationContent()
         content.title = title
         content.body = body
-        UNUserNotificationCenter.current().add(UNNotificationRequest(identifier: UUID().uuidString, content: content, trigger: nil))
+        let request = UNNotificationRequest(identifier: UUID().uuidString, content: content, trigger: nil)
+        let center = UNUserNotificationCenter.current()
+        guard askedForNotifications else {
+            // Asked the first time there's something to say, not at launch (where it covers the window).
+            askedForNotifications = true
+            center.requestAuthorization(options: [.alert, .sound]) { granted, _ in
+                if granted { center.add(request) }
+            }
+            return
+        }
+        center.add(request)
     }
 }
 
