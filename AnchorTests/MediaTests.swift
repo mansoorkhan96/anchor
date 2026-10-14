@@ -399,6 +399,7 @@ private let regularFile: UInt32 = 0o100644 << 16
         #expect(args.containsSequence(["-f", "bv*[height<=720]+ba/b[height<=720]"]))
         #expect(Array(args.suffix(2)) == ["--", "https://youtu.be/x"])
         #expect(!args.contains("--limit-rate"))
+        #expect(args.containsSequence(["--concurrent-fragments", "4"]), "fragmented sites download 4 pieces at a time")
         #expect(args.contains { $0.hasPrefix("download:ANCHOR ") })
     }
 
@@ -411,6 +412,7 @@ private let regularFile: UInt32 = 0o100644 << 16
         let args = MediaCommand.downloadArguments(url: URL(string: "https://youtu.be/x")!, quality: .best, workDirectory: URL(filePath: "/W"),
                                                   tools: Self.tools, limitBytesPerSecond: 500_000)
         #expect(args.containsSequence(["--limit-rate", "500000"]))
+        #expect(!args.contains("--concurrent-fragments"), "the limit applies per fragment, so one at a time")
     }
 
     @Test func probeArguments() {
@@ -488,6 +490,17 @@ extension Array where Element == String {
         snap = tracker.update(MediaProgress(downloaded: 4096, total: nil, estimate: 310000, speed: nil, eta: nil))
         #expect(snap.received == 223779 + 4096)
         #expect(snap.total == Int64(223779 + 310000))
+    }
+
+    /// With 4 fragments at a time yt-dlp's count can step back a little (seen: 21661572 then 21566692).
+    @Test func smallStepBackIsNotANewStream() {
+        var tracker = MediaProgressTracker()
+        _ = tracker.update(MediaProgress(downloaded: 21_661_572, total: nil, estimate: 41_759_691, speed: nil, eta: nil))
+        let snap = tracker.update(MediaProgress(downloaded: 21_566_692, total: nil, estimate: 41_916_182, speed: nil, eta: nil))
+        #expect(snap.received == 21_661_572, "progress holds instead of jumping past 100%")
+        #expect(snap.total == 41_916_182)
+        let next = tracker.update(MediaProgress(downloaded: 22_000_000, total: nil, estimate: 41_916_182, speed: nil, eta: nil))
+        #expect(next.received == 22_000_000)
     }
 }
 
@@ -777,5 +790,102 @@ private final class LineBox: @unchecked Sendable {
         item.receivedBytes = 100
         item.mediaPhase = .converting(fraction: 0.3, eta: 10)
         #expect(item.progress == 0.3, "the bar follows the conversion")
+    }
+}
+
+@Suite struct MediaFailureTests {
+    static let youtubeBotCheck = "Sign in to confirm you\u{2019}re not a bot. Use --cookies-from-browser or --cookies for the authentication. See  https://github.com/yt-dlp/yt-dlp/wiki/FAQ#how-do-i-pass-cookies-to-yt-dlp for how to manually pass cookies."
+
+    @Test func sortsCommonErrors() {
+        #expect(MediaErrors.kind(of: Self.youtubeBotCheck) == .botCheck, "the bot check, not the generic sign-in case")
+        #expect(MediaErrors.kind(of: "Private video. Sign in if you've been granted access to this video") == .signIn)
+        #expect(MediaErrors.kind(of: "Sign in to confirm your age. This video may be inappropriate for some users.") == .signIn)
+        #expect(MediaErrors.kind(of: "The uploader has not made this video available in your country") == .region)
+        #expect(MediaErrors.kind(of: "Video unavailable. This video has been removed by the uploader") == .unavailable)
+        #expect(MediaErrors.kind(of: "Unable to download webpage: <urlopen error [Errno 60] Operation timed out>") == .network)
+        #expect(MediaErrors.kind(of: "Requested format is not available") == .other)
+    }
+
+    @Test func mentionsRateLimiting() {
+        #expect(MediaOutput.parse("WARNING: [youtube] h5R-cg1M_Oc: Unable to download webpage: HTTP Error 429: Too Many Requests (caused by <HTTPError 429: Too Many Requests>)") == .rateLimited)
+        #expect(MediaOutput.parse("WARNING: [youtube] Unable to fetch GVS PO Token for web client") == nil)
+        let limited = Self.youtubeBotCheck + " " + MediaErrors.rateLimitNote
+        #expect(MediaErrors.kind(of: limited) == .botCheck)
+        #expect(MediaErrors.friendly(limited).contains("limiting requests from your network"))
+        #expect(!MediaErrors.friendly(Self.youtubeBotCheck).contains("limiting"))
+    }
+
+    @Test func plainWordsAndNextSteps() {
+        #expect(MediaErrors.friendly(Self.youtubeBotCheck).contains("confirm you're not a bot"))
+        #expect(!MediaErrors.friendly(Self.youtubeBotCheck).contains("--cookies"), "no command-line flags for users")
+        #expect(MediaErrors.friendly("Requested format is not available") == "Requested format is not available",
+                "unknown errors keep yt-dlp's words")
+        #expect(MediaFailure.botCheck.wantsCookies && MediaFailure.signIn.wantsCookies && !MediaFailure.region.wantsCookies)
+        #expect(MediaFailure.botCheck.retryable && MediaFailure.network.retryable && !MediaFailure.unavailable.retryable)
+    }
+}
+
+@Suite struct MediaCookiesTests {
+    static let session = BrowserCookie(domain: ".youtube.com", path: "/", secure: true, hostOnly: false, expires: nil,
+                                       name: "SID", value: "abc")
+    static let hostOnly = BrowserCookie(domain: "www.youtube.com", path: "/", secure: true, hostOnly: true,
+                                        expires: 1_900_000_000.7, name: "__Secure-YEC", value: "x=y")
+
+    @Test func writesNetscapeFormat() {
+        let text = MediaCookies.netscape([Self.session, Self.hostOnly])
+        let lines = text.split(separator: "\n").map(String.init)
+        #expect(lines[0] == "# Netscape HTTP Cookie File")
+        #expect(lines[1] == ".youtube.com\tTRUE\t/\tTRUE\t0\tSID\tabc", "session cookies have expiry 0")
+        #expect(lines[2] == "www.youtube.com\tFALSE\t/\tTRUE\t1900000000\t__Secure-YEC\tx=y", "host-only cookies keep the bare host")
+    }
+
+    @Test func skipsCookiesThatWouldBreakTheFile() {
+        var bad = Self.session
+        bad.value = "a\tb"
+        #expect(MediaCookies.netscape([bad]).split(separator: "\n").count == 1)
+    }
+
+    @Test func rebuildsFromACookieHeader() {
+        let jar = MediaCookies.jar(fromHeader: "SID=abc; PREF=f6=40000000&tz=Asia.Karachi; bad", url: URL(string: "https://www.youtube.com/watch?v=x")!)
+        #expect(jar.map(\.name) == ["SID", "PREF"])
+        #expect(jar.allSatisfy { $0.domain == ".youtube.com" && !$0.hostOnly })
+        #expect(jar[1].value == "f6=40000000&tz=Asia.Karachi", "only the first = splits")
+    }
+
+    @Test func chosenBrowserWinsOverTheExtensionsCookies() {
+        #expect(MediaCookies.choose(browser: "brave", jar: [Self.session]) == .browser("brave"))
+        #expect(MediaCookies.choose(browser: "", jar: [Self.session]) == .jar([Self.session]))
+        #expect(MediaCookies.choose(browser: "netscape-navigator", jar: nil) == .none, "unknown names are ignored")
+        #expect(MediaCookies.choose(browser: "", jar: []) == .none)
+    }
+
+    @Test func argumentsAndAPrivateFile() throws {
+        let dir = FileManager.default.temporaryDirectory.appending(path: "anchor-cookies-\(UUID().uuidString)", directoryHint: .isDirectory)
+        defer { try? FileManager.default.removeItem(at: dir) }
+        #expect(MediaCookies.none.arguments(writingTo: dir).isEmpty)
+        #expect(MediaCookies.browser("firefox").arguments(writingTo: dir) == ["--cookies-from-browser", "firefox"])
+        let args = MediaCookies.jar([Self.session]).arguments(writingTo: dir)
+        let file = dir.appending(path: "cookies.txt")
+        #expect(args == ["--cookies", file.path])
+        let permissions = try FileManager.default.attributesOfItem(atPath: file.path)[.posixPermissions] as? NSNumber
+        #expect(permissions?.intValue == 0o600, "only this user can read the cookies")
+    }
+
+    @Test func cookiesGoBeforeTheLink() {
+        let tools = MediaCommandTests.tools
+        let args = MediaCommand.downloadArguments(url: URL(string: "https://youtu.be/x")!, quality: .best, workDirectory: URL(filePath: "/W"),
+                                                  tools: tools, limitBytesPerSecond: 0, cookies: ["--cookies-from-browser", "brave"])
+        #expect(args.containsSequence(["--cookies-from-browser", "brave"]))
+        #expect(Array(args.suffix(2)) == ["--", "https://youtu.be/x"])
+        let probe = MediaCommand.probeArguments(url: URL(string: "https://youtu.be/x")!, tools: tools, cookies: ["--cookies", "/W/c.txt"])
+        #expect(probe.containsSequence(["--cookies", "/W/c.txt"]))
+    }
+
+    @Test func decodesTheExtensionsCookies() throws {
+        // The shape the extension sends (from chrome.cookies, trimmed to what yt-dlp needs).
+        let json = #"[{"domain":".youtube.com","path":"/","secure":true,"hostOnly":false,"expires":1900000000,"name":"SID","value":"abc"},{"domain":"www.youtube.com","path":"/","secure":true,"hostOnly":true,"name":"S","value":"1"}]"#
+        let jar = try JSONDecoder().decode([BrowserCookie].self, from: Data(json.utf8))
+        #expect(jar.count == 2)
+        #expect(jar[1].expires == nil, "session cookies have no expiry")
     }
 }
