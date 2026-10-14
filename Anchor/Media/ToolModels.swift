@@ -59,6 +59,9 @@ struct ToolRecord: Codable, Equatable, Sendable {
     var sha256: String?
     /// The JavaScript runtime's name (deno, node or bun); nil for the other tools.
     var runtime: String?
+    /// System copies: the executable's size and modification date when it was checked, so later launches can
+    /// trust it without running it again. nil in manifests written before this existed.
+    var fingerprint: String?
 
     var url: URL { URL(filePath: path) }
 }
