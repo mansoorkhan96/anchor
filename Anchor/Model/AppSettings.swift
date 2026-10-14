@@ -57,6 +57,9 @@ final class AppSettings {
     var browserIntegration: Bool { didSet { defaults.set(browserIntegration, forKey: "browserIntegration") } }
     var confirmBrowserDownloads: Bool { didSet { defaults.set(confirmBrowserDownloads, forKey: "confirmBrowserDownloads") } }
     var notifications: Bool { didSet { defaults.set(notifications, forKey: "notifications") } }
+    /// The browser whose cookies yt-dlp reads (a yt-dlp name such as "brave"); empty for none. Chosen by the
+    /// user when a site asks to sign in, since reading them can bring up a Keychain prompt.
+    var mediaCookieBrowser: String { didSet { defaults.set(mediaCookieBrowser, forKey: "mediaCookieBrowser") } }
     var sortOrder: SortOrder { didSet { defaults.set(sortOrder.rawValue, forKey: "sortOrder") } }
     var menuBarOrder: MenuBarOrder { didSet { defaults.set(menuBarOrder.rawValue, forKey: "menuBarOrder") } }
     var menuBarCount: Int { didSet { defaults.set(menuBarCount, forKey: "menuBarCount") } }
@@ -110,6 +113,7 @@ final class AppSettings {
         browserIntegration = defaults.bool(forKey: "browserIntegration")
         confirmBrowserDownloads = defaults.bool(forKey: "confirmBrowserDownloads")
         notifications = defaults.bool(forKey: "notifications")
+        mediaCookieBrowser = defaults.string(forKey: "mediaCookieBrowser") ?? ""
         sortOrder = SortOrder(rawValue: defaults.string(forKey: "sortOrder") ?? "") ?? .newest
         menuBarOrder = MenuBarOrder(rawValue: defaults.string(forKey: "menuBarOrder") ?? "") ?? .unfinishedFirst
         menuBarCount = defaults.integer(forKey: "menuBarCount")
