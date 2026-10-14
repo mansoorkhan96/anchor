@@ -22,9 +22,11 @@ final class AppRouter {
         }
     }
 
-    func handleBrowserDownload(url: String, fileName: String?, headers: [String: String]) {
-        if AppSettings.shared.confirmBrowserDownloads {
-            present(AddRequest(url: url, headers: headers, suggestedName: fileName, fromBrowser: true))
+    func handleBrowserDownload(url: String, fileName: String?, headers: [String: String], cookieJar: [BrowserCookie] = []) {
+        // Video links always open the window: they need a quality, and adding one directly would save the page.
+        let video = URL(string: url).map(MediaLinkDetector.isLikelyMedia) ?? false
+        if AppSettings.shared.confirmBrowserDownloads || video {
+            present(AddRequest(url: url, headers: headers, cookieJar: cookieJar, suggestedName: fileName, fromBrowser: true))
         } else {
             store.add(url, fileName: fileName, headers: headers)
         }
