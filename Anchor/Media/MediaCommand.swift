@@ -252,22 +252,28 @@ enum MediaCommand {
     }
 
     static func downloadArguments(url: URL, quality: MediaQuality, convert: Bool = false, workDirectory: URL,
-                                  tools: MediaToolPaths, limitBytesPerSecond: Int64) -> [String] {
-        var args = isolationArguments(tools: tools)
+                                  tools: MediaToolPaths, limitBytesPerSecond: Int64, cookies: [String] = []) -> [String] {
+        var args = isolationArguments(tools: tools) + cookies
         args += ["--newline", "--no-playlist", "--no-mtime", "--progress",
                  "--progress-template", progressTemplate, "--progress-template", postprocessTemplate,
                  "--ffmpeg-location", tools.ffmpegDirectory.path]
         args += qualityArguments(quality, convert: convert)
         args += ["-P", "temp:\(workDirectory.path)", "-P", "home:\(workDirectory.path)",
                  "-o", "\(outputStem).%(ext)s", "--print", "after_move:filepath"]
-        if limitBytesPerSecond > 0 { args += ["--limit-rate", "\(limitBytesPerSecond)"] }
+        if limitBytesPerSecond > 0 {
+            args += ["--limit-rate", "\(limitBytesPerSecond)"]
+        } else {
+            // Sites that serve video in fragments (HLS/DASH: Twitch, Vimeo, many news sites) download 4 at a time.
+            // Not with a speed limit, which yt-dlp applies to each fragment download separately.
+            args += ["--concurrent-fragments", "4"]
+        }
         // "--" so a link can never be read as an option.
         args += ["--", url.absoluteString]
         return args
     }
 
-    static func probeArguments(url: URL, tools: MediaToolPaths) -> [String] {
-        isolationArguments(tools: tools) + ["--dump-single-json", "--no-playlist", "--skip-download", "--no-warnings",
+    static func probeArguments(url: URL, tools: MediaToolPaths, cookies: [String] = []) -> [String] {
+        isolationArguments(tools: tools) + cookies + ["--dump-single-json", "--no-playlist", "--skip-download", "--no-warnings",
                                             "--", url.absoluteString]
     }
 
@@ -296,6 +302,8 @@ enum MediaOutput: Equatable, Sendable {
     case error(String)
     /// The final file, from `--print after_move:filepath`.
     case path(String)
+    /// A warning that the site answered 429 Too Many Requests: worth mentioning if the run then fails.
+    case rateLimited
 
     static func parse(_ raw: String) -> MediaOutput? {
         let line = raw.trimmingCharacters(in: .whitespacesAndNewlines)
@@ -320,12 +328,153 @@ enum MediaOutput: Equatable, Sendable {
                                            speed: number(fields[4]), eta: number(fields[5])))
         }
         if line.hasPrefix("ERROR:") { return .error(MediaErrors.message(from: line)) }
+        if line.hasPrefix("WARNING:"), line.contains("HTTP Error 429") { return .rateLimited }
         if line.hasPrefix("/") { return .path(line) }
         return nil
     }
 }
 
+/// A browser cookie as the extension sends it (from chrome.cookies).
+struct BrowserCookie: Codable, Hashable, Sendable {
+    var domain: String
+    var path: String
+    var secure: Bool
+    /// Sent only to `domain` itself, not its subdomains.
+    var hostOnly: Bool
+    /// Seconds since 1970; nil for a session cookie.
+    var expires: Double?
+    var name: String
+    var value: String
+}
+
+/// Where yt-dlp gets cookies from, so sites like YouTube see a signed-in browser instead of asking whether
+/// it's a bot: a browser's own cookie store (the user chose it), the cookies the extension sent with the link,
+/// or none.
+enum MediaCookies: Equatable, Sendable {
+    case none
+    case browser(String)
+    case jar([BrowserCookie])
+
+    static let fileName = "cookies.txt"
+
+    /// The yt-dlp names of the browsers it can read cookies from, with their apps' bundle IDs.
+    static let browsers: [(name: String, title: String, bundleID: String)] = [
+        ("brave", "Brave", "com.brave.Browser"), ("chrome", "Chrome", "com.google.Chrome"),
+        ("edge", "Edge", "com.microsoft.edgemac"), ("firefox", "Firefox", "org.mozilla.firefox"),
+        ("safari", "Safari", "com.apple.Safari"), ("vivaldi", "Vivaldi", "com.vivaldi.Vivaldi"),
+        ("opera", "Opera", "com.operasoftware.Opera"), ("chromium", "Chromium", "org.chromium.Chromium"),
+    ]
+
+    static func title(ofBrowser name: String) -> String { browsers.first { $0.name == name }?.title ?? name }
+
+    /// A browser the user picked wins (it has the full, current cookie store), then the extension's cookies.
+    static func choose(browser: String, jar: [BrowserCookie]?) -> MediaCookies {
+        if browsers.contains(where: { $0.name == browser }) { return .browser(browser) }
+        if let jar, !jar.isEmpty { return .jar(jar) }
+        return .none
+    }
+
+    /// yt-dlp's arguments. A jar is written to `directory/cookies.txt`, readable only by this user; it goes away
+    /// with the folder.
+    func arguments(writingTo directory: URL) -> [String] {
+        switch self {
+        case .none:
+            return []
+        case .browser(let name):
+            return ["--cookies-from-browser", name]
+        case .jar(let cookies):
+            let file = directory.appending(path: Self.fileName)
+            do {
+                try FileManager.default.createDirectory(at: directory, withIntermediateDirectories: true)
+                try Data(Self.netscape(cookies).utf8).write(to: file, options: .atomic)
+                try FileManager.default.setAttributes([.posixPermissions: 0o600], ofItemAtPath: file.path)
+            } catch {
+                return []
+            }
+            return ["--cookies", file.path]
+        }
+    }
+
+    /// The Netscape cookies.txt format yt-dlp reads.
+    static func netscape(_ cookies: [BrowserCookie]) -> String {
+        var lines = ["# Netscape HTTP Cookie File"]
+        for cookie in cookies where !cookie.name.isEmpty && !cookie.domain.isEmpty {
+            // A tab or line break inside a field would corrupt the file.
+            let fields = cookie.domain + cookie.path + cookie.name + cookie.value
+            guard !fields.contains(where: { $0 == "\t" || $0.isNewline }) else { continue }
+            let bare = cookie.domain.hasPrefix(".") ? String(cookie.domain.dropFirst()) : cookie.domain
+            let domain = cookie.hostOnly ? bare : "." + bare
+            lines.append([domain, cookie.hostOnly ? "FALSE" : "TRUE", cookie.path.isEmpty ? "/" : cookie.path,
+                          cookie.secure ? "TRUE" : "FALSE", String(Int64(cookie.expires ?? 0)), cookie.name, cookie.value]
+                .joined(separator: "\t"))
+        }
+        return lines.joined(separator: "\n") + "\n"
+    }
+
+    /// For an older extension that only sent a Cookie header: each cookie for the site's domain and its
+    /// subdomains (www.youtube.com → .youtube.com).
+    static func jar(fromHeader header: String, url: URL) -> [BrowserCookie] {
+        guard var host = url.host()?.lowercased(), !host.isEmpty else { return [] }
+        for prefix in ["www.", "m."] where host.hasPrefix(prefix) { host.removeFirst(prefix.count) }
+        return header.split(separator: ";").compactMap { pair in
+            let parts = pair.split(separator: "=", maxSplits: 1).map { $0.trimmingCharacters(in: .whitespaces) }
+            guard parts.count == 2, !parts[0].isEmpty else { return nil }
+            return BrowserCookie(domain: "." + host, path: "/", secure: true, hostOnly: false, expires: nil,
+                                 name: parts[0], value: parts[1])
+        }
+    }
+}
+
+/// What kind of failure yt-dlp reported, for a plain explanation and the right next step.
+enum MediaFailure: Equatable, Sendable {
+    /// "Sign in to confirm you're not a bot": signed-in cookies usually fix it.
+    case botCheck
+    /// Private, members-only or age-restricted: needs a signed-in browser.
+    case signIn
+    case region
+    case unavailable
+    case network
+    case other
+
+    /// Cookies from a signed-in browser can fix it.
+    var wantsCookies: Bool { self == .botCheck || self == .signIn }
+    /// Often temporary: worth one automatic retry.
+    var retryable: Bool { self == .botCheck || self == .network }
+}
+
 enum MediaErrors {
+    /// Added to a failure when yt-dlp saw a 429 before it.
+    static let rateLimitNote = "(The site answered 429 Too Many Requests.)"
+
+    static func kind(of message: String) -> MediaFailure {
+        let text = message.lowercased().replacingOccurrences(of: "\u{2019}", with: "'")
+        func has(_ needles: String...) -> Bool { needles.contains { text.contains($0) } }
+        if has("not a bot") { return .botCheck }
+        if has("private video", "this video is private", "members-only", "members only", "confirm your age",
+               "age-restricted", "login required", "log in", "requires authentication", "sign in") { return .signIn }
+        if has("available in your country", "geo restrict", "geo-restrict", "blocked it in your country") { return .region }
+        if has("video unavailable", "this video is unavailable", "has been removed", "no longer available",
+               "does not exist", "http error 404") { return .unavailable }
+        if has("timed out", "connection reset", "network is unreachable", "unable to download webpage",
+               "name resolution", "connection refused", "connection aborted", "remote end closed") { return .network }
+        return .other
+    }
+
+    /// One plain sentence for the user; yt-dlp's own text is kept separately as details.
+    static func friendly(_ message: String) -> String {
+        switch kind(of: message) {
+        case .botCheck:
+            message.contains(rateLimitNote)
+                ? "The site is limiting requests from your network and wants to confirm you're not a bot. Using your browser's cookies fixes this, or try again later."
+                : "The site wants to confirm you're not a bot. Using your browser's cookies usually fixes this."
+        case .signIn: "This video needs you to be signed in (it's private, for members, or age-restricted)."
+        case .region: "This video isn't available in your country."
+        case .unavailable: "This video is unavailable or was removed."
+        case .network: "The connection dropped while downloading."
+        case .other: message
+        }
+    }
+
     /// `ERROR: [youtube] abc: This video is unavailable` becomes `This video is unavailable`.
     static func message(from line: String) -> String {
         var text = line.hasPrefix("ERROR:") ? String(line.dropFirst(6)) : line
@@ -349,9 +498,15 @@ struct MediaProgressTracker: Sendable {
     private var lastTotal: Int64?
 
     mutating func update(_ progress: MediaProgress) -> (received: Int64, total: Int64?) {
-        let downloaded = progress.downloaded ?? lastDownloaded
+        var downloaded = progress.downloaded ?? lastDownloaded
         if downloaded < lastDownloaded {
-            base += lastTotal ?? lastDownloaded
+            if downloaded < lastDownloaded / 2 {
+                // The next stream (audio after video) starts over near zero.
+                base += lastTotal ?? lastDownloaded
+            } else {
+                // Concurrent fragments can report a slightly lower count; it isn't a new stream.
+                downloaded = lastDownloaded
+            }
         }
         lastDownloaded = downloaded
         if let total = progress.total ?? progress.estimate { lastTotal = total }
