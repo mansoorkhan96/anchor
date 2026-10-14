@@ -115,7 +115,7 @@ struct DownloadRow: View {
             IconButton(symbol: "play.fill", label: "Resume", tint: item.stateColor,
                        fill: item.stateColor.opacity(0.12), size: 26, glyphScale: 0.45) { store.toggle(item.id) }
         case .failed:
-            IconButton(symbol: "arrow.clockwise", label: "Retry", tint: .anchorDanger, fill: .anchorDangerWash, size: 26) { store.retry(item.id) }
+            IconButton(symbol: "play.fill", label: "Retry", tint: .anchorDanger, fill: .anchorDangerWash, size: 26, glyphScale: 0.45) { store.retry(item.id) }
         case .completed:
             RevealButton(size: 26, outlined: true) { store.reveal(item.id) }
         }
@@ -146,6 +146,9 @@ struct DownloadRow: View {
             Button("Retry") { store.retry(item.id) }
             Button("Add to Queue") { store.queue([item.id]) }
         case .completed: EmptyView()
+        }
+        if let kind = DownloadStore.startOverKind(item) {
+            Button(kind == .downloadAgain ? "Download Again" : "Start Over") { store.startOver(item.id) }
         }
         if item.seeding == true {
             Button("Stop Seeding") { store.stopSeeding(item.id) }
