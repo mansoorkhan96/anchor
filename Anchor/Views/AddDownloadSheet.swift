@@ -30,13 +30,16 @@ struct AddDownloadSheet: View {
     @State private var mediaCandidate = false
     @State private var media: MediaProbeResult?
     @State private var mediaProbing = false
+    /// yt-dlp's answer when a video site refused (bot check, private, removed…); shown instead of falling back to
+    /// downloading the page.
+    @State private var mediaError: String?
     @State private var quality: MediaQuality = .best
     @FocusState private var addressFocused: Bool
 
     private var tools: ToolManager { .shared }
     private var isMedia: Bool { mediaCandidate || media != nil }
     /// Re-checks the link when the tools become ready, so a waiting video link gets probed.
-    private struct ProbeKey: Hashable { var address: String; var toolsReady: Bool }
+    private struct ProbeKey: Hashable { var address: String; var toolsReady: Bool; var cookieBrowser: String }
 
     private var url: URL? {
         URL(string: address.trimmingCharacters(in: .whitespacesAndNewlines)).flatMap { $0.scheme == nil ? nil : $0 }
@@ -125,6 +128,9 @@ struct AddDownloadSheet: View {
                     )
             } else if isMedia {
                 MediaCard(fileName: $fileName, result: media, probing: mediaProbing, quality: quality)
+                if let mediaError, media == nil, !mediaProbing {
+                    MediaErrorNote(raw: mediaError)
+                }
             } else {
                 fileCard
             }
@@ -279,7 +285,7 @@ struct AddDownloadSheet: View {
             }
             addressFocused = address.isEmpty
         }
-        .task(id: ProbeKey(address: address, toolsReady: tools.isReady)) { await runProbe() }
+        .task(id: ProbeKey(address: address, toolsReady: tools.isReady, cookieBrowser: store.settings.mediaCookieBrowser)) { await runProbe() }
         .onChange(of: folder) {
             guard let gid = prepared?.gid else { return }
             let target = targetFolder
@@ -368,6 +374,7 @@ struct AddDownloadSheet: View {
         probe = nil
         probeError = nil
         media = nil
+        mediaError = nil
         mediaCandidate = false
         releasePrepared()
         guard let url, let scheme = url.scheme?.lowercased() else { return }
@@ -420,13 +427,33 @@ struct AddDownloadSheet: View {
         guard let paths = tools.paths else { return false }
         mediaProbing = true
         defer { mediaProbing = false }
-        let outcome = await MediaProber.shared.probe(url, tools: paths)
-        guard !Task.isCancelled, case .media(let result) = outcome else { return false }
+        let outcome = await MediaProber.shared.probe(url, tools: paths, cookies: cookies(for: url))
+        guard !Task.isCancelled else { return false }
+        if case .notMedia(let message?) = outcome, MediaLinkDetector.isLikelyMedia(url), MediaErrors.kind(of: message) != .other {
+            // The site refused; saying why beats offering its web page as a download.
+            mediaError = message
+            return true
+        }
+        guard case .media(let result) = outcome else { return false }
         media = result
         quality = result.defaultQuality
         nameEdited = false
         setName(FileNaming.sanitize(result.title ?? "Video"))
         return true
+    }
+
+    /// The cookies yt-dlp should use: the chosen browser's, else the ones the extension sent with the link
+    /// (structured, or rebuilt from its Cookie header).
+    private func cookies(for url: URL) -> MediaCookies {
+        var jar = request.cookieJar
+        if jar.isEmpty, let header = request.headers["Cookie"] { jar = MediaCookies.jar(fromHeader: header, url: url) }
+        return MediaCookies.choose(browser: store.settings.mediaCookieBrowser, jar: jar)
+    }
+
+    /// The extension's cookies for this link, kept with the download.
+    private func linkCookies(for url: URL) -> [BrowserCookie] {
+        if !request.cookieJar.isEmpty { return request.cookieJar }
+        return request.headers["Cookie"].map { MediaCookies.jar(fromHeader: $0, url: url) } ?? []
     }
 
     /// Adds the torrent to aria2 paused and loads its file list for review.
@@ -533,7 +560,8 @@ struct AddDownloadSheet: View {
         if let media, let url {
             added = true
             store.addMedia(url, name: fileName.trimmingCharacters(in: .whitespaces), directory: targetFolder, quality: quality,
-                           info: media.info, convertHeight: media.conversionHeight(quality), startNow: startNow, openWhenDone: openWhenDone)
+                           info: media.info, convertHeight: media.conversionHeight(quality),
+                           cookieJar: linkCookies(for: url), startNow: startNow, openWhenDone: openWhenDone)
             close()
             return
         }
