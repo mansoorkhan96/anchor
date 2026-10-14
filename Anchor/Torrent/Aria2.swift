@@ -72,6 +72,8 @@ actor Aria2 {
             "--stop-with-process=\(ProcessInfo.processInfo.processIdentifier)",
             "--seed-time=0", "--bt-save-metadata=true", "--continue=true", "--follow-torrent=mem",
             "--max-concurrent-downloads=50", "--file-allocation=none", "--auto-file-renaming=false",
+            // Fewer, larger disk writes and more peers to download from.
+            "--disk-cache=64M", "--bt-max-peers=100",
             "--dht-file-path=\(support.appending(path: "dht.dat").path)",
             "--quiet=true",
         ]
