@@ -179,7 +179,11 @@ final class MediaProber {
 
     private var current: MediaProcess?
 
-    func probe(_ url: URL, tools: MediaToolPaths) async -> Outcome {
+    func probe(_ url: URL, tools: MediaToolPaths, cookies: MediaCookies = .none) async -> Outcome {
+        // A jar is written to a folder of its own, removed when the probe ends.
+        let scratch = AppPaths.mediaWork.appending(path: "probe-\(UUID().uuidString)", directoryHint: .isDirectory)
+        defer { try? FileManager.default.removeItem(at: scratch) }
+        let cookieArguments = cookies.arguments(writingTo: scratch)
         if let current {
             self.current = nil
             await current.terminate(grace: 1)
@@ -187,7 +191,7 @@ final class MediaProber {
         guard !Task.isCancelled else { return .notMedia(nil) }
         let collector = OutputCollector()
         let finished = AsyncStream<Int32>.makeStream()
-        let process = MediaProcess(executable: tools.ytdlp, arguments: MediaCommand.probeArguments(url: url, tools: tools),
+        let process = MediaProcess(executable: tools.ytdlp, arguments: MediaCommand.probeArguments(url: url, tools: tools, cookies: cookieArguments),
                                    environment: MediaCommand.environment(tools: tools),
                                    onLine: { collector.add($0) },
                                    onFinish: { status in
