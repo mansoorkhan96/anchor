@@ -1,7 +1,8 @@
 import Foundation
 
 /// Registers Anchor's native messaging host with the Chromium browsers on this Mac, so the browser extension
-/// can launch Anchor when it isn't running. Rewritten at every launch, since the host's path moves with the app.
+/// can launch Anchor when it isn't running. Checked at every launch (off the main thread), since the host's path
+/// moves with the app; a manifest that already matches isn't rewritten.
 enum NativeHost {
     static let name = "dev.mansoor.anchor"
     /// Fixed by the `key` in the extension's manifest.json.
@@ -32,8 +33,10 @@ enum NativeHost {
             let profile = URL.applicationSupportDirectory.appending(path: browser, directoryHint: .isDirectory)
             guard FileManager.default.fileExists(atPath: profile.path) else { continue }
             let folder = profile.appending(path: "NativeMessagingHosts", directoryHint: .isDirectory)
+            let file = folder.appending(path: "\(name).json")
+            guard (try? Data(contentsOf: file)) != data else { continue }
             try? FileManager.default.createDirectory(at: folder, withIntermediateDirectories: true)
-            try? data.write(to: folder.appending(path: "\(name).json"), options: .atomic)
+            try? data.write(to: file, options: .atomic)
         }
     }
 }
