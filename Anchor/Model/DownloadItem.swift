@@ -99,6 +99,10 @@ struct DownloadItem: Codable, Identifiable, Hashable, Sendable {
     var mediaInfo: MediaInfo?
     /// Set when the chosen quality is only available as VP9 or AV1: the video's shorter side, for the H.264 bitrate.
     var mediaConvertHeight: Int?
+    /// The site's cookies the browser extension sent with the link, so yt-dlp downloads as the signed-in user.
+    var cookieJar: [BrowserCookie]?
+    /// yt-dlp's own words for the last failure; the failed state holds the plain version.
+    var mediaError: String?
 
     // Torrent fields
     var torrentGID: String?
@@ -111,6 +115,8 @@ struct DownloadItem: Codable, Identifiable, Hashable, Sendable {
     var connections: Int = 0
     /// Media: merging, converting or otherwise finishing up after the download; nil while downloading.
     var mediaPhase: MediaPhase?
+    /// Media: when the last attempt failed, so a retry that fails again visibly changes something.
+    var failedAt: Date?
     var mediaProcessing: Bool { mediaPhase != nil }
 
     enum CodingKeys: String, CodingKey {
@@ -118,7 +124,7 @@ struct DownloadItem: Codable, Identifiable, Hashable, Sendable {
         case supportsRanges, validator, state, createdAt, completedAt, openWhenDone, headers, nameFromServer, overwrite, queuedAt, priority, files, appliedSelection, speedLimitKB, seeding
         case torrentGID, torrentFile
         case keep, stamp, stampIsBaseline, openedAt, archivedAt, archivedFrom, archivedName, pendingMove, installer
-        case mediaQuality, mediaInfo, mediaConvertHeight
+        case mediaQuality, mediaInfo, mediaConvertHeight, cookieJar, mediaError
     }
 
     init(url: URL, fileName: String, directory: URL, category: FileCategory, kind: DownloadKind = .http) {
