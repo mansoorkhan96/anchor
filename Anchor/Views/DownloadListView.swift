@@ -18,6 +18,9 @@ struct DownloadListView: View {
     @State private var trashTargets: Set<UUID> = []
     @State private var panelWidth: CGFloat = 440
     @State private var spaceMonitor: Any?
+    @State private var clickMonitor: Any?
+    /// Where the Details or Video Tools slide-over is, in window coordinates, for closing it on outside clicks.
+    @State private var panelFrame: CGRect = .zero
 
     private var visible: [DownloadItem] {
         switch filter {
@@ -130,6 +133,7 @@ struct DownloadListView: View {
             }
             .animation(.snappy(duration: 0.25), value: store.focusedID)
             .animation(.snappy(duration: 0.25), value: ToolManager.shared.panelOpen)
+            .onGeometryChange(for: CGRect.self, of: { $0.frame(in: .global) }) { panelFrame = $0 }
         }
         .safeAreaInset(edge: .top, spacing: 0) {
             HeaderBar(title: filter.title, subtitle: subtitle, search: $search,
@@ -146,10 +150,16 @@ struct DownloadListView: View {
                 for id in targets { store.toggle(id) }
                 return nil
             }
+            clickMonitor = NSEvent.addLocalMonitorForEvents(matching: .leftMouseDown) { event in
+                closePanelIfOutside(event)
+                return event
+            }
         }
         .onDisappear {
             if let spaceMonitor { NSEvent.removeMonitor(spaceMonitor) }
             spaceMonitor = nil
+            if let clickMonitor { NSEvent.removeMonitor(clickMonitor) }
+            clickMonitor = nil
         }
         .onChange(of: filter) { selection.removeAll() }
         .onChange(of: store.focusedID) { _, id in
@@ -262,6 +272,28 @@ struct DownloadListView: View {
         for id in selection {
             guard let item = store.item(id), !item.state.isFinished else { continue }
             if running { store.pause(id) } else if item.state.isFailed { store.retry(id) } else { store.resume(id) }
+        }
+    }
+
+    /// A click in the main window outside the open slide-over closes it. Clicks that already changed it (another
+    /// download's row switches the details, the Video Tools button toggles its panel) are left to do that.
+    private func closePanelIfOutside(_ event: NSEvent) {
+        let toolsOpen = ToolManager.shared.panelOpen
+        let focused = store.focusedID
+        guard toolsOpen || focused != nil, let window = event.window, window.title == "Anchor", window.attachedSheet == nil,
+              let content = window.contentView else { return }
+        var point = content.convert(event.locationInWindow, from: nil)
+        if !content.isFlipped { point.y = content.bounds.height - point.y }
+        // A little extra on the left for the resize handle, which sits just outside the panel's edge.
+        guard !panelFrame.insetBy(dx: -6, dy: 0).contains(point) else { return }
+        DispatchQueue.main.async {
+            withAnimation(.snappy(duration: 0.25)) {
+                if toolsOpen {
+                    if ToolManager.shared.panelOpen { ToolManager.shared.togglePanel() }
+                } else if store.focusedID == focused {
+                    store.focusedID = nil
+                }
+            }
         }
     }
 
