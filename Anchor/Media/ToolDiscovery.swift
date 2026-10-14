@@ -15,6 +15,23 @@ enum ToolDiscovery {
         return result
     }
 
+    /// The real file's size and modification date (symlinks followed, so a Homebrew upgrade changes it); nil if
+    /// it can't be read.
+    static func fingerprint(of url: URL) -> String? {
+        let real = url.resolvingSymlinksInPath()
+        guard let attributes = try? FileManager.default.attributesOfItem(atPath: real.path),
+              let size = attributes[.size] as? NSNumber, let modified = attributes[.modificationDate] as? Date else { return nil }
+        return "\(size.int64Value)-\(Int64(modified.timeIntervalSince1970))"
+    }
+
+    /// A system copy found on an earlier launch that hasn't changed since: no need to run it again. This also
+    /// keeps tools found through Terminal's PATH (nvm, Herd) when Anchor is opened from Finder with a short PATH.
+    static func isUnchanged(_ record: ToolRecord, tool: ToolID) -> Bool {
+        guard record.source == .system, let saved = record.fingerprint, isExecutable(record.url),
+              fingerprint(of: record.url) == saved else { return false }
+        return tool != .ffmpeg || isExecutable(record.url.deletingLastPathComponent().appending(path: "ffprobe"))
+    }
+
     static func isExecutable(_ url: URL) -> Bool {
         var isDirectory: ObjCBool = false
         return FileManager.default.fileExists(atPath: url.path, isDirectory: &isDirectory) && !isDirectory.boolValue
