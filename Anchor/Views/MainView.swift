@@ -11,8 +11,8 @@ struct MainView: View {
         @Bindable var store = store
         NavigationSplitView(columnVisibility: $columns) {
             SidebarView(selection: $filter)
-                .frame(minWidth: 210)
-                .navigationSplitViewColumnWidth(min: 210, ideal: 228, max: 280)
+                .frame(minWidth: 230)
+                .navigationSplitViewColumnWidth(min: 230, ideal: 244, max: 300)
                 .toolbar(removing: .sidebarToggle)
         } detail: {
             DownloadListView(filter: filter, sidebarHidden: columns == .detailOnly) {
@@ -173,6 +173,8 @@ private struct SidebarRow<Icon: View>: View {
                 if let badge {
                     Text(badge)
                         .font(.system(size: 11, weight: .semibold).monospacedDigit())
+                        .lineLimit(1)
+                        .fixedSize()
                         .foregroundStyle(isSelected ? Color.white : Color.anchorMuted)
                         .padding(.horizontal, 7)
                         .padding(.vertical, 1)
