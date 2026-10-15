@@ -16,7 +16,7 @@
 
 - **Fast HTTP downloads**: splits each file across several connections, resumes after interruptions, and queues the rest.
 - **Torrents and magnet links**: powered by a bundled aria2, with per-file selection and priority, seeding ratio and upload limits.
-- **Browser integration**: a Safari extension ships inside the app. Chrome, Arc, Brave and Edge use the separate [anchor-browser-extension](https://github.com/mansoorkhan96/anchor-browser-extension).
+- **Browser integration**: Chrome, Arc, Brave and Edge use the [anchor-browser-extension](https://github.com/mansoorkhan96/anchor-browser-extension). Safari support is coming soon.
 - **Clipboard pickup**: offers to download links and magnets you copy.
 - **Speed control**: global speed limits and quick speed modes.
 - **When done**: sleep, shut down or quit once every download has finished.
@@ -86,10 +86,6 @@ That builds again and creates a draft GitHub release `v1.1.0` with the DMGs, ins
 
 **Take over browser downloads** is on by default (Settings > Browser), along with **Confirm each download**, which shows the New Download window before each browser download starts. The extensions talk to Anchor over a local server on `127.0.0.1:47821`.
 
-### Safari
-
-The Safari extension ships inside the app. Open Settings > Browser > Open Safari… and enable Anchor. Because builds aren't notarized, Safari also needs Develop > Allow Unsigned Extensions.
-
 ### Chrome, Arc, Brave, Edge
 
 The extension lives in its own repo: [anchor-browser-extension](https://github.com/mansoorkhan96/anchor-browser-extension).
@@ -99,6 +95,10 @@ The extension lives in its own repo: [anchor-browser-extension](https://github.c
 3. Click **Load unpacked** and pick that folder.
 
 The browser loads the extension from that folder, so don't delete or move it.
+
+### Safari (coming soon)
+
+Safari support is on the way.
 
 ## Data
 
