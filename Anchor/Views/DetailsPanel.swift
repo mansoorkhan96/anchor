@@ -145,12 +145,12 @@ private struct GeneralDetails: View {
             Grid(alignment: .leadingFirstTextBaseline, horizontalSpacing: 18, verticalSpacing: 10) {
                 row("Status") {
                     HStack(spacing: 12) {
-                        StatusPill(state: item.state, compact: true).opacity(item.state == .downloading ? 0 : 1)
-                            .overlay(alignment: .leading) {
-                                if item.state == .downloading {
-                                    Text(item.mediaPhase?.detail ?? "Downloading · \(Format.speed(item.speed))").font(.system(size: 12.5)).foregroundStyle(Color.anchorText)
-                                }
-                            }
+                        // StatusPill draws nothing while downloading, so the live detail stands on its own.
+                        if item.state == .downloading {
+                            Text(item.mediaPhase?.detail ?? "Downloading · \(Format.speed(item.speed))").font(.system(size: 12.5)).foregroundStyle(Color.anchorText)
+                        } else {
+                            StatusPill(state: item.state, compact: true)
+                        }
                         if let kind = DownloadStore.startOverKind(item) {
                             Button(kind == .downloadAgain ? "Download Again" : "Start Over") { store.startOver(item.id) }
                                 .buttonStyle(.plain)
