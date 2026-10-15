@@ -6,6 +6,12 @@
 
 <p align="center">A native download manager for macOS, built with SwiftUI.</p>
 
+<p align="center">
+  <img src="https://mansoor.dev/images/anchor/main.png" width="800" alt="Anchor's main window with downloads in progress">
+  <br>
+  <a href="https://mansoor.dev/images/anchor/anchor-launch.mp4">▶ Watch the video</a> · <a href="https://mansoor.dev/projects/anchor">mansoor.dev/projects/anchor</a>
+</p>
+
 ## Features
 
 - **Fast HTTP downloads**: splits each file across several connections, resumes after interruptions, and queues the rest.
