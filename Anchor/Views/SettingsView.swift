@@ -1,7 +1,6 @@
 import SwiftUI
 import UniformTypeIdentifiers
 import ServiceManagement
-import SafariServices
 
 private enum SettingsSection: String, CaseIterable, Identifiable {
     case general, speed, browser, cleanup, about
@@ -613,19 +612,10 @@ private struct BrowserPage: View {
                 .disabled(!settings.browserIntegration)
             }
             SettingsCard {
-                SettingsRow(title: "Safari extension",
-                            detail: "Turn on Anchor in Safari's Extensions settings. Unsigned builds also need Develop > Allow Unsigned Extensions.",
-                            divider: true) {
-                    Button("Open Safari…", action: openSafariExtension).buttonStyle(.anchorSecondary)
-                }
                 SettingsRow(title: "Chrome, Arc, Brave and Edge extension",
                             detail: "In chrome://extensions turn on Developer mode, choose Load unpacked, and pick the anchor-browser-extension folder.") {}
             }
         }
-    }
-
-    private func openSafariExtension() {
-        SFSafariApplication.showPreferencesForExtension(withIdentifier: "dev.mansoor.Anchor.SafariExtension") { _ in }
     }
 }
 
