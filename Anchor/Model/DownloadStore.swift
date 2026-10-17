@@ -283,6 +283,8 @@ final class DownloadStore {
         let folder = name.isEmpty ? base : base.appending(path: name, directoryHint: .isDirectory)
         let digits = max(2, String(videos.map(\.index).max() ?? 0).count)
         let now = Date()
+        let group = UUID()
+        let groupTitle = name.isEmpty ? (folderName.isEmpty ? "Playlist" : folderName) : name
         var added: [DownloadItem] = []
         for (offset, entry) in videos.enumerated() {
             let title = numbered ? String(format: "%0\(digits)d ", entry.index) + entry.video.title : entry.video.title
@@ -292,6 +294,8 @@ final class DownloadStore {
                                  playableOnly: true, cookieJar: cookieJar, openWhenDone: false, taken: added)
             // Named after the site's title once yt-dlp reports it, when the playlist didn't list one.
             item.nameFromServer = entry.video.titled ? nil : true
+            item.groupID = group
+            item.groupTitle = groupTitle
             // Listed and queued in the playlist's order: the first video is the newest in the list and leaves the
             // queue first.
             item.createdAt = now.addingTimeInterval(-Double(offset) / 1000)

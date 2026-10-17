@@ -107,6 +107,10 @@ struct DownloadItem: Codable, Identifiable, Hashable, Sendable {
     var mediaPlayableOnly: Bool?
     /// Subtitles to embed in the video.
     var mediaSubtitle: MediaSubtitle?
+    /// Videos added together from one playlist share this, and show as one row in the list.
+    var groupID: UUID?
+    /// The playlist's name, shown on that row.
+    var groupTitle: String?
 
     // Torrent fields
     var torrentGID: String?
@@ -129,6 +133,7 @@ struct DownloadItem: Codable, Identifiable, Hashable, Sendable {
         case torrentGID, torrentFile
         case keep, stamp, stampIsBaseline, openedAt, archivedAt, archivedFrom, archivedName, pendingMove, installer
         case mediaQuality, mediaInfo, mediaConvertHeight, cookieJar, mediaError, mediaPlayableOnly, mediaSubtitle
+        case groupID, groupTitle
     }
 
     init(url: URL, fileName: String, directory: URL, category: FileCategory, kind: DownloadKind = .http) {
