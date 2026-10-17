@@ -15,6 +15,7 @@ settings:
     ENABLE_HARDENED_RUNTIME: NO
     ARCHS: arm64
     SWIFT_STRICT_CONCURRENCY: complete
+    FRAMEWORK_SEARCH_PATHS: $(inherited) $(PROJECT_DIR)/Vendor/Sparkle
 targets:
   Anchor:
     type: application
@@ -28,6 +29,9 @@ targets:
         embed: true
         copy:
           destination: executables
+      # Sparkle, downloaded into Vendor/Sparkle by scripts/vendor-sparkle.sh (the pre-build phase runs it when missing).
+      - framework: Vendor/Sparkle/Sparkle.framework
+        embed: true
     info:
       path: Anchor/Resources/Info.plist
       properties:
@@ -38,6 +42,11 @@ targets:
         LSMinimumSystemVersion: "26.0"
         NSHumanReadableCopyright: ""
         NSAppleEventsUsageDescription: Anchor asks System Events to shut down your Mac when you choose "Shut Down" after downloads finish.
+        # Sparkle: the newest release's appcast, signed with the EdDSA key in the login keychain (scripts/release.sh).
+        SUFeedURL: https://github.com/mansoorkhan96/anchor/releases/latest/download/appcast.xml
+        SUPublicEDKey: LljsHEezdMlVjgTewb+9gcliT689yUm4PJZ2NDbMhLk=
+        SUEnableAutomaticChecks: true
+        SUScheduledCheckInterval: 86400
         CFBundleURLTypes:
           - CFBundleURLName: Magnet link
             CFBundleURLSchemes: [magnet]
@@ -60,6 +69,10 @@ targets:
         PRODUCT_BUNDLE_IDENTIFIER: dev.mansoor.Anchor
         ASSETCATALOG_COMPILER_APPICON_NAME: AppIcon
         GENERATE_INFOPLIST_FILE: NO
+    preBuildScripts:
+      - name: Vendor Sparkle
+        script: "[ -d \"${PROJECT_DIR}/Vendor/Sparkle/Sparkle.framework\" ] || \"${PROJECT_DIR}/scripts/vendor-sparkle.sh\""
+        basedOnDependencyAnalysis: false
     postBuildScripts:
       - name: Embed aria2
         script: "\"${PROJECT_DIR}/scripts/embed-aria2.sh\""

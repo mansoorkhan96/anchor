@@ -14,6 +14,7 @@
 		0AF21DF5658109C3040EC8E1 /* CleanupRules.swift in Sources */ = {isa = PBXBuildFile; fileRef = 34C61D2CB393760112D9B4CF /* CleanupRules.swift */; };
 		0D6A913D3FB823617DCFFC96 /* Assets.xcassets in Resources */ = {isa = PBXBuildFile; fileRef = 9D3BF5B03C710E30156FC2F4 /* Assets.xcassets */; };
 		0E5525C54CDB76D825AFC515 /* manifest.json in Resources */ = {isa = PBXBuildFile; fileRef = 822AF4C2123CD0877C11E6BF /* manifest.json */; };
+		0F01F30AC31820DAB931AB30 /* AppUpdater.swift in Sources */ = {isa = PBXBuildFile; fileRef = E12780AE622C821EF89BE8D5 /* AppUpdater.swift */; };
 		0F41E659E36D921A126E4862 /* MediaCommand.swift in Sources */ = {isa = PBXBuildFile; fileRef = 5D7914CDF13349DB4454528E /* MediaCommand.swift */; };
 		12EAF793C2EBD78EF330390E /* Theme.swift in Sources */ = {isa = PBXBuildFile; fileRef = 13F1E81D11D0102C2837285D /* Theme.swift */; };
 		150D5D66A4029B6C5CC179DB /* MediaTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 63F973A7931334C08EFC4B78 /* MediaTests.swift */; };
@@ -21,6 +22,7 @@
 		17F43F39766217C35406D961 /* ToolManager.swift in Sources */ = {isa = PBXBuildFile; fileRef = B6D26B5FCCCF835E246EF03D /* ToolManager.swift */; };
 		1D4B06AC87A1FC8F5E883864 /* MediaProbe.swift in Sources */ = {isa = PBXBuildFile; fileRef = B983E991577278DB6B513EBB /* MediaProbe.swift */; };
 		1F2C57684DD5F335424ECD08 /* ToolInstaller.swift in Sources */ = {isa = PBXBuildFile; fileRef = 4D2CAE6951F58CD50B1012AE /* ToolInstaller.swift */; };
+		1F87D19D341A0D0F4ACF4F9B /* AnchorIntents.swift in Sources */ = {isa = PBXBuildFile; fileRef = 68E3F1FCB1E77E6860D62FAA /* AnchorIntents.swift */; };
 		20198661D8D1F79D04E5E286 /* TorrentFile.swift in Sources */ = {isa = PBXBuildFile; fileRef = 35229BFE2734E6DD5D28FFAA /* TorrentFile.swift */; };
 		2608E2A91E4689FA903A58FA /* AddDownloadSheet.swift in Sources */ = {isa = PBXBuildFile; fileRef = CB1299B3D8FEE4E831F5DDA0 /* AddDownloadSheet.swift */; };
 		26A5E3D9ECF59C04AFD530EC /* AppRouter.swift in Sources */ = {isa = PBXBuildFile; fileRef = A5C00DA56F0E5B569A52B35D /* AppRouter.swift */; };
@@ -32,11 +34,13 @@
 		4025FE74BA2838D214D62594 /* ProcessRunner.swift in Sources */ = {isa = PBXBuildFile; fileRef = BE3A7ECBBDC5D46BB2CCE1BC /* ProcessRunner.swift */; };
 		40B32A694B0C3C8EBEDA8339 /* ToolModels.swift in Sources */ = {isa = PBXBuildFile; fileRef = F7FB3BAC3F60CA0CF0F1E4EE /* ToolModels.swift */; };
 		45600B21AD087D23621513A2 /* ToolSources.swift in Sources */ = {isa = PBXBuildFile; fileRef = E6D97385789E10A0C7D6A45F /* ToolSources.swift */; };
+		4A23C683BBDE900F2D7734E3 /* Sparkle.framework in Frameworks */ = {isa = PBXBuildFile; fileRef = EFDD11DEE53FD0BA051C0DC3 /* Sparkle.framework */; };
 		4C63699DE688444ECA0AB9A9 /* MenuBarView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 1AC3C09CC25C94D725FFAA63 /* MenuBarView.swift */; };
 		568CE8DF1B24C1E288AF1139 /* Power.swift in Sources */ = {isa = PBXBuildFile; fileRef = D751F7362AF4A53AFFDE53E8 /* Power.swift */; };
 		59A0C97E531531D8FD28CB59 /* WhenDoneView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 5D48C0EDF96EC8440CBB479F /* WhenDoneView.swift */; };
 		5C9BBDBD9640BBB4AF4C5C1C /* background.js in Resources */ = {isa = PBXBuildFile; fileRef = 083292133F0A56D1BE75868D /* background.js */; };
 		5EA33E6448EAAB296CC4FC69 /* MediaProcess.swift in Sources */ = {isa = PBXBuildFile; fileRef = 5F53B5CB87698E583BBD3ADE /* MediaProcess.swift */; };
+		6106A8C73DDA360F1818A476 /* DownloadWindow.swift in Sources */ = {isa = PBXBuildFile; fileRef = 35086E4C4A489F9F28DD7F3C /* DownloadWindow.swift */; };
 		648F894C2B45BDDEE59D926A /* CleanupStore.swift in Sources */ = {isa = PBXBuildFile; fileRef = E8CE611F6B232CE790681D17 /* CleanupStore.swift */; };
 		6942E311238AEDFDAF855E71 /* DownloadItem.swift in Sources */ = {isa = PBXBuildFile; fileRef = 15E394191DFEC20E7273324A /* DownloadItem.swift */; };
 		6973C853410858A5EEC0D3D2 /* EngineTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = B0CBD346AE293F042A1BBBC0 /* EngineTests.swift */; };
@@ -52,17 +56,20 @@
 		9764B66CEEFE4E248582DF53 /* main.swift in Sources */ = {isa = PBXBuildFile; fileRef = 35D3B104C83C73D058156AF3 /* main.swift */; };
 		9CE8EC0B84A40019F8ECF8B7 /* icon128.png in Resources */ = {isa = PBXBuildFile; fileRef = 19456BED8CAC7A64D649F695 /* icon128.png */; };
 		9FD1888058A49872B1B89554 /* MediaDownload.swift in Sources */ = {isa = PBXBuildFile; fileRef = 10553B13065A21712695ED6E /* MediaDownload.swift */; };
+		AF5797DA473C0EEDC5F2D59D /* ScheduleTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = B16B3ECF27BF79FCB38E4547 /* ScheduleTests.swift */; };
 		B1AC65133D496DBEB2E48B5B /* Aria2.swift in Sources */ = {isa = PBXBuildFile; fileRef = F4F9A53558C7BAF3FC9714AC /* Aria2.swift */; };
 		B905E20FF0C7ABB7EC04D17F /* FileConflictView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 33BCB4B204B1EAD3990E9ABD /* FileConflictView.swift */; };
 		BDF1178B96158739854256E8 /* InstallerInspector.swift in Sources */ = {isa = PBXBuildFile; fileRef = 53694FEF57A5328CA21EAD26 /* InstallerInspector.swift */; };
 		BF29C9A4194EC2242BFDC9EB /* Probe.swift in Sources */ = {isa = PBXBuildFile; fileRef = 5DB39D07D5D65393DDD9D410 /* Probe.swift */; };
 		C05CBB77ED66A84B42C27DD8 /* Formatters.swift in Sources */ = {isa = PBXBuildFile; fileRef = 91ACAFB1431D20D89277492E /* Formatters.swift */; };
 		C438D3383A2AD46D1538A630 /* DownloadListView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 368ECE71F4B36811AA4B5F84 /* DownloadListView.swift */; };
+		C4DB7FD9681A1923A743912D /* Sparkle.framework in Embed Frameworks */ = {isa = PBXBuildFile; fileRef = EFDD11DEE53FD0BA051C0DC3 /* Sparkle.framework */; settings = {ATTRIBUTES = (CodeSignOnCopy, RemoveHeadersOnCopy, ); }; };
 		C592B4AE3EE18E58338B31A2 /* content.js in Resources */ = {isa = PBXBuildFile; fileRef = C408D3DA5DBE9197A171286F /* content.js */; };
 		C9F840316AE279E6BCFFBB7E /* BrowserBridge.swift in Sources */ = {isa = PBXBuildFile; fileRef = 132BA885386BAC92DCDFE0FD /* BrowserBridge.swift */; };
 		CD1F59553A7AB2B25B9DA138 /* AnchorNativeHost in Embed Dependencies */ = {isa = PBXBuildFile; fileRef = 278E9B0AB6F848DF1F3FE6F2 /* AnchorNativeHost */; settings = {ATTRIBUTES = (RemoveHeadersOnCopy, ); }; };
 		D0016C99D5E17DBB44EBF1B3 /* FileCategory.swift in Sources */ = {isa = PBXBuildFile; fileRef = BEE5D55E4ADE7B4A05F2F982 /* FileCategory.swift */; };
 		D08F622B9C63FC7F4428A6ED /* AppPaths.swift in Sources */ = {isa = PBXBuildFile; fileRef = BBB75998191CD03260603E25 /* AppPaths.swift */; };
+		D4745C83749DFA5CF1FB9C8A /* GlobalShortcuts.swift in Sources */ = {isa = PBXBuildFile; fileRef = 7CFB37054DC8EE661E777196 /* GlobalShortcuts.swift */; };
 		DD50E15E19BD0714557061B6 /* ClipboardWatcher.swift in Sources */ = {isa = PBXBuildFile; fileRef = AADF9BE66FF2F8D50E5CB2F0 /* ClipboardWatcher.swift */; };
 		DD687D8A3D197BFE2D08C305 /* MediaDownloadViews.swift in Sources */ = {isa = PBXBuildFile; fileRef = 0849BBE6651B156DC5BE9F4E /* MediaDownloadViews.swift */; };
 		E0D1BEAF6AD805A89F9DC154 /* popup.js in Resources */ = {isa = PBXBuildFile; fileRef = 782E56328384E7CDC5115D73 /* popup.js */; };
@@ -124,6 +131,17 @@
 			name = "Embed Dependencies";
 			runOnlyForDeploymentPostprocessing = 0;
 		};
+		AE4DAC4DC75BAAEAAE51EB75 /* Embed Frameworks */ = {
+			isa = PBXCopyFilesBuildPhase;
+			buildActionMask = 2147483647;
+			dstPath = "";
+			dstSubfolderSpec = 10;
+			files = (
+				C4DB7FD9681A1923A743912D /* Sparkle.framework in Embed Frameworks */,
+			);
+			name = "Embed Frameworks";
+			runOnlyForDeploymentPostprocessing = 0;
+		};
 /* End PBXCopyFilesBuildPhase section */
 
 /* Begin PBXFileReference section */
@@ -150,6 +168,7 @@
 		2BB2AC9D1FB0101A1D1517F3 /* FileStamp.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = FileStamp.swift; sourceTree = "<group>"; };
 		33BCB4B204B1EAD3990E9ABD /* FileConflictView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = FileConflictView.swift; sourceTree = "<group>"; };
 		34C61D2CB393760112D9B4CF /* CleanupRules.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = CleanupRules.swift; sourceTree = "<group>"; };
+		35086E4C4A489F9F28DD7F3C /* DownloadWindow.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = DownloadWindow.swift; sourceTree = "<group>"; };
 		35229BFE2734E6DD5D28FFAA /* TorrentFile.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = TorrentFile.swift; sourceTree = "<group>"; };
 		35463D598DD4892DA5FC94DC /* LibraryWriter.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = LibraryWriter.swift; sourceTree = "<group>"; };
 		35D3B104C83C73D058156AF3 /* main.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = main.swift; sourceTree = "<group>"; };
@@ -163,8 +182,10 @@
 		5DB39D07D5D65393DDD9D410 /* Probe.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Probe.swift; sourceTree = "<group>"; };
 		5F53B5CB87698E583BBD3ADE /* MediaProcess.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = MediaProcess.swift; sourceTree = "<group>"; };
 		63F973A7931334C08EFC4B78 /* MediaTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = MediaTests.swift; sourceTree = "<group>"; };
+		68E3F1FCB1E77E6860D62FAA /* AnchorIntents.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AnchorIntents.swift; sourceTree = "<group>"; };
 		782E56328384E7CDC5115D73 /* popup.js */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.javascript; path = popup.js; sourceTree = "<group>"; };
 		7CEFA146D62E57DD2442A1EE /* CleanupViews.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = CleanupViews.swift; sourceTree = "<group>"; };
+		7CFB37054DC8EE661E777196 /* GlobalShortcuts.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = GlobalShortcuts.swift; sourceTree = "<group>"; };
 		822AF4C2123CD0877C11E6BF /* manifest.json */ = {isa = PBXFileReference; lastKnownFileType = text.json; path = manifest.json; sourceTree = "<group>"; };
 		8799EA6CFC0D5855C7250A58 /* HTTPDownload.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = HTTPDownload.swift; sourceTree = "<group>"; };
 		8BBDCB874AA7665868247667 /* Info.plist */ = {isa = PBXFileReference; lastKnownFileType = text.plist; path = Info.plist; sourceTree = "<group>"; };
@@ -185,6 +206,7 @@
 		AE82B6CC0D93321BD8BA7BED /* AddDownloadPanel.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AddDownloadPanel.swift; sourceTree = "<group>"; };
 		B0CBD346AE293F042A1BBBC0 /* EngineTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = EngineTests.swift; sourceTree = "<group>"; };
 		B12737D947A396BC7971E6D4 /* MainView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = MainView.swift; sourceTree = "<group>"; };
+		B16B3ECF27BF79FCB38E4547 /* ScheduleTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ScheduleTests.swift; sourceTree = "<group>"; };
 		B6D26B5FCCCF835E246EF03D /* ToolManager.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ToolManager.swift; sourceTree = "<group>"; };
 		B983E991577278DB6B513EBB /* MediaProbe.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = MediaProbe.swift; sourceTree = "<group>"; };
 		BBB75998191CD03260603E25 /* AppPaths.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AppPaths.swift; sourceTree = "<group>"; };
@@ -193,16 +215,37 @@
 		C408D3DA5DBE9197A171286F /* content.js */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.javascript; path = content.js; sourceTree = "<group>"; };
 		CB1299B3D8FEE4E831F5DDA0 /* AddDownloadSheet.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AddDownloadSheet.swift; sourceTree = "<group>"; };
 		D751F7362AF4A53AFFDE53E8 /* Power.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Power.swift; sourceTree = "<group>"; };
+		E12780AE622C821EF89BE8D5 /* AppUpdater.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AppUpdater.swift; sourceTree = "<group>"; };
 		E2084920EEA90800D7368784 /* popup.html */ = {isa = PBXFileReference; lastKnownFileType = text.html; path = popup.html; sourceTree = "<group>"; };
 		E6D97385789E10A0C7D6A45F /* ToolSources.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ToolSources.swift; sourceTree = "<group>"; };
 		E8CE611F6B232CE790681D17 /* CleanupStore.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = CleanupStore.swift; sourceTree = "<group>"; };
+		EFDD11DEE53FD0BA051C0DC3 /* Sparkle.framework */ = {isa = PBXFileReference; lastKnownFileType = wrapper.framework; name = Sparkle.framework; path = Vendor/Sparkle/Sparkle.framework; sourceTree = "<group>"; };
 		F4F9A53558C7BAF3FC9714AC /* Aria2.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Aria2.swift; sourceTree = "<group>"; };
 		F6ECF920B16B9A6014F7F3D7 /* FileThumbnail.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = FileThumbnail.swift; sourceTree = "<group>"; };
 		F7FB3BAC3F60CA0CF0F1E4EE /* ToolModels.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ToolModels.swift; sourceTree = "<group>"; };
 		FEC4FC34DF8A6C68A3150E4F /* DebugSnapshot.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = DebugSnapshot.swift; sourceTree = "<group>"; };
 /* End PBXFileReference section */
 
+/* Begin PBXFrameworksBuildPhase section */
+		7EF3C5F134CBC62C73E83A40 /* Frameworks */ = {
+			isa = PBXFrameworksBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+				4A23C683BBDE900F2D7734E3 /* Sparkle.framework in Frameworks */,
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
+/* End PBXFrameworksBuildPhase section */
+
 /* Begin PBXGroup section */
+		25A8A1A59CAEE213E72BDED0 /* Frameworks */ = {
+			isa = PBXGroup;
+			children = (
+				EFDD11DEE53FD0BA051C0DC3 /* Sparkle.framework */,
+			);
+			name = Frameworks;
+			sourceTree = "<group>";
+		};
 		26F038212D6C3B51980271AC /* Cleanup */ = {
 			isa = PBXGroup;
 			children = (
@@ -248,6 +291,7 @@
 				A6DE08AF190CD4B50530C890 /* CleanupTests.swift */,
 				B0CBD346AE293F042A1BBBC0 /* EngineTests.swift */,
 				63F973A7931334C08EFC4B78 /* MediaTests.swift */,
+				B16B3ECF27BF79FCB38E4547 /* ScheduleTests.swift */,
 			);
 			path = AnchorTests;
 			sourceTree = "<group>";
@@ -281,8 +325,11 @@
 			children = (
 				AE82B6CC0D93321BD8BA7BED /* AddDownloadPanel.swift */,
 				2A3B19FF2F35E9DC3FCC4E57 /* AnchorApp.swift */,
+				68E3F1FCB1E77E6860D62FAA /* AnchorIntents.swift */,
 				A5C00DA56F0E5B569A52B35D /* AppRouter.swift */,
+				E12780AE622C821EF89BE8D5 /* AppUpdater.swift */,
 				FEC4FC34DF8A6C68A3150E4F /* DebugSnapshot.swift */,
+				7CFB37054DC8EE661E777196 /* GlobalShortcuts.swift */,
 			);
 			path = App;
 			sourceTree = "<group>";
@@ -331,6 +378,7 @@
 				4FA7227C0F414870077CAE6B /* AnchorNativeHost */,
 				5D75169B392227D5DFC7A4A9 /* AnchorTests */,
 				E05F4CC12BFBB19749459193 /* SafariExtension */,
+				25A8A1A59CAEE213E72BDED0 /* Frameworks */,
 				6BAACBF8C38221CFEBA1BAC9 /* Products */,
 			);
 			sourceTree = "<group>";
@@ -361,6 +409,7 @@
 				17E729A3748EC645A82B68B4 /* AppSettings.swift */,
 				15E394191DFEC20E7273324A /* DownloadItem.swift */,
 				8CFE79BCC55D3C9DA3CC6D77 /* DownloadStore.swift */,
+				35086E4C4A489F9F28DD7F3C /* DownloadWindow.swift */,
 				BEE5D55E4ADE7B4A05F2F982 /* FileCategory.swift */,
 				91ACAFB1431D20D89277492E /* Formatters.swift */,
 				35463D598DD4892DA5FC94DC /* LibraryWriter.swift */,
@@ -409,9 +458,12 @@
 			isa = PBXNativeTarget;
 			buildConfigurationList = 9A3340A0BCD8AA8B00BE46C6 /* Build configuration list for PBXNativeTarget "Anchor" */;
 			buildPhases = (
+				BE526CE604DC37A26CB2C2AB /* Vendor Sparkle */,
 				63D364B80E211DB48EB26372 /* Sources */,
 				7346EBA95A3342D71D986520 /* Resources */,
+				7EF3C5F134CBC62C73E83A40 /* Frameworks */,
 				56406D6EB5F84ABF8FB09B57 /* Embed Foundation Extensions */,
+				AE4DAC4DC75BAAEAAE51EB75 /* Embed Frameworks */,
 				5EEAA1D8AE48CAAB3D7CA616 /* Embed Dependencies */,
 				40B029C07128ACC3D9FAD7F8 /* Embed aria2 */,
 			);
@@ -574,6 +626,25 @@
 			shellPath = /bin/sh;
 			shellScript = "\"${PROJECT_DIR}/scripts/embed-aria2.sh\"";
 		};
+		BE526CE604DC37A26CB2C2AB /* Vendor Sparkle */ = {
+			isa = PBXShellScriptBuildPhase;
+			alwaysOutOfDate = 1;
+			buildActionMask = 2147483647;
+			files = (
+			);
+			inputFileListPaths = (
+			);
+			inputPaths = (
+			);
+			name = "Vendor Sparkle";
+			outputFileListPaths = (
+			);
+			outputPaths = (
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+			shellPath = /bin/sh;
+			shellScript = "[ -d \"${PROJECT_DIR}/Vendor/Sparkle/Sparkle.framework\" ] || \"${PROJECT_DIR}/scripts/vendor-sparkle.sh\"";
+		};
 /* End PBXShellScriptBuildPhase section */
 
 /* Begin PBXSourcesBuildPhase section */
@@ -584,6 +655,7 @@
 				72D17E6193DAF05E1326DE87 /* CleanupTests.swift in Sources */,
 				6973C853410858A5EEC0D3D2 /* EngineTests.swift in Sources */,
 				150D5D66A4029B6C5CC179DB /* MediaTests.swift in Sources */,
+				AF5797DA473C0EEDC5F2D59D /* ScheduleTests.swift in Sources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
@@ -602,9 +674,11 @@
 				77E66342309219A429A8702B /* AddDownloadPanel.swift in Sources */,
 				2608E2A91E4689FA903A58FA /* AddDownloadSheet.swift in Sources */,
 				9717934B4C0914A911AED4B8 /* AnchorApp.swift in Sources */,
+				1F87D19D341A0D0F4ACF4F9B /* AnchorIntents.swift in Sources */,
 				D08F622B9C63FC7F4428A6ED /* AppPaths.swift in Sources */,
 				26A5E3D9ECF59C04AFD530EC /* AppRouter.swift in Sources */,
 				81276B961898129B3CF29DE9 /* AppSettings.swift in Sources */,
+				0F01F30AC31820DAB931AB30 /* AppUpdater.swift in Sources */,
 				354EA5A1859ACE84BAF8C0AB /* Archiver.swift in Sources */,
 				B1AC65133D496DBEB2E48B5B /* Aria2.swift in Sources */,
 				C9F840316AE279E6BCFFBB7E /* BrowserBridge.swift in Sources */,
@@ -619,12 +693,14 @@
 				C438D3383A2AD46D1538A630 /* DownloadListView.swift in Sources */,
 				E925117CE0F1EEA30D687318 /* DownloadRow.swift in Sources */,
 				02C0DF261BA283CEE22CFF67 /* DownloadStore.swift in Sources */,
+				6106A8C73DDA360F1818A476 /* DownloadWindow.swift in Sources */,
 				D0016C99D5E17DBB44EBF1B3 /* FileCategory.swift in Sources */,
 				B905E20FF0C7ABB7EC04D17F /* FileConflictView.swift in Sources */,
 				FB96831D84AC29A558FD99BF /* FileNaming.swift in Sources */,
 				F09298795D9AAF1F68C2898C /* FileStamp.swift in Sources */,
 				9437E9215BA8848806296DA9 /* FileThumbnail.swift in Sources */,
 				C05CBB77ED66A84B42C27DD8 /* Formatters.swift in Sources */,
+				D4745C83749DFA5CF1FB9C8A /* GlobalShortcuts.swift in Sources */,
 				7753852DD8DA8CEB5F0EA9CC /* HTTPDownload.swift in Sources */,
 				BDF1178B96158739854256E8 /* InstallerInspector.swift in Sources */,
 				05F1B04B7C3B39B34B1DE118 /* LibraryWriter.swift in Sources */,
@@ -739,6 +815,10 @@
 			buildSettings = {
 				ASSETCATALOG_COMPILER_APPICON_NAME = AppIcon;
 				COMBINE_HIDPI_IMAGES = YES;
+				FRAMEWORK_SEARCH_PATHS = (
+					"$(inherited)",
+					"\"Vendor/Sparkle\"",
+				);
 				GENERATE_INFOPLIST_FILE = NO;
 				INFOPLIST_FILE = Anchor/Resources/Info.plist;
 				LD_RUNPATH_SEARCH_PATHS = (
@@ -827,6 +907,7 @@
 				ENABLE_HARDENED_RUNTIME = NO;
 				ENABLE_NS_ASSERTIONS = NO;
 				ENABLE_STRICT_OBJC_MSGSEND = YES;
+				FRAMEWORK_SEARCH_PATHS = "$(inherited) $(PROJECT_DIR)/Vendor/Sparkle";
 				GCC_C_LANGUAGE_STANDARD = gnu11;
 				GCC_NO_COMMON_BLOCKS = YES;
 				GCC_WARN_64_TO_32_BIT_CONVERSION = YES;
@@ -906,6 +987,7 @@
 				ENABLE_HARDENED_RUNTIME = NO;
 				ENABLE_STRICT_OBJC_MSGSEND = YES;
 				ENABLE_TESTABILITY = YES;
+				FRAMEWORK_SEARCH_PATHS = "$(inherited) $(PROJECT_DIR)/Vendor/Sparkle";
 				GCC_C_LANGUAGE_STANDARD = gnu11;
 				GCC_DYNAMIC_NO_PIC = NO;
 				GCC_NO_COMMON_BLOCKS = YES;
@@ -939,6 +1021,10 @@
 			buildSettings = {
 				ASSETCATALOG_COMPILER_APPICON_NAME = AppIcon;
 				COMBINE_HIDPI_IMAGES = YES;
+				FRAMEWORK_SEARCH_PATHS = (
+					"$(inherited)",
+					"\"Vendor/Sparkle\"",
+				);
 				GENERATE_INFOPLIST_FILE = NO;
 				INFOPLIST_FILE = Anchor/Resources/Info.plist;
 				LD_RUNPATH_SEARCH_PATHS = (
