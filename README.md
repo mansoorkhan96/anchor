@@ -15,10 +15,15 @@
 ## Features
 
 - **Fast HTTP downloads**: splits each file across several connections, resumes after interruptions, and queues the rest.
+- **Videos**: YouTube, Instagram, TikTok and other sites through yt-dlp, which Anchor installs and keeps up to date. Pick any quality, or just the audio, and add subtitles. VP9 and AV1 videos can be converted to MP4 so they play in QuickTime.
+- **Playlists and channels**: pick which videos to download; they go into a folder named after the playlist, numbered in order.
 - **Torrents and magnet links**: powered by a bundled aria2, with per-file selection and priority, seeding ratio and upload limits.
 - **Browser integration**: Chrome, Arc, Brave and Edge use the [anchor-browser-extension](https://github.com/mansoorkhan96/anchor-browser-extension). Safari support is coming soon.
 - **Clipboard pickup**: offers to download links and magnets you copy.
 - **Speed control**: global speed limits and quick speed modes.
+- **Schedule**: let queued downloads run only at set hours, such as overnight.
+- **Shortcuts**: Add Download, Pause All, Resume All and Get Download Status actions for Shortcuts, Spotlight and Siri.
+- **Updates**: Anchor checks GitHub for new versions and installs them (Settings > About).
 - **When done**: sleep, shut down or quit once every download has finished.
 - **Cleanup**: finds downloads you haven't used in a while so you can archive them (and restore them later) or move them to the Trash. Installers can be archived once their app is installed. Nothing is removed until you choose to.
 - **Menu bar**: live speed and recent downloads, one click away.
@@ -72,7 +77,9 @@ xcodebuild test -project Anchor.xcodeproj -scheme Anchor
 scripts/release.sh 1.1.0
 ```
 
-This sets the version in `project.yml` (and bumps the build number), builds a Release copy and writes `build/dist/Anchor-1.1.0.dmg`, a copy named `Anchor.dmg` and a SHA-256 checksum. Builds are ad-hoc signed, not notarized.
+This sets the version in `project.yml` (and bumps the build number), builds a Release copy and writes `build/dist/Anchor-1.1.0.dmg`, a copy named `Anchor.dmg`, a SHA-256 checksum and `appcast.xml`, the update feed. Builds are ad-hoc signed, not notarized.
+
+Updates are signed with an EdDSA key kept in your login keychain. Create it once with Sparkle's `generate_keys` (in `Vendor/Sparkle/bin`, which the first build downloads) and put the public key it prints in `SUPublicEDKey` in `project.yml`. Back the private key up with `generate_keys -x <file>`: without it, installed copies can't verify new versions.
 
 To publish, commit and push the version bump, then run:
 
@@ -80,7 +87,7 @@ To publish, commit and push the version bump, then run:
 scripts/release.sh 1.1.0 --publish
 ```
 
-That builds again and creates a draft GitHub release `v1.1.0` with the DMGs, install notes and generated release notes. Review the draft on GitHub and publish it. Add `--beta` to mark it as a pre-release titled "Anchor 1.1.0 Beta".
+That builds again and creates a draft GitHub release `v1.1.0` with the DMGs, the appcast, install notes and generated release notes. Review the draft on GitHub and publish it. Installed copies find the update through the latest release's `appcast.xml`. Add `--beta` to mark it as a pre-release titled "Anchor 1.1.0 Beta"; pre-releases aren't offered as updates.
 
 ## Browser extensions
 
