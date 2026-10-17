@@ -235,7 +235,7 @@ private struct GeneralDetails: View {
                             HStack(spacing: 6) {
                                 Text(item.speedLimitKB.map { Format.speed(Double($0 * 1000)) } ?? "No limit")
                                     .font(.system(size: 12.5).monospacedDigit())
-                                Image(systemName: "chevron.up.chevron.down").font(.system(size: 9, weight: .semibold))
+                                MenuChevron().font(.system(size: 9, weight: .semibold))
                             }
                             .foregroundStyle(item.speedLimitKB == nil ? Color.anchorText : Color.anchorPausedInk)
                             .padding(.horizontal, 10)

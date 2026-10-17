@@ -340,6 +340,14 @@ struct AnchorSegmented<Value: Hashable>: View {
 // MARK: - Status pill
 
 /// Colored status badge for a download (nil while actively downloading, where the speed is shown instead).
+/// The up-and-down chevron at the end of a pop-up menu field. Decorative, so VoiceOver skips it; size and color come
+/// from the caller's modifiers.
+struct MenuChevron: View {
+    var body: some View {
+        Image(systemName: "chevron.up.chevron.down").accessibilityHidden(true)
+    }
+}
+
 struct StatusPill: View {
     let state: DownloadState
     var compact = false
