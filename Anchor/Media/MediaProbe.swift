@@ -29,6 +29,32 @@ struct MediaProbeResult: Decodable, Equatable, Sendable {
         }
     }
 
+    /// One subtitle file a site offers for a language.
+    struct SubtitleFormat: Decodable, Equatable, Sendable {
+        var ext: String?
+        var name: String?
+    }
+
+    /// A playlist entry from `--flat-playlist`: a link to one video, or (a channel's tabs) a nested playlist.
+    struct Entry: Decodable, Equatable, Sendable {
+        struct Thumbnail: Decodable, Equatable, Sendable {
+            var url: URL?
+            var width: Int?
+        }
+
+        var type: String?
+        var url: String?
+        var title: String?
+        var duration: Double?
+        var thumbnails: [Thumbnail]?
+        var entries: [Entry]?
+
+        enum CodingKeys: String, CodingKey {
+            case url, title, duration, thumbnails, entries
+            case type = "_type"
+        }
+    }
+
     var title: String?
     var extractor: String?
     var extractorKey: String?
@@ -38,12 +64,21 @@ struct MediaProbeResult: Decodable, Equatable, Sendable {
     var filesizeApprox: Int64?
     var type: String?
     var formats: [Format]?
+    /// The video's spoken language, when the site says (YouTube does).
+    var language: String?
+    var subtitles: [String: [SubtitleFormat]]?
+    var automaticCaptions: [String: [SubtitleFormat]]?
+    var entries: [Entry]?
+    /// How many videos the whole playlist has; nil for channels, which don't say.
+    var playlistCount: Int?
 
     enum CodingKeys: String, CodingKey {
-        case title, extractor, duration, uploader, thumbnail, formats
+        case title, extractor, duration, uploader, thumbnail, formats, language, subtitles, entries
         case extractorKey = "extractor_key"
         case filesizeApprox = "filesize_approx"
         case type = "_type"
+        case automaticCaptions = "automatic_captions"
+        case playlistCount = "playlist_count"
     }
 
     static func decode(_ data: Data) throws -> MediaProbeResult {
@@ -55,6 +90,66 @@ struct MediaProbeResult: Decodable, Equatable, Sendable {
 
     var info: MediaInfo {
         MediaInfo(title: title ?? "Video", extractor: extractor, thumbnail: thumbnail, duration: duration)
+    }
+
+    /// A playlist's videos in order, with nested playlists (a channel's Videos, Live and Shorts tabs) flattened and
+    /// repeats dropped. Only http(s) links count: some sites list bare ids, which yt-dlp can't download on their own.
+    var videos: [PlaylistVideo] {
+        var seen: Set<URL> = []
+        var result: [PlaylistVideo] = []
+        func walk(_ entries: [Entry]) {
+            for entry in entries {
+                if let nested = entry.entries {
+                    walk(nested)
+                    continue
+                }
+                guard entry.type != "playlist", let link = entry.url.flatMap(URL.init(string:)),
+                      let scheme = link.scheme?.lowercased(), scheme == "http" || scheme == "https",
+                      seen.insert(link).inserted else { continue }
+                let thumbs = entry.thumbnails ?? []
+                // A small one is plenty for the list: the first at least 160 wide.
+                let thumb = thumbs.first { ($0.width ?? 0) >= 160 }?.url ?? thumbs.last?.url
+                let title = entry.title?.trimmingCharacters(in: .whitespaces) ?? ""
+                result.append(PlaylistVideo(url: link, title: title.isEmpty ? "Video \(result.count + 1)" : title,
+                                            duration: entry.duration, thumbnail: thumb, titled: !title.isEmpty))
+            }
+        }
+        walk(entries ?? [])
+        return result
+    }
+
+    /// The subtitles worth offering: the site's own (the video's language first), then the automatic captions in the
+    /// video's language when there are none of its own. YouTube auto-translates captions into ~150 languages; those
+    /// aren't listed.
+    var subtitleOptions: [MediaSubtitle] {
+        let spoken = language?.lowercased()
+        func name(_ code: String, _ formats: [SubtitleFormat]) -> String {
+            if let given = formats.compactMap(\.name).first(where: { !$0.isEmpty }) { return given }
+            let base = code.replacingOccurrences(of: "-orig", with: "")
+            return Locale.current.localizedString(forIdentifier: base) ?? code
+        }
+        var options = (subtitles ?? [:])
+            .filter { code, formats in code != "live_chat" && !formats.isEmpty }
+            .map { MediaSubtitle(code: $0.key, name: name($0.key, $0.value), automatic: false) }
+            .sorted { a, b in
+                let (sa, sb) = (Self.sameLanguage(a.code, spoken), Self.sameLanguage(b.code, spoken))
+                if sa != sb { return sa }
+                return a.name.localizedStandardCompare(b.name) == .orderedAscending
+            }
+        if let spoken, !options.contains(where: { Self.sameLanguage($0.code, spoken) }), let auto = automaticCaptions {
+            // "en-orig" is the original speech recognition; plain "en" can be a translation of it.
+            let code = ["\(spoken)-orig", spoken].first { auto[$0]?.isEmpty == false }
+            if let code { options.append(MediaSubtitle(code: code, name: name(code, auto[code] ?? []), automatic: true)) }
+        }
+        return options
+    }
+
+    /// "en", "en-US" and "en-orig" are all English.
+    private static func sameLanguage(_ code: String, _ language: String?) -> Bool {
+        guard let language, !language.isEmpty else { return false }
+        let base = code.lowercased().split(separator: "-").first.map(String.init) ?? code
+        let other = language.split(separator: "-").first.map(String.init) ?? language
+        return base == other
     }
 
     /// The qualities worth offering: Best, each standard height the video actually has, and Audio only.
@@ -173,7 +268,9 @@ final class MediaProber {
 
     enum Outcome: Equatable {
         case media(MediaProbeResult)
-        /// Generic page, playlist, error or timeout: treat the link as an ordinary download.
+        /// A playlist or channel: its videos are in `videos`.
+        case playlist(MediaProbeResult)
+        /// Generic page, empty playlist, error or timeout: treat the link as an ordinary download.
         case notMedia(String?)
     }
 
@@ -191,7 +288,9 @@ final class MediaProber {
         guard !Task.isCancelled else { return .notMedia(nil) }
         let collector = OutputCollector()
         let finished = AsyncStream<Int32>.makeStream()
-        let process = MediaProcess(executable: tools.ytdlp, arguments: MediaCommand.probeArguments(url: url, tools: tools, cookies: cookieArguments),
+        let process = MediaProcess(executable: tools.ytdlp,
+                                   arguments: MediaCommand.probeArguments(url: MediaLinkDetector.probeURL(for: url), tools: tools,
+                                                                          cookies: cookieArguments),
                                    environment: MediaCommand.environment(tools: tools),
                                    onLine: { collector.add($0) },
                                    onFinish: { status in
@@ -225,7 +324,8 @@ final class MediaProber {
         guard status == 0, let json = collector.json, let result = try? MediaProbeResult.decode(json) else {
             return .notMedia(collector.error)
         }
-        if result.isGeneric || result.isPlaylist { return .notMedia(nil) }
+        if result.isGeneric { return .notMedia(nil) }
+        if result.isPlaylist { return result.videos.isEmpty ? .notMedia(nil) : .playlist(result) }
         return .media(result)
     }
 }

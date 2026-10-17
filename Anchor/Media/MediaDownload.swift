@@ -6,6 +6,8 @@ enum MediaEvent: Sendable {
     case phase(MediaPhase)
     /// yt-dlp (and the conversion, if any) finished with this file.
     case finished(String)
+    /// The video's title, from yt-dlp just before it downloads.
+    case title(String)
     case failed(String)
 }
 
@@ -116,6 +118,8 @@ final class MediaDownload {
             rateLimited = true
         case .path(let path):
             printedPath = path
+        case .title(let title):
+            onEvent(.title(title))
         }
     }
 
@@ -215,6 +219,7 @@ final class MediaJobs {
                             duration: item.mediaInfo?.duration)
         }
         let arguments = MediaCommand.downloadArguments(url: item.url, quality: quality, convert: conversion != nil,
+                                                       playableOnly: item.mediaPlayableOnly == true, subtitle: item.mediaSubtitle,
                                                        workDirectory: work, tools: tools, limitBytesPerSecond: limit,
                                                        cookies: cookies.arguments(writingTo: work))
         let download = downloads[id] ?? MediaDownload(id: id)

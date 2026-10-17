@@ -33,6 +33,10 @@ enum MediaQuality: String, Codable, CaseIterable, Identifiable, Sendable {
         }
     }
 
+    /// What a playlist offers: its videos aren't probed one by one, so standard heights, each taking the best stream
+    /// QuickTime plays (YouTube has H.264 up to 1080p).
+    static let playlistOptions: [MediaQuality] = [.best, .p1080, .p720, .p480, .p360, .audio]
+
     var isAudio: Bool { self == .audio }
     /// Extension used for the name until the real one is known.
     var expectedExtension: String { isAudio ? "m4a" : "mp4" }
@@ -124,10 +128,11 @@ struct MediaConversion: Equatable, Sendable {
     /// `sourceBytes`: the downloaded file's size, which with the duration gives the source bitrate.
     func arguments(input: URL, output: URL, sourceBytes: Int64? = nil) -> [String] {
         let source = sourceBytes.flatMap { bytes in duration.flatMap { $0 > 0 ? Double(bytes) * 8 / $0 : nil } }
+        // Embedded subtitles come along, as the text track MP4 holds (mov_text).
         return ["-y", "-hide_banner", "-nostdin", "-loglevel", "error", "-i", input.path,
-                "-map", "0:v:0", "-map", "0:a:0?"]
+                "-map", "0:v:0", "-map", "0:a:0?", "-map", "0:s?"]
             + MediaEncoder.arguments(shortSide: shortSide, hardware: hardware, sourceBitsPerSecond: source)
-            + ["-pix_fmt", "yuv420p", "-c:a", "aac", "-b:a", "192k", "-movflags", "+faststart",
+            + ["-pix_fmt", "yuv420p", "-c:a", "aac", "-b:a", "192k", "-c:s", "mov_text", "-movflags", "+faststart",
                "-progress", "pipe:1", "-nostats", output.path]
     }
 }
@@ -199,6 +204,28 @@ struct MediaInfo: Codable, Hashable, Sendable {
     var duration: Double?
 }
 
+/// One video in a playlist, as listed by `--flat-playlist`.
+struct PlaylistVideo: Hashable, Sendable {
+    var url: URL
+    var title: String
+    var duration: Double?
+    var thumbnail: URL?
+    /// False when the site listed no title and `title` is a stand-in ("Video 3"); the real one arrives with the
+    /// download (`MediaOutput.title`).
+    var titled = true
+}
+
+/// A subtitle language to embed in the video.
+struct MediaSubtitle: Codable, Hashable, Sendable {
+    /// yt-dlp's language code, such as "en" or "en-orig".
+    var code: String
+    var name: String
+    /// Captions the site generated from the speech, rather than ones the uploader added.
+    var automatic: Bool
+
+    var title: String { automatic ? "\(name) (auto-generated)" : name }
+}
+
 /// The executables a yt-dlp run uses.
 struct MediaToolPaths: Equatable, Sendable {
     var ytdlp: URL
@@ -216,6 +243,7 @@ struct MediaToolPaths: Equatable, Sendable {
 enum MediaCommand {
     static let progressPrefix = "ANCHOR "
     static let postprocessPrefix = "ANCHORPP "
+    static let titlePrefix = "ANCHORTITLE "
     static let progressTemplate = "download:ANCHOR %(progress._percent_str)s|%(progress.downloaded_bytes)s|%(progress.total_bytes)s|%(progress.total_bytes_estimate)s|%(progress.speed)s|%(progress.eta)s"
     static let postprocessTemplate = "postprocess:ANCHORPP %(progress.postprocessor)s|%(progress.status)s"
     static let outputStem = "media"
@@ -233,12 +261,16 @@ enum MediaCommand {
 
     /// `convert`: the video will be converted to H.264 afterwards (by Anchor, see `MediaConversion`), so merge into
     /// MKV, which holds any codec, instead of an MP4 that QuickTime can't play anyway.
-    static func qualityArguments(_ quality: MediaQuality, convert: Bool = false) -> [String] {
+    /// `playableOnly`: prefer streams QuickTime plays within the quality's height (playlists, whose videos aren't
+    /// probed one by one and so are never converted).
+    static func qualityArguments(_ quality: MediaQuality, convert: Bool = false, playableOnly: Bool = false) -> [String] {
         if quality.isAudio { return ["-f", "ba[ext=m4a]/ba", "-x", "--audio-format", "m4a"] }
         // No conversion: the best stream that isn't VP9 or AV1 (unknown codecs count, like Instagram's progressive
         // MP4s), falling back to anything.
         let playable = "[vcodec!^=?vp][vcodec!^=?av01]"
+        let cap = quality.maxHeight.map { "[height<=\($0)]" } ?? ""
         let format = quality == .playable ? "bv\(playable)+ba/b\(playable)/bv*+ba/b"
+            : playableOnly ? "bv\(cap)\(playable)+ba/b\(cap)\(playable)/bv*\(cap)+ba/b\(cap)"
             : quality.maxHeight.map { "bv*[height<=\($0)]+ba/b[height<=\($0)]" } ?? "bv*+ba/b"
         // Codecs MP4 can't hold fall back to MKV instead of failing.
         return ["-f", format, "-S", formatSort, "--merge-output-format", convert ? "mkv" : "mp4/mkv"]
@@ -251,15 +283,25 @@ enum MediaCommand {
         return limits.min() ?? 0
     }
 
-    static func downloadArguments(url: URL, quality: MediaQuality, convert: Bool = false, workDirectory: URL,
+    /// Embeds one language's subtitles; audio-only downloads have nowhere to put them.
+    static func subtitleArguments(_ subtitle: MediaSubtitle?, quality: MediaQuality) -> [String] {
+        guard let subtitle, !quality.isAudio else { return [] }
+        return [subtitle.automatic ? "--write-auto-subs" : "--write-subs", "--sub-langs", subtitle.code, "--embed-subs"]
+    }
+
+    static func downloadArguments(url: URL, quality: MediaQuality, convert: Bool = false, playableOnly: Bool = false,
+                                  subtitle: MediaSubtitle? = nil, workDirectory: URL,
                                   tools: MediaToolPaths, limitBytesPerSecond: Int64, cookies: [String] = []) -> [String] {
         var args = isolationArguments(tools: tools) + cookies
         args += ["--newline", "--no-playlist", "--no-mtime", "--progress",
                  "--progress-template", progressTemplate, "--progress-template", postprocessTemplate,
                  "--ffmpeg-location", tools.ffmpegDirectory.path]
-        args += qualityArguments(quality, convert: convert)
+        args += qualityArguments(quality, convert: convert, playableOnly: playableOnly)
+        args += subtitleArguments(subtitle, quality: quality)
         args += ["-P", "temp:\(workDirectory.path)", "-P", "home:\(workDirectory.path)",
-                 "-o", "\(outputStem).%(ext)s", "--print", "after_move:filepath"]
+                 "-o", "\(outputStem).%(ext)s", "--print", "after_move:filepath",
+                 // The video's title, for playlist entries whose site listed none.
+                 "--print", "before_dl:\(titlePrefix)%(title)s"]
         if limitBytesPerSecond > 0 {
             args += ["--limit-rate", "\(limitBytesPerSecond)"]
         } else {
@@ -272,9 +314,15 @@ enum MediaCommand {
         return args
     }
 
+    /// The most videos a playlist or channel lists in the New Download window.
+    static let playlistLimit = 300
+
+    /// A video link inside a playlist (`watch?v=…&list=…`) is just that video (`--no-playlist`). A playlist or channel
+    /// is listed without looking into each video (`--flat-playlist`), which takes seconds instead of minutes.
     static func probeArguments(url: URL, tools: MediaToolPaths, cookies: [String] = []) -> [String] {
-        isolationArguments(tools: tools) + cookies + ["--dump-single-json", "--no-playlist", "--skip-download", "--no-warnings",
-                                            "--", url.absoluteString]
+        isolationArguments(tools: tools) + cookies + ["--dump-single-json", "--no-playlist", "--flat-playlist",
+                                                      "--playlist-items", "1:\(playlistLimit)", "--skip-download",
+                                                      "--no-warnings", "--", url.absoluteString]
     }
 
     /// A minimal environment: nothing inherited (no YTDLP_*, PYTHON* or proxy variables), PATH limited to the
@@ -304,9 +352,15 @@ enum MediaOutput: Equatable, Sendable {
     case path(String)
     /// A warning that the site answered 429 Too Many Requests: worth mentioning if the run then fails.
     case rateLimited
+    /// The video's title, printed before it downloads.
+    case title(String)
 
     static func parse(_ raw: String) -> MediaOutput? {
         let line = raw.trimmingCharacters(in: .whitespacesAndNewlines)
+        if line.hasPrefix(MediaCommand.titlePrefix) {
+            let title = String(line.dropFirst(MediaCommand.titlePrefix.count)).trimmingCharacters(in: .whitespaces)
+            return title.isEmpty || title == "NA" ? nil : .title(title)
+        }
         if line.hasPrefix(MediaCommand.postprocessPrefix) {
             let fields = line.dropFirst(MediaCommand.postprocessPrefix.count).split(separator: "|")
             let name = fields.first.map(String.init) ?? ""
