@@ -71,6 +71,26 @@ final class AppSettings {
     /// KB/s, 0 = unlimited.
     /// Torrent upload cap in KB/s: 0 is unlimited, -1 stops uploading (aria2 gets a 1 B/s cap, since 0 means unlimited there).
     var uploadLimitKB: Int { didSet { defaults.set(uploadLimitKB, forKey: "uploadLimitKB") } }
+    /// Queued downloads only start between `scheduleStart` and `scheduleEnd` (minutes after midnight).
+    var scheduleEnabled: Bool {
+        didSet {
+            defaults.set(scheduleEnabled, forKey: "scheduleEnabled")
+            DownloadStore.shared.scheduleChanged()
+        }
+    }
+    var scheduleStart: Int {
+        didSet {
+            defaults.set(scheduleStart, forKey: "scheduleStart")
+            DownloadStore.shared.scheduleChanged()
+        }
+    }
+    var scheduleEnd: Int {
+        didSet {
+            defaults.set(scheduleEnd, forKey: "scheduleEnd")
+            DownloadStore.shared.scheduleChanged()
+        }
+    }
+    var downloadWindow: DownloadWindow { DownloadWindow(start: scheduleStart, end: scheduleEnd) }
     /// One-shot: resets to `.nothing` after it runs.
     var whenDone: WhenDoneAction = .nothing
     var existingFileAction: ExistingFileAction { didSet { defaults.set(existingFileAction.rawValue, forKey: "existingFileAction") } }
@@ -101,6 +121,7 @@ final class AppSettings {
             "menuBarOrder": MenuBarOrder.unfinishedFirst.rawValue, "menuBarCount": 5,
             "showMenuBarIcon": true, "showSpeedStrip": true, "keepAwake": true, "seedTorrents": false, "seedRatio": 1.0, "uploadLimitKB": 0, "existingFileAction": ExistingFileAction.ask.rawValue,
             "archiveInstallers": true, "cleanupBannerDismissedBytes": 0,
+            "scheduleEnabled": false, "scheduleStart": 60, "scheduleEnd": 7 * 60,
         ])
         downloadFolder = defaults.string(forKey: "downloadFolder").map { URL(filePath: $0) } ?? URL.downloadsDirectory
         maxConcurrent = defaults.integer(forKey: "maxConcurrent")
@@ -127,6 +148,9 @@ final class AppSettings {
         cleanupDays = Self.loadCleanupDays(from: defaults)
         archiveInstallers = defaults.bool(forKey: "archiveInstallers")
         cleanupBannerDismissedBytes = (defaults.object(forKey: "cleanupBannerDismissedBytes") as? NSNumber)?.int64Value ?? 0
+        scheduleEnabled = defaults.bool(forKey: "scheduleEnabled")
+        scheduleStart = defaults.integer(forKey: "scheduleStart")
+        scheduleEnd = defaults.integer(forKey: "scheduleEnd")
     }
 
     func cleanupDays(for category: FileCategory) -> Int { cleanupDays[category] ?? 0 }
