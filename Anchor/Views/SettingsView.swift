@@ -1,9 +1,10 @@
 import SwiftUI
 import UniformTypeIdentifiers
 import ServiceManagement
+import Carbon.HIToolbox
 
 private enum SettingsSection: String, CaseIterable, Identifiable {
-    case general, speed, browser, cleanup, about
+    case general, speed, browser, shortcuts, cleanup, about
 
     var id: String { rawValue }
 
@@ -12,6 +13,7 @@ private enum SettingsSection: String, CaseIterable, Identifiable {
         case .general: "General"
         case .speed: "Speed"
         case .browser: "Browser"
+        case .shortcuts: "Shortcuts"
         case .cleanup: "Cleanup"
         case .about: "About"
         }
@@ -21,7 +23,8 @@ private enum SettingsSection: String, CaseIterable, Identifiable {
         switch self {
         case .general: "Where downloads go and how Anchor behaves."
         case .speed: "How hard Anchor pushes your connection."
-        case .browser: "Send downloads from Safari, Chrome, Arc, Brave and Edge to Anchor."
+        case .browser: "Send downloads from Chrome, Arc, Brave and Edge to Anchor."
+        case .shortcuts: "Keyboard shortcuts that control Anchor from any app."
         case .cleanup: "Files show up in Cleanup when Anchor has seen no use of them for this long. Nothing is removed until you choose to."
         case .about: ""
         }
@@ -32,6 +35,7 @@ private enum SettingsSection: String, CaseIterable, Identifiable {
         case .general: "gearshape.fill"
         case .speed: "gauge.with.dots.needle.67percent"
         case .browser: "globe"
+        case .shortcuts: "command"
         case .cleanup: "sparkles"
         case .about: "info"
         }
@@ -42,6 +46,7 @@ private enum SettingsSection: String, CaseIterable, Identifiable {
         case .general: .adaptive(light: 0x5E5E63, dark: 0x6E6E73)
         case .speed: .anchorAccent
         case .browser: .anchorAccentInk
+        case .shortcuts: .adaptive(light: 0x3B6FD8, dark: 0x4D82E8)
         case .cleanup: .adaptive(light: 0x46902E, dark: 0x5BA845)
         case .about: .adaptive(light: 0x737378, dark: 0x7C7C81)
         }
@@ -83,6 +88,7 @@ struct SettingsView: View {
                     case .general: GeneralPage()
                     case .speed: SpeedPage()
                     case .browser: BrowserPage()
+                    case .shortcuts: ShortcutsPage()
                     case .cleanup: CleanupPage()
                     case .about: AboutPage()
                     }
@@ -277,8 +283,71 @@ private struct SpeedPage: View {
                         .onChange(of: settings.maxConcurrent) { store.schedule() }
                 }
             }
+            ScheduleCard()
             TorrentCard()
         }
+    }
+}
+
+/// Queued downloads only start inside daily hours (overnight, say), and running ones go back to the queue after.
+private struct ScheduleCard: View {
+    @Environment(DownloadStore.self) private var store
+
+    var body: some View {
+        @Bindable var settings = store.settings
+        SettingsCard {
+            SettingsRow(title: "Download on a schedule",
+                        detail: "Queued downloads start inside these hours. Your Mac needs to be awake",
+                        divider: settings.scheduleEnabled) {
+                AnchorSwitch(isOn: $settings.scheduleEnabled, label: "Download on a schedule")
+            }
+            if settings.scheduleEnabled {
+                SettingsRow(title: "Start at", detail: "Downloads you start yourself don't wait", divider: true) {
+                    TimeMenu(minutes: $settings.scheduleStart, label: "Start at")
+                }
+                SettingsRow(title: "Stop at",
+                            detail: settings.scheduleStart == settings.scheduleEnd
+                                ? "Same as the start: downloads run all day"
+                                : "Running downloads go back to the queue and carry on next time") {
+                    TimeMenu(minutes: $settings.scheduleEnd, label: "Stop at")
+                }
+            }
+        }
+        .animation(.snappy(duration: 0.2), value: settings.scheduleEnabled)
+    }
+}
+
+/// A time of day in half-hour steps, as minutes after midnight.
+private struct TimeMenu: View {
+    @Binding var minutes: Int
+    let label: String
+
+    var body: some View {
+        Menu {
+            ForEach(Array(stride(from: 0, to: DownloadWindow.minutesPerDay, by: 30)), id: \.self) { value in
+                Button {
+                    minutes = value
+                } label: {
+                    if value == minutes { Label(DownloadWindow.timeText(value), systemImage: "checkmark") } else { Text(DownloadWindow.timeText(value)) }
+                }
+            }
+        } label: {
+            HStack(spacing: 6) {
+                Text(DownloadWindow.timeText(minutes))
+                    .font(.system(size: 12.5, weight: .medium).monospacedDigit())
+                MenuChevron().font(.system(size: 9, weight: .semibold))
+            }
+            .foregroundStyle(Color.anchorText)
+            .padding(.horizontal, 10)
+            .frame(height: 30)
+            .background(Color.anchorWindow, in: .rect(cornerRadius: 9))
+            .overlay(RoundedRectangle(cornerRadius: 9).strokeBorder(Color.anchorLine))
+        }
+        .menuStyle(.button)
+        .buttonStyle(.plain)
+        .menuIndicator(.hidden)
+        .fixedSize()
+        .accessibilityLabel(label)
     }
 }
 
@@ -301,7 +370,7 @@ private struct TorrentCard: View {
                     HStack(spacing: 6) {
                         Text(uploadTitle(settings.uploadLimitKB))
                             .font(.system(size: 12.5, weight: .medium).monospacedDigit())
-                        Image(systemName: "chevron.up.chevron.down").font(.system(size: 9, weight: .semibold))
+                        MenuChevron().font(.system(size: 9, weight: .semibold))
                     }
                     .foregroundStyle(settings.uploadLimitKB < 0 ? Color.anchorPausedInk : Color.anchorText)
                     .padding(.horizontal, 10)
@@ -575,7 +644,7 @@ private struct DaysMenu: View {
             HStack(spacing: 6) {
                 Text(title(days))
                     .font(.system(size: 12.5, weight: .medium).monospacedDigit())
-                Image(systemName: "chevron.up.chevron.down").font(.system(size: 9, weight: .semibold))
+                MenuChevron().font(.system(size: 9, weight: .semibold))
             }
             .foregroundStyle(days == 0 ? Color.anchorMuted2 : Color.anchorText)
             .padding(.horizontal, 10)
@@ -697,8 +766,151 @@ private struct AboutPage: View {
                 .font(.system(size: 12))
                 .foregroundStyle(Color.anchorMuted)
                 .padding(.top, 4)
+            UpdatesCard()
+                .padding(.top, 20)
         }
         .frame(maxWidth: .infinity)
         .padding(.top, 60)
+    }
+}
+
+/// System-wide keyboard shortcuts, each off until recorded.
+private struct ShortcutsPage: View {
+    @Bindable private var shortcuts = GlobalShortcuts.shared
+    /// The one recorder listening for keys, if any.
+    @State private var recording: GlobalShortcutAction?
+
+    var body: some View {
+        VStack(alignment: .leading, spacing: 12) {
+            SettingsCard {
+                ForEach(Array(GlobalShortcutAction.allCases.enumerated()), id: \.element) { index, action in
+                    SettingsRow(title: action.title,
+                                detail: shortcuts.unavailable.contains(action) ? "Another app already uses this shortcut. Pick a different one" : action.detail,
+                                divider: index < GlobalShortcutAction.allCases.count - 1) {
+                        ShortcutRecorder(action: action, recording: $recording)
+                    }
+                }
+            }
+            HStack {
+                Text("Click a shortcut, then press the keys. Esc cancels, Delete clears.")
+                    .font(.system(size: 12))
+                    .foregroundStyle(Color.anchorMuted)
+                Spacer()
+                Button("Clear All") {
+                    recording = nil
+                    shortcuts.clearAll()
+                }
+                .buttonStyle(.anchorPlain)
+                .disabled(shortcuts.combos.isEmpty)
+            }
+        }
+        .onDisappear { recording = nil }
+    }
+}
+
+/// Shows an action's shortcut ("NONE" until set); click it and press keys to record a new one.
+private struct ShortcutRecorder: View {
+    let action: GlobalShortcutAction
+    @Binding var recording: GlobalShortcutAction?
+    @State private var monitor: Any?
+    @State private var hint: String?
+    private var shortcuts: GlobalShortcuts { .shared }
+
+    private var isRecording: Bool { recording == action }
+
+    var body: some View {
+        let combo = shortcuts.combos[action]
+        HStack(spacing: 6) {
+            if let hint, isRecording {
+                Text(hint)
+                    .font(.system(size: 11))
+                    .foregroundStyle(Color.anchorPausedInk)
+            }
+            Button {
+                recording = isRecording ? nil : action
+            } label: {
+                Text(isRecording ? "Press keys…" : combo?.display ?? "NONE")
+                    .font(.system(size: combo == nil && !isRecording ? 11.5 : 12.5, weight: .semibold).monospacedDigit())
+                    .tracking(combo == nil && !isRecording ? 0.6 : 0)
+                    .foregroundStyle(isRecording ? Color.anchorAccentInk : combo == nil ? Color.anchorMuted : Color.anchorText)
+                    .frame(minWidth: 76)
+                    .padding(.horizontal, 10)
+                    .frame(height: 30)
+                    .background(isRecording ? Color.anchorAccentWash : Color.anchorWindow, in: .rect(cornerRadius: 9))
+                    .overlay(RoundedRectangle(cornerRadius: 9).strokeBorder(isRecording ? Color.anchorAccent : Color.anchorLine))
+                    .contentShape(.rect)
+            }
+            .buttonStyle(.plain)
+            .accessibilityLabel(action.title)
+            .accessibilityValue(isRecording ? "Recording" : combo?.display ?? "None")
+            .accessibilityHint("Press to record a new shortcut")
+            if combo != nil, !isRecording {
+                Button {
+                    shortcuts.set(nil, for: action)
+                } label: {
+                    Image(systemName: "xmark.circle.fill").foregroundStyle(Color.anchorMuted.opacity(0.7))
+                }
+                .buttonStyle(.plain)
+                .help("Clear")
+                .accessibilityLabel("Clear \(action.title)")
+            }
+        }
+        .onChange(of: isRecording) { _, now in now ? begin() : end() }
+        .onDisappear { if isRecording { recording = nil }; end() }
+    }
+
+    private func begin() {
+        hint = nil
+        shortcuts.pause()
+        monitor = NSEvent.addLocalMonitorForEvents(matching: .keyDown) { event in
+            handle(event)
+            return nil
+        }
+    }
+
+    private func end() {
+        if let monitor { NSEvent.removeMonitor(monitor) }
+        monitor = nil
+        hint = nil
+        // Switching straight to another recorder keeps the shortcuts paused.
+        if recording == nil { shortcuts.resume() }
+    }
+
+    private func handle(_ event: NSEvent) {
+        let plain = event.modifierFlags.intersection([.command, .option, .control, .shift]).isEmpty
+        switch Int(event.keyCode) {
+        case kVK_Escape where plain:
+            recording = nil
+        case kVK_Delete where plain, kVK_ForwardDelete where plain:
+            shortcuts.set(nil, for: action)
+            recording = nil
+        default:
+            guard let combo = KeyCombo(event: event) else { return }
+            guard combo.isUsable else {
+                hint = "Add ⌘, ⌥ or ⌃"
+                return
+            }
+            shortcuts.set(combo, for: action)
+            recording = nil
+        }
+    }
+}
+
+/// Updates come from GitHub releases, through Sparkle.
+private struct UpdatesCard: View {
+    @Bindable private var updater = AppUpdater.shared
+
+    var body: some View {
+        SettingsCard {
+            SettingsRow(title: "Check for updates automatically", detail: "Once a day, from GitHub", divider: true) {
+                AnchorSwitch(isOn: $updater.automaticallyChecks, label: "Check for updates automatically")
+            }
+            SettingsRow(title: "Check now", detail: "See whether a newer Anchor is out") {
+                Button("Check for Updates…") { updater.checkForUpdates() }
+                    .buttonStyle(.anchorSecondary)
+                    .disabled(!updater.canCheck)
+            }
+        }
+        .frame(maxWidth: 520)
     }
 }
