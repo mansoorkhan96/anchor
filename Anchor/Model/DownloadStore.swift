@@ -198,7 +198,7 @@ final class DownloadStore {
             self.items.insert(item, at: 0)
             self.bumpCleanupRevision()
             self.markDirty()
-            if startNow { self.startOrQueue(item.id) } else { self.schedule() }
+            if startNow { self.startOrQueue(item.id, respectSchedule: true) } else { self.schedule() }
         }
 
         let existing = folder.appending(path: name)
@@ -258,29 +258,77 @@ final class DownloadStore {
         items.insert(item, at: 0)
         bumpCleanupRevision()
         markDirty()
-        if startNow { startOrQueue(item.id) } else { schedule() }
+        if startNow { startOrQueue(item.id, respectSchedule: true) } else { schedule() }
     }
 
     /// Adds a video page reviewed in the New Download window; yt-dlp downloads it.
     func addMedia(_ url: URL, name: String, directory: URL?, quality: MediaQuality, info: MediaInfo?,
-                  convertHeight: Int? = nil, cookieJar: [BrowserCookie] = [], startNow: Bool, openWhenDone: Bool) {
-        let folder = directory ?? settings.folder(for: quality.category)
-        let stem = MediaNaming.stem(FileNaming.sanitize(name.isEmpty ? (info?.title ?? "Video") : name))
-        var item = DownloadItem(url: url, fileName: uniqueName("\(stem).\(quality.expectedExtension)", in: folder),
-                                directory: folder, category: quality.category, kind: .media)
-        item.mediaQuality = quality
-        item.mediaInfo = info
-        item.mediaConvertHeight = quality.isAudio ? nil : convertHeight
-        item.cookieJar = cookieJar.isEmpty ? nil : cookieJar
-        item.openWhenDone = openWhenDone
+                  convertHeight: Int? = nil, playableOnly: Bool = false, subtitle: MediaSubtitle? = nil,
+                  cookieJar: [BrowserCookie] = [], startNow: Bool, openWhenDone: Bool) {
+        let item = makeMedia(url, name: name, directory: directory, quality: quality, info: info, convertHeight: convertHeight,
+                             playableOnly: playableOnly, subtitle: subtitle, cookieJar: cookieJar, openWhenDone: openWhenDone)
         items.insert(item, at: 0)
         bumpCleanupRevision()
         markDirty()
-        if startNow { startOrQueue(item.id) } else { schedule() }
+        if startNow { startOrQueue(item.id, respectSchedule: true) } else { schedule() }
     }
 
-    private func uniqueName(_ name: String, in folder: URL, ignoringFinished: Bool = false) -> String {
-        let taken = Set(items.filter { $0.directory == folder && !$0.state.isFinished }.map(\.fileName))
+    /// Adds the chosen videos of a playlist as one download each, in the playlist's order, into a folder named after
+    /// it. `numbered` puts each video's place in the playlist in front of its name ("03 Title").
+    func addPlaylist(_ videos: [(index: Int, video: PlaylistVideo)], folderName: String, extractor: String?,
+                     quality: MediaQuality, directory: URL?, numbered: Bool, cookieJar: [BrowserCookie] = [], startNow: Bool) {
+        guard !videos.isEmpty else { return }
+        let base = directory ?? settings.folder(for: quality.category)
+        let name = FileNaming.sanitize(folderName.trimmingCharacters(in: .whitespaces))
+        let folder = name.isEmpty ? base : base.appending(path: name, directoryHint: .isDirectory)
+        let digits = max(2, String(videos.map(\.index).max() ?? 0).count)
+        let now = Date()
+        var added: [DownloadItem] = []
+        for (offset, entry) in videos.enumerated() {
+            let title = numbered ? String(format: "%0\(digits)d ", entry.index) + entry.video.title : entry.video.title
+            var item = makeMedia(entry.video.url, name: title, directory: folder, quality: quality,
+                                 info: MediaInfo(title: entry.video.title, extractor: extractor, thumbnail: entry.video.thumbnail,
+                                                 duration: entry.video.duration),
+                                 playableOnly: true, cookieJar: cookieJar, openWhenDone: false, taken: added)
+            // Named after the site's title once yt-dlp reports it, when the playlist didn't list one.
+            item.nameFromServer = entry.video.titled ? nil : true
+            // Listed and queued in the playlist's order: the first video is the newest in the list and leaves the
+            // queue first.
+            item.createdAt = now.addingTimeInterval(-Double(offset) / 1000)
+            item.queuedAt = now.addingTimeInterval(Double(offset) / 1000)
+            added.append(item)
+        }
+        items.insert(contentsOf: added, at: 0)
+        bumpCleanupRevision()
+        markDirty()
+        if startNow {
+            for item in added { startOrQueue(item.id, respectSchedule: true, keepQueuedAt: true) }
+        } else {
+            schedule()
+        }
+    }
+
+    /// `taken`: items about to be added alongside this one, whose names count as used.
+    private func makeMedia(_ url: URL, name: String, directory: URL?, quality: MediaQuality, info: MediaInfo?,
+                           convertHeight: Int? = nil, playableOnly: Bool = false, subtitle: MediaSubtitle? = nil,
+                           cookieJar: [BrowserCookie], openWhenDone: Bool, taken: [DownloadItem] = []) -> DownloadItem {
+        let folder = directory ?? settings.folder(for: quality.category)
+        let stem = MediaNaming.stem(FileNaming.sanitize(name.isEmpty ? (info?.title ?? "Video") : name))
+        let alsoTaken = Set(taken.filter { $0.directory == folder }.map(\.fileName))
+        var item = DownloadItem(url: url, fileName: uniqueName("\(stem).\(quality.expectedExtension)", in: folder, alsoTaken: alsoTaken),
+                                directory: folder, category: quality.category, kind: .media)
+        item.mediaQuality = quality
+        item.mediaInfo = info
+        item.mediaConvertHeight = quality.isAudio || playableOnly ? nil : convertHeight
+        item.mediaPlayableOnly = playableOnly ? true : nil
+        item.mediaSubtitle = quality.isAudio ? nil : subtitle
+        item.cookieJar = cookieJar.isEmpty ? nil : cookieJar
+        item.openWhenDone = openWhenDone
+        return item
+    }
+
+    private func uniqueName(_ name: String, in folder: URL, ignoringFinished: Bool = false, alsoTaken: Set<String> = []) -> String {
+        let taken = Set(items.filter { $0.directory == folder && !$0.state.isFinished }.map(\.fileName)).union(alsoTaken)
         guard ignoringFinished else { return FileNaming.unique(name, in: folder, taken: taken) }
         // Only check names claimed by other unfinished downloads and their partial files, not finished files on disk.
         let partial = folder.appending(path: name + DownloadItem.partialSuffix)
@@ -375,7 +423,7 @@ final class DownloadStore {
         markDirty()
         if torrentFile == nil { adoptSavedMetadata(for: item.id) }
         if startNow {
-            startOrQueue(item.id)
+            startOrQueue(item.id, respectSchedule: true)
         } else {
             mutate(item.id) { $0.state = .queued; $0.queuedAt = Date() }
             schedule()
@@ -394,7 +442,7 @@ final class DownloadStore {
         items.insert(item, at: 0)
         bumpCleanupRevision()
         markDirty()
-        if startNow { startOrQueue(id) } else { queue([id]) }
+        if startNow { startOrQueue(id, respectSchedule: true) } else { queue([id]) }
 
         Task {
             let result = await task.result
@@ -530,13 +578,15 @@ final class DownloadStore {
     }
 
     /// Starts now if there's a free slot under "Simultaneous downloads", otherwise joins the back of the queue.
-    private func startOrQueue(_ id: UUID) {
-        if busySlots < settings.maxConcurrent {
+    /// `respectSchedule`: a new download waits for the download window; resuming one by hand doesn't.
+    /// `keepQueuedAt`: its place in the line was already set (playlists keep their order).
+    private func startOrQueue(_ id: UUID, respectSchedule: Bool = false, keepQueuedAt: Bool = false) {
+        if busySlots < settings.maxConcurrent, !respectSchedule || queueRuns {
             start(id)
         } else {
             mutate(id) {
                 $0.state = .queued
-                $0.queuedAt = Date()
+                if !keepQueuedAt || $0.queuedAt == nil { $0.queuedAt = Date() }
             }
         }
     }
@@ -681,8 +731,8 @@ final class DownloadStore {
             if item.kind == .media {
                 addMedia(item.url, name: MediaNaming.stem((item.fileName as NSString).deletingPathExtension),
                          directory: item.directory, quality: item.mediaQuality ?? .best, info: item.mediaInfo,
-                         convertHeight: item.mediaConvertHeight, cookieJar: item.cookieJar ?? [], startNow: true,
-                         openWhenDone: false)
+                         convertHeight: item.mediaConvertHeight, playableOnly: item.mediaPlayableOnly == true,
+                         subtitle: item.mediaSubtitle, cookieJar: item.cookieJar ?? [], startNow: true, openWhenDone: false)
             } else {
                 _ = add(item.url.absoluteString, fileName: item.fileName, directory: item.directory, headers: item.headers)
             }
@@ -812,6 +862,8 @@ final class DownloadStore {
                 $0.mediaPhase = phase
                 $0.speed = 0
             }
+        case .title(let title):
+            renameFromSite(id, title: title)
         case .finished(let path):
             mutate(id, dirty: false) {
                 if $0.mediaPhase == nil { $0.mediaPhase = .processing }
@@ -847,6 +899,23 @@ final class DownloadStore {
                 notify(title: "Download failed", body: "\(item.fileName): \(plain)")
             }
             schedule()
+        }
+    }
+
+    /// A playlist entry the site listed without a title ("01 Video 1.mp4") takes the real one, keeping its number.
+    private func renameFromSite(_ id: UUID, title: String) {
+        guard let item = item(id), item.nameFromServer == true else { return }
+        let name = item.fileName as NSString
+        let stem = name.deletingPathExtension
+        let placeholder = item.mediaInfo?.title ?? ""
+        let prefix = !placeholder.isEmpty && stem.hasSuffix(placeholder) ? String(stem.dropLast(placeholder.count)) : ""
+        let clean = MediaNaming.stem(FileNaming.sanitize(title))
+        guard !clean.isEmpty else { return }
+        let renamed = uniqueName("\(prefix)\(clean).\(name.pathExtension)", in: item.directory)
+        mutate(id) {
+            $0.fileName = renamed
+            $0.mediaInfo?.title = title
+            $0.nameFromServer = nil
         }
     }
 
@@ -918,8 +987,9 @@ final class DownloadStore {
         if resumeAfter { resume(id) }
     }
 
-    /// Starts queued downloads while there are free slots.
+    /// Starts queued downloads while there are free slots (and, with a schedule, inside the download window).
     func schedule() {
+        guard queueRuns else { return }
         var active = busySlots
         let waiting = items.filter { $0.state == .queued }
             .sorted {
@@ -933,9 +1003,67 @@ final class DownloadStore {
         }
     }
 
+    // MARK: Download window
+
+    /// "Start Now" on the schedule note lets the queue run until the window next opens. Not saved.
+    private(set) var scheduleBypassUntil: Date?
+    /// Whether the window was open at the last tick; nil until the first one (and while there is no schedule).
+    private var windowWasOpen: Bool?
+
+    /// Whether queued downloads may start now.
+    var queueRuns: Bool { Self.queueRuns(at: Date(), enabled: settings.scheduleEnabled, window: settings.downloadWindow,
+                                         bypassUntil: scheduleBypassUntil) }
+
+    nonisolated static func queueRuns(at date: Date, enabled: Bool, window: DownloadWindow, bypassUntil: Date?,
+                                      calendar: Calendar = .current) -> Bool {
+        guard enabled else { return true }
+        if let bypassUntil, date < bypassUntil { return true }
+        return window.contains(date, calendar: calendar)
+    }
+
+    /// When the queue next starts on its own; nil when it isn't waiting for the window.
+    var queueStartsAt: Date? {
+        queueRuns ? nil : settings.downloadWindow.nextStart(after: Date())
+    }
+
+    /// Runs the queue now instead of waiting for the window.
+    func startQueueNow() {
+        scheduleBypassUntil = settings.downloadWindow.nextStart(after: Date())
+        windowWasOpen = true
+        schedule()
+    }
+
+    /// The schedule was switched on or off, or its hours changed.
+    func scheduleChanged() {
+        scheduleBypassUntil = nil
+        windowWasOpen = settings.scheduleEnabled ? queueRuns : nil
+        schedule()
+    }
+
+    /// Each tick: start the queue when the window opens; when it closes, put running downloads back in the queue so
+    /// they carry on in the next window.
+    private func followDownloadWindow() {
+        guard settings.scheduleEnabled else {
+            windowWasOpen = nil
+            return
+        }
+        let open = queueRuns
+        defer { windowWasOpen = open }
+        guard let was = windowWasOpen, was != open else { return }
+        if open {
+            schedule()
+        } else {
+            for item in items where item.state.isActive {
+                pause(item.id)
+                mutate(item.id) { $0.state = .queued }
+            }
+        }
+    }
+
     // MARK: Ticking
 
     private func update() {
+        followDownloadWindow()
         Power.keepAwake(settings.keepAwake && activeCount > 0)
         let idle = engines.isEmpty && !items.contains { $0.kind != .http && $0.state.isActive }
         // Nothing downloading and the speed graph already flat: leave the observed values alone so idle
