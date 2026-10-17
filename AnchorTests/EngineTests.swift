@@ -343,7 +343,7 @@ import Testing
         let status = ProgressStatus(item: item(.downloading, speed: 8_400_000))
         #expect(status.stage() == "Downloading")
         #expect(status.detail == "38% · \(Format.speed(8_400_000))")
-        #expect(status.compactDetail == "38%")
+        #expect(status.compactDetail == "38% · \(Format.speed(8_400_000))", "the menu bar shows the speed too")
         #expect(status.showsBar)
     }
 

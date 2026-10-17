@@ -430,7 +430,7 @@ struct ProgressStatus {
         return parts.joined(separator: " · ")
     }
 
-    /// The menu bar's shorter version: the percentage, plus the time left while converting.
+    /// The menu bar's shorter version: the percentage and the download speed, or the time left while converting.
     var compactDetail: String {
         if item.seeding == true { return "↑ \(Format.speed(item.uploadSpeed))" }
         guard !silent else { return "" }
@@ -438,7 +438,9 @@ struct ProgressStatus {
             return [percent, Format.duration(eta)].compactMap { $0 }.joined(separator: " · ")
         }
         if item.mediaPhase == .merging || item.mediaPhase == .processing { return "" }
-        return percent ?? ""
+        var parts = [percent].compactMap { $0 }
+        if item.state == .downloading { parts.append(Format.speed(item.speed)) }
+        return parts.joined(separator: " · ")
     }
 }
 
