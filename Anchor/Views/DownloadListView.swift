@@ -12,6 +12,8 @@ struct DownloadListView: View {
     @State private var selection: Set<UUID> = []
     /// The last row checked or unchecked without Shift; Shift-click selects from here.
     @State private var selectionAnchor: UUID?
+    /// Playlists whose videos are listed under their row.
+    @State private var expandedGroups: Set<UUID> = []
     @State private var confirmDelete = false
     @State private var confirmTrash = false
     /// What the Cleanup or Archive trash confirmation is about: the selection, or one row from its menu.
@@ -68,16 +70,19 @@ struct DownloadListView: View {
                     }
                 } else {
                     LazyVStack(spacing: 2) {
-                        ForEach(items) { item in
-                            DownloadRow(item: item, isSelected: selectionBinding(item.id),
-                                        isFocused: store.focusedID == item.id, note: note(for: item),
-                                        onTrash: filter.isTidy ? { requestTrash([item.id]) } : nil) {
-                                // Shift-click on the row works like Shift-click on its checkbox.
-                                if NSApp.currentEvent?.modifierFlags.contains(.shift) == true {
-                                    setSelected(item.id, !selection.contains(item.id))
-                                    return
+                        // Cleanup and Archive list files one by one; everywhere else a playlist is one row.
+                        ForEach(filter.isTidy ? items.map(ListEntry.item) : ListEntry.build(items)) { entry in
+                            switch entry {
+                            case .item(let item):
+                                row(item)
+                            case .group(let group):
+                                PlaylistGroupRow(group: group, isSelected: groupSelection(group), isExpanded: expansion(group.id))
+                                if expandedGroups.contains(group.id) {
+                                    ForEach(group.items) { item in
+                                        row(item)
+                                            .padding(.leading, 28)
+                                    }
                                 }
-                                withAnimation(.snappy(duration: 0.22)) { store.focusedID = store.focusedID == item.id ? nil : item.id }
                             }
                         }
                     }
@@ -217,6 +222,38 @@ struct DownloadListView: View {
     private func requestTrash(_ ids: Set<UUID>) {
         trashTargets = ids
         confirmTrash = true
+    }
+
+    private func row(_ item: DownloadItem) -> some View {
+        DownloadRow(item: item, isSelected: selectionBinding(item.id),
+                    isFocused: store.focusedID == item.id, note: note(for: item),
+                    onTrash: filter.isTidy ? { requestTrash([item.id]) } : nil) {
+            // Shift-click on the row works like Shift-click on its checkbox.
+            if NSApp.currentEvent?.modifierFlags.contains(.shift) == true {
+                setSelected(item.id, !selection.contains(item.id))
+                return
+            }
+            withAnimation(.snappy(duration: 0.22)) { store.focusedID = store.focusedID == item.id ? nil : item.id }
+        }
+    }
+
+    /// A playlist row's checkbox: on when every video is selected; ticking it selects them all.
+    private func groupSelection(_ group: PlaylistGroup) -> Binding<Bool> {
+        Binding(
+            get: { group.ids.allSatisfy(selection.contains) },
+            set: { on in
+                if on { selection.formUnion(group.ids) } else { selection.subtract(group.ids) }
+            }
+        )
+    }
+
+    private func expansion(_ id: UUID) -> Binding<Bool> {
+        Binding(
+            get: { expandedGroups.contains(id) },
+            set: { open in
+                if open { expandedGroups.insert(id) } else { expandedGroups.remove(id) }
+            }
+        )
     }
 
     /// The secondary line under a row's name.
