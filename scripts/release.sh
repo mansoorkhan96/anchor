@@ -57,6 +57,31 @@ cp "$DMG" "$DIST/Anchor.dmg"
 shasum -a 256 "$DMG" | tee "$DMG.sha256"
 echo "Built $DMG"
 
+# Sparkle: sign the DMG with the EdDSA key in the login keychain (made once with Sparkle's generate_keys) and write
+# the appcast that installed copies read from the newest release.
+SPARKLE_BIN="Vendor/Sparkle/bin"
+BUILD_NUMBER="$(sed -n 's/.*CURRENT_PROJECT_VERSION: "\([0-9]*\)".*/\1/p' project.yml)"
+SIGNATURE="$("$SPARKLE_BIN/sign_update" "$DMG")"
+REPO_URL="https://github.com/mansoorkhan96/anchor"
+cat > "$DIST/appcast.xml" <<APPCAST
+<?xml version="1.0" encoding="utf-8"?>
+<rss version="2.0" xmlns:sparkle="http://www.andymatuschak.org/xml-namespaces/sparkle">
+  <channel>
+    <title>Anchor</title>
+    <item>
+      <title>Anchor $VERSION</title>
+      <pubDate>$(LC_ALL=C date -R)</pubDate>
+      <sparkle:version>$BUILD_NUMBER</sparkle:version>
+      <sparkle:shortVersionString>$VERSION</sparkle:shortVersionString>
+      <sparkle:minimumSystemVersion>26.0</sparkle:minimumSystemVersion>
+      <sparkle:fullReleaseNotesLink>$REPO_URL/releases/tag/v$VERSION</sparkle:fullReleaseNotesLink>
+      <enclosure url="$REPO_URL/releases/download/v$VERSION/Anchor-$VERSION.dmg" $SIGNATURE type="application/octet-stream"/>
+    </item>
+  </channel>
+</rss>
+APPCAST
+echo "Wrote $DIST/appcast.xml"
+
 if [ "$PUBLISH" = "--publish" ]; then
   NOTES="$(mktemp)"
   cat > "$NOTES" <<'EOF'
@@ -76,7 +101,7 @@ EOF
     TITLE="$TITLE Beta"
     FLAGS+=(--prerelease)
   fi
-  gh release create "v$VERSION" "$DMG" "$DIST/Anchor.dmg" "$DMG.sha256" \
+  gh release create "v$VERSION" "$DMG" "$DIST/Anchor.dmg" "$DMG.sha256" "$DIST/appcast.xml" \
     --title "$TITLE" --notes-file "$NOTES" --generate-notes "${FLAGS[@]}" --target "$(git rev-parse HEAD)"
   rm -f "$NOTES"
   echo "Created a draft release for v$VERSION. Review and publish it on GitHub."
