@@ -103,6 +103,10 @@ struct DownloadItem: Codable, Identifiable, Hashable, Sendable {
     var cookieJar: [BrowserCookie]?
     /// yt-dlp's own words for the last failure; the failed state holds the plain version.
     var mediaError: String?
+    /// From a playlist: the best stream QuickTime plays within the quality, never converted (its codecs weren't probed).
+    var mediaPlayableOnly: Bool?
+    /// Subtitles to embed in the video.
+    var mediaSubtitle: MediaSubtitle?
 
     // Torrent fields
     var torrentGID: String?
@@ -124,7 +128,7 @@ struct DownloadItem: Codable, Identifiable, Hashable, Sendable {
         case supportsRanges, validator, state, createdAt, completedAt, openWhenDone, headers, nameFromServer, overwrite, queuedAt, priority, files, appliedSelection, speedLimitKB, seeding
         case torrentGID, torrentFile
         case keep, stamp, stampIsBaseline, openedAt, archivedAt, archivedFrom, archivedName, pendingMove, installer
-        case mediaQuality, mediaInfo, mediaConvertHeight, cookieJar, mediaError
+        case mediaQuality, mediaInfo, mediaConvertHeight, cookieJar, mediaError, mediaPlayableOnly, mediaSubtitle
     }
 
     init(url: URL, fileName: String, directory: URL, category: FileCategory, kind: DownloadKind = .http) {
