@@ -1,4 +1,4 @@
-import Foundation
+import AppKit
 import Observation
 
 enum SortOrder: String, CaseIterable, Identifiable {
@@ -27,6 +27,37 @@ enum ExistingFileAction: String, CaseIterable, Identifiable {
         case .ask: "Ask"
         case .rename: "Rename"
         case .overwrite: "Overwrite"
+        }
+    }
+}
+
+/// Light or dark for Anchor's windows and menu bar panel, or whatever the system uses.
+enum AppAppearance: String, CaseIterable, Identifiable {
+    case system, light, dark
+
+    var id: String { rawValue }
+    var title: String {
+        switch self {
+        case .system: "System"
+        case .light: "Light"
+        case .dark: "Dark"
+        }
+    }
+
+    var symbol: String {
+        switch self {
+        case .system: "circle.lefthalf.filled"
+        case .light: "sun.max"
+        case .dark: "moon"
+        }
+    }
+
+    /// nil follows the system.
+    var nsAppearance: NSAppearance? {
+        switch self {
+        case .system: nil
+        case .light: NSAppearance(named: .aqua)
+        case .dark: NSAppearance(named: .darkAqua)
         }
     }
 }
@@ -65,6 +96,12 @@ final class AppSettings {
     var menuBarCount: Int { didSet { defaults.set(menuBarCount, forKey: "menuBarCount") } }
     var showMenuBarIcon: Bool { didSet { defaults.set(showMenuBarIcon, forKey: "showMenuBarIcon") } }
     var showSpeedStrip: Bool { didSet { defaults.set(showSpeedStrip, forKey: "showSpeedStrip") } }
+    var appearance: AppAppearance {
+        didSet {
+            defaults.set(appearance.rawValue, forKey: "appearance")
+            applyAppearance()
+        }
+    }
     var keepAwake: Bool { didSet { defaults.set(keepAwake, forKey: "keepAwake") } }
     var seedTorrents: Bool { didSet { defaults.set(seedTorrents, forKey: "seedTorrents") } }
     var seedRatio: Double { didSet { defaults.set(seedRatio, forKey: "seedRatio") } }
@@ -140,6 +177,7 @@ final class AppSettings {
         menuBarCount = defaults.integer(forKey: "menuBarCount")
         showMenuBarIcon = defaults.bool(forKey: "showMenuBarIcon")
         showSpeedStrip = defaults.bool(forKey: "showSpeedStrip")
+        appearance = AppAppearance(rawValue: defaults.string(forKey: "appearance") ?? "") ?? .system
         keepAwake = defaults.bool(forKey: "keepAwake")
         seedTorrents = defaults.bool(forKey: "seedTorrents")
         seedRatio = defaults.double(forKey: "seedRatio")
@@ -154,6 +192,11 @@ final class AppSettings {
     }
 
     func cleanupDays(for category: FileCategory) -> Int { cleanupDays[category] ?? 0 }
+
+    /// Sets every window and the menu bar panel to the chosen appearance.
+    func applyAppearance() {
+        NSApp.appearance = appearance.nsAppearance
+    }
 
     /// Stored as `[String: Int]` (category raw value to days); unknown keys and non-positive days are dropped.
     nonisolated static func loadCleanupDays(from defaults: UserDefaults) -> [FileCategory: Int] {

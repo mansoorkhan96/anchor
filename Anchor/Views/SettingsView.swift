@@ -197,6 +197,12 @@ private struct GeneralPage: View {
         @Bindable var settings = store.settings
         VStack(spacing: 16) {
             SettingsCard {
+                SettingsRow(title: "Appearance", detail: "Light, dark, or follow your Mac") {
+                    AnchorSegmented(options: AppAppearance.allCases, selection: $settings.appearance, title: \.title,
+                                   minWidth: 0, symbol: \.symbol)
+                }
+            }
+            SettingsCard {
                 SettingsRow(title: "Save downloads to", detail: displayPath(settings.downloadFolder), divider: true) {
                     Button("Change…", action: chooseFolder).buttonStyle(.anchorSecondary)
                 }

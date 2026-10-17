@@ -148,6 +148,7 @@ private enum MenuBarIcon {
 final class AppDelegate: NSObject, NSApplicationDelegate {
     func applicationDidFinishLaunching(_ notification: Notification) {
         MainActor.assumeIsolated {
+            AppSettings.shared.applyAppearance()
             _ = DownloadStore.shared
             CleanupStore.shared.start()
             BrowserBridge.shared.start()
