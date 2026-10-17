@@ -48,6 +48,9 @@ struct DownloadListView: View {
                 } else if !filter.isTidy, CleanupBanner.isVisible(cleanup: cleanup, settings: store.settings) {
                     CleanupBanner()
                 }
+                if !filter.isTidy, store.queuedCount > 0, let startsAt = store.queueStartsAt {
+                    ScheduleBanner(startsAt: startsAt, waiting: store.queuedCount)
+                }
                 if store.settings.showSpeedStrip, !filter.isTidy, store.activeCount > 0 {
                     ThroughputCard()
                         .transition(.opacity.combined(with: .move(edge: .top)))
@@ -375,10 +378,12 @@ private struct HeaderBar: View {
                 Image(systemName: "magnifyingglass")
                     .font(.system(size: 12, weight: .medium))
                     .foregroundStyle(Color.anchorMuted)
+                    .accessibilityHidden(true)
                 TextField("Search", text: $search)
                     .textFieldStyle(.plain)
                     .font(.system(size: 13))
                     .focused($searchFocused)
+                    .accessibilityLabel("Search downloads")
                 if !search.isEmpty {
                     Button { search = "" } label: {
                         Image(systemName: "xmark.circle.fill").foregroundStyle(Color.anchorMuted.opacity(0.7))
@@ -413,10 +418,9 @@ private struct HeaderBar: View {
                         .frame(width: 15, height: 15)
                         .frame(width: 32, height: 28)
                         .contentShape(.capsule)
-                        .overlay(TrailingMenu(makeMenu: sortMenu))
+                        .accessibilityHidden(true)
+                        .overlay(TrailingMenu(label: "Sort", makeMenu: sortMenu))
                         .help("Sort downloads")
-                        .accessibilityAddTraits(.isButton)
-                        .accessibilityLabel("Sort")
                 }
             }
             .foregroundStyle(Color.anchorText)
@@ -532,21 +536,39 @@ private struct SpeedMenu: View {
 }
 
 /// Opens a native menu under the view, lined up with its right edge so it never runs past the window
-/// (a SwiftUI `Menu` always opens from the left edge).
+/// (a SwiftUI `Menu` always opens from the left edge). To VoiceOver it is a menu button named `label`, so hide the
+/// view it covers from accessibility.
 struct TrailingMenu: NSViewRepresentable {
+    let label: String
     let makeMenu: () -> NSMenu
 
     func makeNSView(context: Context) -> AnchorView { AnchorView() }
-    func updateNSView(_ view: AnchorView, context: Context) { view.makeMenu = makeMenu }
+    func updateNSView(_ view: AnchorView, context: Context) {
+        view.makeMenu = makeMenu
+        view.setAccessibilityLabel(label)
+    }
 
     final class AnchorView: NSView {
         var makeMenu: (() -> NSMenu)?
 
-        override func mouseDown(with event: NSEvent) {
+        override func mouseDown(with event: NSEvent) { open() }
+
+        private func open() {
             guard let menu = makeMenu?() else { return }
             let x = bounds.maxX - menu.size.width
             let y = isFlipped ? bounds.maxY + 4 : bounds.minY - 4
             menu.popUp(positioning: nil, at: NSPoint(x: x, y: y), in: self)
+        }
+
+        override func isAccessibilityElement() -> Bool { true }
+        override func accessibilityRole() -> NSAccessibility.Role? { .menuButton }
+        override func accessibilityPerformPress() -> Bool {
+            open()
+            return true
+        }
+        override func accessibilityPerformShowMenu() -> Bool {
+            open()
+            return true
         }
     }
 }
@@ -780,6 +802,46 @@ private struct ClipboardBanner: View {
                 store.clipboardSuggestion = nil
             }
             .buttonStyle(.anchorPrimary)
+        }
+        .padding(12)
+        .background(Color.anchorCard, in: .rect(cornerRadius: 14))
+        .transition(.move(edge: .top).combined(with: .opacity))
+    }
+}
+
+// MARK: - Schedule banner
+
+/// Queued downloads are waiting for the download window (Settings > Speed).
+private struct ScheduleBanner: View {
+    @Environment(DownloadStore.self) private var store
+    @Environment(\.openSettings) private var openSettings
+    let startsAt: Date
+    let waiting: Int
+
+    var body: some View {
+        HStack(spacing: 12) {
+            Image(systemName: "clock")
+                .font(.system(size: 14, weight: .semibold))
+                .foregroundStyle(Color.anchorAccent)
+                .frame(width: 34, height: 34)
+                .background(Color.anchorAccentWash, in: .rect(cornerRadius: 10))
+                .accessibilityHidden(true)
+            VStack(alignment: .leading, spacing: 2) {
+                Text("\(waiting) download\(waiting == 1 ? "" : "s") waiting for the schedule")
+                    .font(.system(size: 13, weight: .semibold))
+                    .foregroundStyle(Color.anchorText)
+                Text("Starts \(Calendar.current.isDateInToday(startsAt) ? "today" : "tomorrow") at \(startsAt.formatted(date: .omitted, time: .shortened))")
+                    .font(.system(size: 12))
+                    .foregroundStyle(Color.anchorMuted)
+            }
+            Spacer()
+            Button("Schedule…") {
+                store.settings.requestedSettingsPage = "speed"
+                openSettings()
+            }
+            .buttonStyle(.anchorPlain)
+            Button("Start Now") { store.startQueueNow() }
+                .buttonStyle(.anchorPrimary)
         }
         .padding(12)
         .background(Color.anchorCard, in: .rect(cornerRadius: 14))
