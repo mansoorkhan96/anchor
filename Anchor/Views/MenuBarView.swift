@@ -240,7 +240,8 @@ private struct DeleteButton: View {
     var body: some View {
         IconButton(symbol: "trash", label: label, tint: hovering ? .anchorDanger : .anchorMuted2,
                    fill: hovering ? .anchorDangerWash : .anchorText.opacity(0.07), size: 26) {}
-            .overlay(TrailingMenu(makeMenu: makeMenu))
+            .accessibilityHidden(true)
+            .overlay(TrailingMenu(label: label, makeMenu: makeMenu))
             .onHover { hovering = $0 }
             .animation(.easeOut(duration: 0.12), value: hovering)
             .help("Delete")
