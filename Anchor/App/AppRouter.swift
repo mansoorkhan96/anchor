@@ -76,6 +76,17 @@ final class AppRouter {
         }
     }
 
+    /// Opens or closes the menu bar panel (a keyboard shortcut). With the menu bar icon hidden, shows the main window.
+    func toggleMenuBarPanel() {
+        for window in NSApp.windows where String(describing: type(of: window)).contains("StatusBarWindow") {
+            if let button = Self.statusButton(in: window.contentView) {
+                button.performClick(nil)
+                return
+            }
+        }
+        activate()
+    }
+
     private static func statusButton(in view: NSView?) -> NSStatusBarButton? {
         guard let view else { return nil }
         if let button = view as? NSStatusBarButton { return button }
