@@ -393,6 +393,7 @@ private let regularFile: UInt32 = 0o100644 << 16
         #expect(args.containsSequence(["--no-js-runtimes", "--js-runtimes", "deno:/T/deno"]))
         #expect(args.containsSequence(["-P", "temp:/W/abc", "-P", "home:/W/abc", "-o", "media.%(ext)s"]))
         #expect(args.containsSequence(["--print", "after_move:filepath"]))
+        #expect(args.containsSequence(["--print", "before_dl:ANCHORTITLE %(title)s"]))
         #expect(args.containsSequence(["--ffmpeg-location", "/opt/homebrew/bin"]))
         #expect(args.containsSequence(["--newline", "--no-playlist", "--no-mtime", "--progress"]))
         #expect(args.contains("--no-remote-components"))
@@ -401,6 +402,29 @@ private let regularFile: UInt32 = 0o100644 << 16
         #expect(!args.contains("--limit-rate"))
         #expect(args.containsSequence(["--concurrent-fragments", "4"]), "fragmented sites download 4 pieces at a time")
         #expect(args.contains { $0.hasPrefix("download:ANCHOR ") })
+    }
+
+    @Test func playlistQualitiesPreferPlayableStreams() {
+        let sort = ["-S", "res,vcodec:h264,ext:mp4:m4a", "--merge-output-format", "mp4/mkv"]
+        let playable = "[vcodec!^=?vp][vcodec!^=?av01]"
+        #expect(MediaCommand.qualityArguments(.p720, playableOnly: true)
+                == ["-f", "bv[height<=720]\(playable)+ba/b[height<=720]\(playable)/bv*[height<=720]+ba/b[height<=720]"] + sort)
+        #expect(MediaCommand.qualityArguments(.best, playableOnly: true) == ["-f", "bv\(playable)+ba/b\(playable)/bv*+ba/b"] + sort)
+        #expect(MediaCommand.qualityArguments(.audio, playableOnly: true) == MediaCommand.qualityArguments(.audio))
+        #expect(MediaQuality.playlistOptions == [.best, .p1080, .p720, .p480, .p360, .audio])
+    }
+
+    @Test func subtitleArguments() {
+        let english = MediaSubtitle(code: "en", name: "English", automatic: false)
+        let auto = MediaSubtitle(code: "en-orig", name: "English", automatic: true)
+        #expect(MediaCommand.subtitleArguments(english, quality: .p1080) == ["--write-subs", "--sub-langs", "en", "--embed-subs"])
+        #expect(MediaCommand.subtitleArguments(auto, quality: .best) == ["--write-auto-subs", "--sub-langs", "en-orig", "--embed-subs"])
+        #expect(MediaCommand.subtitleArguments(english, quality: .audio).isEmpty, "audio files have nowhere to put them")
+        #expect(MediaCommand.subtitleArguments(nil, quality: .best).isEmpty)
+        let args = MediaCommand.downloadArguments(url: URL(string: "https://youtu.be/x")!, quality: .p720, subtitle: english,
+                                                  workDirectory: URL(filePath: "/W"), tools: Self.tools, limitBytesPerSecond: 0)
+        #expect(args.containsSequence(["--write-subs", "--sub-langs", "en", "--embed-subs"]))
+        #expect(Array(args.suffix(2)) == ["--", "https://youtu.be/x"])
     }
 
     @Test func limitRateUsesTheSmallerLimit() {
@@ -418,7 +442,8 @@ private let regularFile: UInt32 = 0o100644 << 16
     @Test func probeArguments() {
         let args = MediaCommand.probeArguments(url: URL(string: "https://youtu.be/x")!, tools: Self.tools)
         #expect(Array(args.prefix(2)) == ["--ignore-config", "--no-plugin-dirs"])
-        #expect(args.containsSequence(["--dump-single-json", "--no-playlist", "--skip-download"]))
+        #expect(args.containsSequence(["--dump-single-json", "--no-playlist", "--flat-playlist", "--playlist-items", "1:300", "--skip-download"]),
+                "a playlist is listed without opening every video, and only its first 300")
         #expect(args.containsSequence(["--no-js-runtimes", "--js-runtimes", "deno:/T/deno"]))
         #expect(Array(args.suffix(2)) == ["--", "https://youtu.be/x"])
     }
@@ -435,6 +460,102 @@ extension Array where Element == String {
     func containsSequence(_ sequence: [String]) -> Bool {
         guard sequence.count <= count else { return false }
         return (0...(count - sequence.count)).contains { Array(self[$0..<($0 + sequence.count)]) == sequence }
+    }
+}
+
+// MARK: - Playlists and subtitles
+
+@Suite struct PlaylistProbeTests {
+    @Test func listsAPlaylistsVideosInOrder() throws {
+        let json = #"""
+        {"_type":"playlist","title":"Coding Challenges","uploader":"The Coding Train","extractor_key":"YoutubeTab","playlist_count":246,
+         "entries":[
+          {"_type":"url","ie_key":"Youtube","url":"https://www.youtube.com/watch?v=a","title":"One","duration":834,
+           "thumbnails":[{"url":"https://i.ytimg.com/a/1.jpg","width":120},{"url":"https://i.ytimg.com/a/2.jpg","width":168}]},
+          {"_type":"url","url":"https://www.youtube.com/watch?v=b","title":"Two"},
+          {"_type":"url","url":"https://www.youtube.com/watch?v=a","title":"One again"},
+          {"_type":"url","url":"c","title":"A bare id"}
+         ]}
+        """#
+        let result = try MediaProbeResult.decode(Data(json.utf8))
+        #expect(result.isPlaylist)
+        #expect(result.playlistCount == 246)
+        let videos = result.videos
+        #expect(videos.map(\.title) == ["One", "Two"], "repeats and bare ids are dropped")
+        #expect(videos[0].duration == 834)
+        #expect(videos[0].thumbnail == URL(string: "https://i.ytimg.com/a/2.jpg"), "the first thumbnail at least 160 wide")
+        #expect(videos[1].thumbnail == nil)
+        let allTitled = videos.allSatisfy(\.titled)
+        #expect(allTitled)
+    }
+
+    @Test func untitledEntriesGetAStandIn() throws {
+        // Dailymotion lists a channel's videos without titles.
+        let json = #"{"_type":"playlist","entries":[{"_type":"url","url":"https://www.dailymotion.com/video/x7tgad0"}]}"#
+        let videos = try MediaProbeResult.decode(Data(json.utf8)).videos
+        #expect(videos.map(\.title) == ["Video 1"])
+        #expect(videos[0].titled == false, "renamed when yt-dlp reports the real title")
+    }
+
+    @Test func flattensAChannelsTabs() throws {
+        let json = #"""
+        {"_type":"playlist","title":"Channel","entries":[
+          {"_type":"playlist","title":"Channel - Videos","entries":[{"_type":"url","url":"https://www.youtube.com/watch?v=v1","title":"V1"}]},
+          {"_type":"playlist","title":"Channel - Shorts","entries":[{"_type":"url","url":"https://www.youtube.com/shorts/s1","title":"S1"}]},
+          {"_type":"playlist","title":"Channel - Live","url":"https://www.youtube.com/@c/streams"}
+        ]}
+        """#
+        let result = try MediaProbeResult.decode(Data(json.utf8))
+        #expect(result.videos.map(\.title) == ["V1", "S1"], "a tab without its own entries isn't a video")
+    }
+
+    @Test func channelLinksProbeTheirVideosTab() {
+        func probe(_ link: String) -> String { MediaLinkDetector.probeURL(for: URL(string: link)!).absoluteString }
+        #expect(probe("https://www.youtube.com/@TheCodingTrain") == "https://www.youtube.com/@TheCodingTrain/videos")
+        #expect(probe("https://youtube.com/@TheCodingTrain/") == "https://youtube.com/@TheCodingTrain/videos")
+        #expect(probe("https://www.youtube.com/channel/UCabc") == "https://www.youtube.com/channel/UCabc/videos")
+        #expect(probe("https://m.youtube.com/c/name") == "https://m.youtube.com/c/name/videos")
+        // Already a tab, a playlist, a video, or another site: unchanged.
+        for link in ["https://www.youtube.com/@a/shorts", "https://www.youtube.com/playlist?list=PL1",
+                     "https://www.youtube.com/watch?v=x&list=PL1", "https://vimeo.com/@a", "https://www.youtube.com/@a/videos"] {
+            #expect(probe(link) == link)
+        }
+    }
+
+    @Test func subtitleOptionsPutTheVideosLanguageFirst() throws {
+        let json = #"""
+        {"title":"t","extractor":"youtube","language":"en",
+         "subtitles":{"fr":[{"ext":"vtt","name":"French"}],"en-US":[{"ext":"vtt","name":"English (United States)"}],
+                      "de":[{"ext":"vtt","name":"German"}],"live_chat":[{"ext":"json"}],"es":[]},
+         "automatic_captions":{"en-orig":[{"ext":"vtt","name":"English (Original)"}],"fr":[{"ext":"vtt","name":"French"}]}}
+        """#
+        let options = try MediaProbeResult.decode(Data(json.utf8)).subtitleOptions
+        #expect(options.map(\.code) == ["en-US", "fr", "de"],
+                "the spoken language first, then by name (French, German); no live chat, no empty languages")
+        #expect(!options.contains { $0.automatic }, "the uploader's own English beats the automatic captions")
+    }
+
+    @Test func automaticCaptionsWhenThereAreNoOthers() throws {
+        let json = #"""
+        {"title":"t","extractor":"youtube","language":"en",
+         "automatic_captions":{"en-orig":[{"ext":"vtt","name":"English (Original)"}],"en":[{"ext":"vtt"}],"de":[{"ext":"vtt"}]}}
+        """#
+        let options = try MediaProbeResult.decode(Data(json.utf8)).subtitleOptions
+        #expect(options == [MediaSubtitle(code: "en-orig", name: "English (Original)", automatic: true)],
+                "only the original speech recognition, not the ~150 machine translations")
+        #expect(options[0].title == "English (Original) (auto-generated)")
+        let none = try MediaProbeResult.decode(Data(#"{"title":"t","extractor":"x"}"#.utf8))
+        #expect(none.subtitleOptions.isEmpty)
+    }
+
+    @Test func playlistAndSubtitleFieldsRoundTrip() throws {
+        var item = DownloadItem(url: URL(string: "https://youtu.be/x")!, fileName: "01 Clip.mp4", directory: URL(filePath: "/D"),
+                                category: .video, kind: .media)
+        item.mediaPlayableOnly = true
+        item.mediaSubtitle = MediaSubtitle(code: "en", name: "English", automatic: false)
+        let decoded = try JSONDecoder().decode(DownloadItem.self, from: JSONEncoder().encode(item))
+        #expect(decoded.mediaPlayableOnly == true)
+        #expect(decoded.mediaSubtitle == item.mediaSubtitle)
     }
 }
 
@@ -465,6 +586,12 @@ extension Array where Element == String {
         }
         #expect(e.estimate == 40000)
         #expect(e.speed == nil)
+    }
+
+    @Test func titleLines() {
+        #expect(MediaOutput.parse("ANCHORTITLE Midnight Sun | Iceland") == .title("Midnight Sun | Iceland"))
+        #expect(MediaOutput.parse("ANCHORTITLE NA") == nil)
+        #expect(MediaOutput.parse("ANCHORTITLE   ") == nil)
     }
 
     @Test func otherLines() {
@@ -738,6 +865,8 @@ private final class LineBox: @unchecked Sendable {
             .arguments(input: URL(filePath: "/w/media.mkv"), output: URL(filePath: "/w/converted.mp4"))
         #expect(ffmpeg.contains("h264_videotoolbox"))
         #expect(ffmpeg.suffix(4) == ["-progress", "pipe:1", "-nostats", "/w/converted.mp4"])
+        #expect(ffmpeg.containsSequence(["-map", "0:s?"]), "embedded subtitles survive the conversion")
+        #expect(ffmpeg.containsSequence(["-c:s", "mov_text"]), "as the text track MP4 holds")
     }
 
     @Test func conversionBitrateFollowsTheSource() {
