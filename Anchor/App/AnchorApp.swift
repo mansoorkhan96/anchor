@@ -16,6 +16,10 @@ struct AnchorApp: App {
         .defaultSize(width: 1180, height: 760)
         .windowStyle(.hiddenTitleBar)
         .commands {
+            CommandGroup(after: .appInfo) {
+                Button("Check for Updates…") { AppUpdater.shared.checkForUpdates() }
+                    .disabled(!AppUpdater.shared.canCheck)
+            }
             CommandGroup(replacing: .newItem) {
                 Button("New Download…") { store.addRequest = AddRequest() }
                     .keyboardShortcut("n")
@@ -150,6 +154,8 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
             Task.detached(priority: .utility) { NativeHost.register() }
             ClipboardWatcher.shared.start()
             ToolManager.shared.start()
+            AppUpdater.shared.start()
+            GlobalShortcuts.shared.start()
             // Switching to another app (⌘-Tab, Dock, clicking a window) closes the menu bar popover.
             NSWorkspace.shared.notificationCenter.addObserver(
                 forName: NSWorkspace.didActivateApplicationNotification, object: nil, queue: .main
