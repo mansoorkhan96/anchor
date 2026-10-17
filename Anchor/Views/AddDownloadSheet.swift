@@ -34,10 +34,15 @@ struct AddDownloadSheet: View {
     /// downloading the page.
     @State private var mediaError: String?
     @State private var quality: MediaQuality = .best
+    @State private var subtitleChoice: MediaSubtitle?
+    // Playlists and channels: the videos to download (indexes into `playlist.videos`).
+    @State private var playlist: MediaProbeResult?
+    @State private var playlistSelection: Set<Int> = []
+    @State private var numberFiles = true
     @FocusState private var addressFocused: Bool
 
     private var tools: ToolManager { .shared }
-    private var isMedia: Bool { mediaCandidate || media != nil }
+    private var isMedia: Bool { mediaCandidate || media != nil || playlist != nil }
     /// Re-checks the link when the tools become ready, so a waiting video link gets probed.
     private struct ProbeKey: Hashable { var address: String; var toolsReady: Bool; var cookieBrowser: String }
 
@@ -52,6 +57,7 @@ struct AddDownloadSheet: View {
     /// quality only exists as VP9 or AV1 and Anchor re-encodes it so QuickTime can play it.
     private func qualityLabel(_ option: MediaQuality) -> String {
         var label = option.title
+        if playlist != nil { return label }
         if option == .playable, let height = media?.chosenVideo(.playable)?.height { label = "\(height)p, no conversion" }
         if let size = media?.estimatedSize(option) { label += " · about \(Format.bytes(size))" }
         if media?.conversionHeight(option) != nil { label += " (Convert to MP4)" }
@@ -61,9 +67,20 @@ struct AddDownloadSheet: View {
     private var targetFolder: URL { folder ?? store.settings.folder(for: isMedia ? quality.category : category) }
     private var canAdd: Bool {
         guard let scheme = url?.scheme?.lowercased() else { return false }
-        // Video links wait for the tools and for yt-dlp's answer.
-        if isMedia, media == nil || !tools.isReady { return false }
+        // Video links wait for the tools and for yt-dlp's answer; a playlist needs at least one video.
+        if isMedia, !tools.isReady || (media == nil && (playlist == nil || playlistSelection.isEmpty)) { return false }
         return ["http", "https", "magnet", "file"].contains(scheme)
+    }
+
+    private var qualityOptions: [MediaQuality] {
+        playlist != nil ? MediaQuality.playlistOptions : media?.availableQualities ?? [.best, .audio]
+    }
+
+    /// "Download", "Download 12 Videos", or with a schedule waiting, "Download at 1:00 AM".
+    private var downloadTitle: String {
+        if let startsAt = store.queueStartsAt { return "Download at \(startsAt.formatted(date: .omitted, time: .shortened))" }
+        if playlist != nil { return playlistSelection.count == 1 ? "Download 1 Video" : "Download \(playlistSelection.count) Videos" }
+        return "Download"
     }
 
     var body: some View {
@@ -126,6 +143,9 @@ struct AddDownloadSheet: View {
                         RoundedRectangle(cornerRadius: 14)
                             .strokeBorder(Color.anchorLine, style: StrokeStyle(lineWidth: 1.5, dash: [5, 4]))
                     )
+            } else if let playlist {
+                PlaylistCard(folderName: $fileName, result: playlist)
+                PlaylistVideoList(videos: playlist.videos, selection: $playlistSelection)
             } else if isMedia {
                 MediaCard(fileName: $fileName, result: media, probing: mediaProbing, quality: quality)
                 if let mediaError, media == nil, !mediaProbing {
@@ -136,34 +156,44 @@ struct AddDownloadSheet: View {
             }
 
             if isMedia {
-                field("Quality") {
-                    Menu {
-                        ForEach(media?.availableQualities ?? [.best, .audio]) { option in
-                            Button {
-                                quality = option
-                            } label: {
-                                if option == quality { Label(qualityLabel(option), systemImage: "checkmark") } else { Text(qualityLabel(option)) }
+                HStack(alignment: .top, spacing: 12) {
+                    field("Quality") {
+                        Menu {
+                            ForEach(qualityOptions) { option in
+                                Button {
+                                    quality = option
+                                } label: {
+                                    if option == quality { Label(qualityLabel(option), systemImage: "checkmark") } else { Text(qualityLabel(option)) }
+                                }
                             }
+                        } label: {
+                            HStack(spacing: 8) {
+                                Image(systemName: quality.isAudio ? "music.note" : "film")
+                                    .font(.system(size: 12, weight: .semibold))
+                                    .foregroundStyle(Color.anchorAccent)
+                                    .accessibilityHidden(true)
+                                Text(qualityLabel(quality)).font(.system(size: 13)).foregroundStyle(Color.anchorText)
+                                Spacer(minLength: 4)
+                                MenuChevron()
+                                    .font(.system(size: 10, weight: .semibold))
+                                    .foregroundStyle(Color.anchorMuted)
+                            }
+                            .fieldChrome()
+                            .contentShape(.rect)
                         }
-                    } label: {
-                        HStack(spacing: 8) {
-                            Image(systemName: quality.isAudio ? "music.note" : "film")
-                                .font(.system(size: 12, weight: .semibold))
-                                .foregroundStyle(Color.anchorAccent)
-                            Text(qualityLabel(quality)).font(.system(size: 13)).foregroundStyle(Color.anchorText)
-                            Spacer(minLength: 4)
-                            Image(systemName: "chevron.up.chevron.down")
-                                .font(.system(size: 10, weight: .semibold))
-                                .foregroundStyle(Color.anchorMuted)
+                        .menuStyle(.button)
+                        .buttonStyle(.plain)
+                        .menuIndicator(.hidden)
+                        .accessibilityLabel("Quality")
+                        .onChange(of: media?.availableQualities ?? []) { _, options in
+                            if !options.isEmpty, !options.contains(quality) { quality = .best }
                         }
-                        .fieldChrome()
-                        .contentShape(.rect)
                     }
-                    .menuStyle(.button)
-                    .buttonStyle(.plain)
-                    .menuIndicator(.hidden)
-                    .onChange(of: media?.availableQualities ?? []) { _, options in
-                        if !options.isEmpty, !options.contains(quality) { quality = .best }
+                    if let options = media?.subtitleOptions, !options.isEmpty, !quality.isAudio {
+                        field("Subtitles") {
+                            SubtitleMenu(options: options, selection: $subtitleChoice)
+                        }
+                        .frame(width: 210)
                     }
                 }
             }
@@ -229,7 +259,7 @@ struct AddDownloadSheet: View {
                                 Circle().fill(category.color).frame(width: 8, height: 8)
                                 Text(category.title).font(.system(size: 13)).foregroundStyle(Color.anchorText)
                                 Spacer(minLength: 4)
-                                Image(systemName: "chevron.up.chevron.down")
+                                MenuChevron()
                                     .font(.system(size: 10, weight: .semibold))
                                     .foregroundStyle(Color.anchorMuted)
                             }
@@ -245,13 +275,26 @@ struct AddDownloadSheet: View {
             }
 
             HStack(spacing: 10) {
-                if !isTorrent {
+                if playlist != nil {
+                    HStack(spacing: 8) {
+                        AnchorSwitch(isOn: $numberFiles, label: "Number the files")
+                        Text("Number the files")
+                            .font(.system(size: 13))
+                            .foregroundStyle(Color.anchorMuted2)
+                            .lineLimit(1)
+                            .fixedSize()
+                            .onTapGesture { numberFiles.toggle() }
+                            .help("Puts each video's place in the playlist in front of its name, like \"03 Title\"")
+                            .accessibilityHidden(true)
+                    }
+                } else if !isTorrent {
                     HStack(spacing: 8) {
                         AnchorSwitch(isOn: $openWhenDone, label: "Open when finished")
                         Text("Open when finished")
                             .font(.system(size: 13))
                             .foregroundStyle(Color.anchorMuted2)
                             .onTapGesture { openWhenDone.toggle() }
+                            .accessibilityHidden(true)
                     }
                 }
                 Spacer()
@@ -261,14 +304,15 @@ struct AddDownloadSheet: View {
                 Button("Add to Queue") { add(startNow: false) }
                     .buttonStyle(.anchorSecondary)
                     .disabled(!canAdd)
-                Button("Download") { add(startNow: true) }
+                Button(downloadTitle) { add(startNow: true) }
                     .buttonStyle(.anchorPrimary)
+                    .fixedSize()
                     .keyboardShortcut(.defaultAction)
                     .disabled(!canAdd)
             }
         }
         .padding(24)
-        .frame(width: 580)
+        .frame(width: 640)
         .background(Color.anchorWindow)
         .fixedSize(horizontal: false, vertical: true)
         .tint(.anchorAccent)
@@ -313,7 +357,10 @@ struct AddDownloadSheet: View {
     }
 
     private var folderLabel: String {
-        let path = targetFolder.path
+        var path = targetFolder.path
+        // A playlist's videos go into a folder named after it.
+        let sub = FileNaming.sanitize(fileName.trimmingCharacters(in: .whitespaces))
+        if playlist != nil, !sub.isEmpty { path = targetFolder.appending(path: sub).path }
         let home = FileManager.default.homeDirectoryForCurrentUser.path
         return path.hasPrefix(home) ? "~" + path.dropFirst(home.count) : path
     }
@@ -374,6 +421,9 @@ struct AddDownloadSheet: View {
         probe = nil
         probeError = nil
         media = nil
+        playlist = nil
+        playlistSelection = []
+        subtitleChoice = nil
         mediaError = nil
         mediaCandidate = false
         releasePrepared()
@@ -429,6 +479,14 @@ struct AddDownloadSheet: View {
         defer { mediaProbing = false }
         let outcome = await MediaProber.shared.probe(url, tools: paths, cookies: cookies(for: url))
         guard !Task.isCancelled else { return false }
+        if case .playlist(let result) = outcome {
+            playlist = result
+            playlistSelection = Set(result.videos.indices)
+            quality = .best
+            nameEdited = false
+            setName(FileNaming.sanitize(result.title ?? "Playlist"))
+            return true
+        }
         if case .notMedia(let message?) = outcome, MediaLinkDetector.isLikelyMedia(url), MediaErrors.kind(of: message) != .other {
             // The site refused; saying why beats offering its web page as a download.
             mediaError = message
@@ -557,10 +615,19 @@ struct AddDownloadSheet: View {
             close()
             return
         }
+        if let playlist, let url {
+            added = true
+            let videos = playlist.videos
+            let chosen = playlistSelection.sorted().filter { videos.indices.contains($0) }.map { (index: $0 + 1, video: videos[$0]) }
+            store.addPlaylist(chosen, folderName: fileName, extractor: playlist.extractor, quality: quality,
+                              directory: targetFolder, numbered: numberFiles, cookieJar: linkCookies(for: url), startNow: startNow)
+            close()
+            return
+        }
         if let media, let url {
             added = true
             store.addMedia(url, name: fileName.trimmingCharacters(in: .whitespaces), directory: targetFolder, quality: quality,
-                           info: media.info, convertHeight: media.conversionHeight(quality),
+                           info: media.info, convertHeight: media.conversionHeight(quality), subtitle: subtitleChoice,
                            cookieJar: linkCookies(for: url), startNow: startNow, openWhenDone: openWhenDone)
             close()
             return
@@ -625,5 +692,50 @@ private struct PriorityField: View {
         case .normal: .anchorText
         case .low: .anchorMuted2
         }
+    }
+}
+
+/// None, or one of the languages the site has subtitles in.
+private struct SubtitleMenu: View {
+    let options: [MediaSubtitle]
+    @Binding var selection: MediaSubtitle?
+
+    var body: some View {
+        Menu {
+            Button {
+                selection = nil
+            } label: {
+                if selection == nil { Label("None", systemImage: "checkmark") } else { Text("None") }
+            }
+            Divider()
+            ForEach(options, id: \.self) { option in
+                Button {
+                    selection = option
+                } label: {
+                    if option == selection { Label(option.title, systemImage: "checkmark") } else { Text(option.title) }
+                }
+            }
+        } label: {
+            HStack(spacing: 8) {
+                Image(systemName: "captions.bubble")
+                    .font(.system(size: 12, weight: .semibold))
+                    .foregroundStyle(Color.anchorAccent)
+                    .accessibilityHidden(true)
+                Text(selection?.title ?? "None")
+                    .font(.system(size: 13))
+                    .foregroundStyle(Color.anchorText)
+                    .lineLimit(1)
+                Spacer(minLength: 4)
+                MenuChevron()
+                    .font(.system(size: 10, weight: .semibold))
+                    .foregroundStyle(Color.anchorMuted)
+            }
+            .fieldChrome()
+            .contentShape(.rect)
+        }
+        .menuStyle(.button)
+        .buttonStyle(.plain)
+        .menuIndicator(.hidden)
+        .accessibilityLabel("Subtitles")
     }
 }
