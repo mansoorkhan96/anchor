@@ -53,7 +53,7 @@ private final class FloatingPanel: NSPanel {
     var onCancel: (() -> Void)?
 
     init() {
-        super.init(contentRect: NSRect(x: 0, y: 0, width: 580, height: 440),
+        super.init(contentRect: NSRect(x: 0, y: 0, width: 640, height: 440),
                    styleMask: [.titled, .closable, .fullSizeContentView, .nonactivatingPanel],
                    backing: .buffered, defer: false)
         isFloatingPanel = true
