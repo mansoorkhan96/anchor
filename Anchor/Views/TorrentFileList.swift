@@ -189,7 +189,8 @@ private struct FileRow: View {
 }
 
 /// Square checkbox for including a torrent file (checked = download it).
-private struct FileCheckbox: View {
+/// The square include checkbox of file and video lists.
+struct FileCheckbox: View {
     let isOn: Bool
     let label: String
     let toggle: () -> Void
@@ -214,7 +215,8 @@ private struct FileCheckbox: View {
         }
         .buttonStyle(.plain)
         .allowsWindowActivationEvents(true)
-        .accessibilityRepresentation { Toggle(label, isOn: .constant(isOn)) }
+        // A real binding, so VoiceOver can switch it too.
+        .accessibilityRepresentation { Toggle(label, isOn: Binding(get: { isOn }, set: { _ in toggle() })) }
     }
 }
 
