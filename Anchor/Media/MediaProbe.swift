@@ -48,10 +48,13 @@ struct MediaProbeResult: Decodable, Equatable, Sendable {
         var duration: Double?
         var thumbnails: [Thumbnail]?
         var entries: [Entry]?
+        /// The extractor that handles the entry itself, such as "Youtube".
+        var ieKey: String?
 
         enum CodingKeys: String, CodingKey {
             case url, title, duration, thumbnails, entries
             case type = "_type"
+            case ieKey = "ie_key"
         }
     }
 
@@ -111,7 +114,8 @@ struct MediaProbeResult: Decodable, Equatable, Sendable {
                 let thumb = thumbs.first { ($0.width ?? 0) >= 160 }?.url ?? thumbs.last?.url
                 let title = entry.title?.trimmingCharacters(in: .whitespaces) ?? ""
                 result.append(PlaylistVideo(url: link, title: title.isEmpty ? "Video \(result.count + 1)" : title,
-                                            duration: entry.duration, thumbnail: thumb, titled: !title.isEmpty))
+                                            duration: entry.duration, thumbnail: thumb, titled: !title.isEmpty,
+                                            extractor: entry.ieKey?.lowercased()))
             }
         }
         walk(entries ?? [])
