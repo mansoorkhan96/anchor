@@ -75,3 +75,41 @@ import Testing
         #expect(decoded.groupTitle == "List")
     }
 }
+
+@Suite struct VideoSiteQueueTests {
+    @Test func sitesIgnoreSubdomainsAndShortLinks() {
+        func site(_ link: String) -> String? { MediaLinkDetector.site(for: URL(string: link)!) }
+        #expect(site("https://www.youtube.com/watch?v=a") == "youtube.com")
+        #expect(site("https://youtu.be/a") == "youtube.com")
+        #expect(site("https://music.youtube.com/watch?v=a") == "youtube.com")
+        #expect(site("https://m.youtube.com/watch?v=a") == "youtube.com")
+        #expect(site("https://vm.tiktok.com/x") == "tiktok.com")
+        #expect(site("https://twitter.com/a/status/1") == "x.com")
+        #expect(site("https://www.example.org/v") == "example.org")
+        #expect(site("magnet:?xt=urn:btih:abc") == nil)
+    }
+
+    static func video(_ link: String, _ state: DownloadState, kind: DownloadKind = .media) -> DownloadItem {
+        var item = DownloadItem(url: URL(string: link)!, fileName: "v.mp4", directory: URL(filePath: "/D"), category: .video, kind: kind)
+        item.state = state
+        return item
+    }
+
+    @Test func oneVideoAtATimePerSite() {
+        let running = Self.video("https://www.youtube.com/watch?v=a", .downloading)
+        let next = Self.video("https://youtu.be/b", .queued)
+        let other = Self.video("https://www.instagram.com/reel/c/", .queued)
+        let file = Self.video("https://www.youtube.com/file.zip", .queued, kind: .http)
+        let all = [running, next, other, file]
+        #expect(!DownloadStore.mayStart(next, among: all), "YouTube is busy")
+        #expect(DownloadStore.mayStart(other, among: all), "another site isn't held")
+        #expect(DownloadStore.mayStart(file, among: all), "plain files aren't held")
+        #expect(DownloadStore.mayStart(next, among: [next]))
+    }
+
+    @Test func playlistEntriesKeepTheirOwnExtractor() throws {
+        let json = #"{"_type":"playlist","extractor":"youtube:tab","entries":[{"_type":"url","ie_key":"Youtube","url":"https://www.youtube.com/watch?v=a","title":"A"}]}"#
+        let videos = try MediaProbeResult.decode(Data(json.utf8)).videos
+        #expect(videos.first?.extractor == "youtube")
+    }
+}
