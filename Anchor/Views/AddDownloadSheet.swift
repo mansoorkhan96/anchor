@@ -44,7 +44,7 @@ struct AddDownloadSheet: View {
     private var tools: ToolManager { .shared }
     private var isMedia: Bool { mediaCandidate || media != nil || playlist != nil }
     /// Re-checks the link when the tools become ready, so a waiting video link gets probed.
-    private struct ProbeKey: Hashable { var address: String; var toolsReady: Bool; var cookieBrowser: String }
+    private struct ProbeKey: Hashable { var address: String; var toolsReady: Bool }
 
     private var url: URL? {
         URL(string: address.trimmingCharacters(in: .whitespacesAndNewlines)).flatMap { $0.scheme == nil ? nil : $0 }
@@ -329,7 +329,7 @@ struct AddDownloadSheet: View {
             }
             addressFocused = address.isEmpty
         }
-        .task(id: ProbeKey(address: address, toolsReady: tools.isReady, cookieBrowser: store.settings.mediaCookieBrowser)) { await runProbe() }
+        .task(id: ProbeKey(address: address, toolsReady: tools.isReady)) { await runProbe() }
         .onChange(of: folder) {
             guard let gid = prepared?.gid else { return }
             let target = targetFolder
@@ -505,7 +505,7 @@ struct AddDownloadSheet: View {
     private func cookies(for url: URL) -> MediaCookies {
         var jar = request.cookieJar
         if jar.isEmpty, let header = request.headers["Cookie"] { jar = MediaCookies.jar(fromHeader: header, url: url) }
-        return MediaCookies.choose(browser: store.settings.mediaCookieBrowser, jar: jar)
+        return MediaCookies.choose(jar: jar)
     }
 
     /// The extension's cookies for this link, kept with the download.

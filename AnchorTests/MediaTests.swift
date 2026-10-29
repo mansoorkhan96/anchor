@@ -981,18 +981,16 @@ private final class LineBox: @unchecked Sendable {
         #expect(jar[1].value == "f6=40000000&tz=Asia.Karachi", "only the first = splits")
     }
 
-    @Test func chosenBrowserWinsOverTheExtensionsCookies() {
-        #expect(MediaCookies.choose(browser: "brave", jar: [Self.session]) == .browser("brave"))
-        #expect(MediaCookies.choose(browser: "", jar: [Self.session]) == .jar([Self.session]))
-        #expect(MediaCookies.choose(browser: "netscape-navigator", jar: nil) == .none, "unknown names are ignored")
-        #expect(MediaCookies.choose(browser: "", jar: []) == .none)
+    @Test func onlyTheExtensionsCookiesAreUsed() {
+        #expect(MediaCookies.choose(jar: [Self.session]) == .jar([Self.session]))
+        #expect(MediaCookies.choose(jar: nil) == .none, "no browser cookie store is ever read")
+        #expect(MediaCookies.choose(jar: []) == .none)
     }
 
     @Test func argumentsAndAPrivateFile() throws {
         let dir = FileManager.default.temporaryDirectory.appending(path: "anchor-cookies-\(UUID().uuidString)", directoryHint: .isDirectory)
         defer { try? FileManager.default.removeItem(at: dir) }
         #expect(MediaCookies.none.arguments(writingTo: dir).isEmpty)
-        #expect(MediaCookies.browser("firefox").arguments(writingTo: dir) == ["--cookies-from-browser", "firefox"])
         let args = MediaCookies.jar([Self.session]).arguments(writingTo: dir)
         let file = dir.appending(path: "cookies.txt")
         #expect(args == ["--cookies", file.path])
@@ -1003,8 +1001,8 @@ private final class LineBox: @unchecked Sendable {
     @Test func cookiesGoBeforeTheLink() {
         let tools = MediaCommandTests.tools
         let args = MediaCommand.downloadArguments(url: URL(string: "https://youtu.be/x")!, quality: .best, workDirectory: URL(filePath: "/W"),
-                                                  tools: tools, limitBytesPerSecond: 0, cookies: ["--cookies-from-browser", "brave"])
-        #expect(args.containsSequence(["--cookies-from-browser", "brave"]))
+                                                  tools: tools, limitBytesPerSecond: 0, cookies: ["--cookies", "/W/c.txt"])
+        #expect(args.containsSequence(["--cookies", "/W/c.txt"]))
         #expect(Array(args.suffix(2)) == ["--", "https://youtu.be/x"])
         let probe = MediaCommand.probeArguments(url: URL(string: "https://youtu.be/x")!, tools: tools, cookies: ["--cookies", "/W/c.txt"])
         #expect(probe.containsSequence(["--cookies", "/W/c.txt"]))

@@ -164,7 +164,7 @@ private struct GeneralDetails: View {
                 if case .failed(let message) = item.state {
                     row("Error") {
                         if item.kind == .media {
-                            MediaErrorNote(raw: item.mediaError ?? message, plain: message, failedAt: item.failedAt) { store.retry(item.id) }
+                            MediaErrorNote(raw: item.mediaError ?? message, plain: message, failedAt: item.failedAt)
                         } else {
                             Text(message)
                                 .font(.system(size: 12.5))

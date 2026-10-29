@@ -231,20 +231,16 @@ struct PlaylistVideoList: View {
     }
 }
 
-/// Why a video couldn't be downloaded, in plain words, with yt-dlp's own text behind Details and, when signing in
-/// would help, a choice of browser to take cookies from.
+/// Why a video couldn't be downloaded, in plain words, with yt-dlp's own text behind Details.
 struct MediaErrorNote: View {
     /// yt-dlp's message (or the plain one when there is no raw text).
     let raw: String
     var plain: String? = nil
     /// When the last attempt failed (downloads only).
     var failedAt: Date? = nil
-    /// Called after a browser is picked (the window probes again, a download retries).
-    var onCookiesChanged: () -> Void = {}
     @State private var showDetails = false
 
     var body: some View {
-        let kind = MediaErrors.kind(of: raw)
         VStack(alignment: .leading, spacing: 8) {
             HStack(alignment: .top, spacing: 8) {
                 Image(systemName: "exclamationmark.triangle.fill")
@@ -259,9 +255,6 @@ struct MediaErrorNote: View {
                 Text("Last tried at \(failedAt.formatted(date: .omitted, time: .standard))")
                     .font(.system(size: 11))
                     .foregroundStyle(Color.anchorMuted)
-            }
-            if kind.wantsCookies {
-                CookieBrowserMenu(onChange: onCookiesChanged)
             }
             if MediaErrors.friendly(raw) != raw {
                 Button(showDetails ? "Hide details" : "Details") { showDetails.toggle() }
@@ -280,48 +273,5 @@ struct MediaErrorNote: View {
         .frame(maxWidth: .infinity, alignment: .leading)
         .padding(12)
         .background(Color.anchorDangerWash, in: .rect(cornerRadius: 12))
-    }
-}
-
-/// Picks the browser whose cookies yt-dlp uses, so sites see a signed-in user. Only installed browsers are listed.
-struct CookieBrowserMenu: View {
-    var onChange: () -> Void = {}
-    private var settings: AppSettings { .shared }
-
-    var body: some View {
-        let installed = MediaCookies.browsers.filter { NSWorkspace.shared.urlForApplication(withBundleIdentifier: $0.bundleID) != nil }
-        let current = settings.mediaCookieBrowser
-        VStack(alignment: .leading, spacing: 4) {
-            Menu {
-                ForEach(installed, id: \.name) { browser in
-                    Button {
-                        pick(browser.name)
-                    } label: {
-                        let title = browser.name == "safari" ? "Safari (needs Full Disk Access for Anchor)" : browser.title
-                        if browser.name == current { Label(title, systemImage: "checkmark") } else { Text(title) }
-                    }
-                }
-                if !current.isEmpty {
-                    Divider()
-                    Button("Don't Use Browser Cookies") { pick("") }
-                }
-            } label: {
-                Text(current.isEmpty ? "Use cookies from your browser…" : "Using cookies from \(MediaCookies.title(ofBrowser: current))")
-                    .font(.system(size: 12, weight: .semibold))
-                    .foregroundStyle(Color.anchorAccentInk)
-            }
-            .menuStyle(.button)
-            .buttonStyle(.plain)
-            .fixedSize()
-            Text("Sign in to the site in that browser. macOS may ask once to let Anchor read its cookies.")
-                .font(.system(size: 11))
-                .foregroundStyle(Color.anchorMuted)
-                .fixedSize(horizontal: false, vertical: true)
-        }
-    }
-
-    private func pick(_ name: String) {
-        settings.mediaCookieBrowser = name
-        onChange()
     }
 }

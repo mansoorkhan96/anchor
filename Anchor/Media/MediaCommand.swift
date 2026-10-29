@@ -213,6 +213,8 @@ struct PlaylistVideo: Hashable, Sendable {
     /// False when the site listed no title and `title` is a stand-in ("Video 3"); the real one arrives with the
     /// download (`MediaOutput.title`).
     var titled = true
+    /// The extractor for the video itself ("youtube"), when the playlist says.
+    var extractor: String?
 }
 
 /// A subtitle language to embed in the video.
@@ -401,29 +403,15 @@ struct BrowserCookie: Codable, Hashable, Sendable {
     var value: String
 }
 
-/// Where yt-dlp gets cookies from, so sites like YouTube see a signed-in browser instead of asking whether
-/// it's a bot: a browser's own cookie store (the user chose it), the cookies the extension sent with the link,
-/// or none.
+/// The cookies yt-dlp uses: the ones the browser extension sent with the link, or none. Anchor never reads a
+/// browser's own cookie store (that would need the browser's keychain item).
 enum MediaCookies: Equatable, Sendable {
     case none
-    case browser(String)
     case jar([BrowserCookie])
 
     static let fileName = "cookies.txt"
 
-    /// The yt-dlp names of the browsers it can read cookies from, with their apps' bundle IDs.
-    static let browsers: [(name: String, title: String, bundleID: String)] = [
-        ("brave", "Brave", "com.brave.Browser"), ("chrome", "Chrome", "com.google.Chrome"),
-        ("edge", "Edge", "com.microsoft.edgemac"), ("firefox", "Firefox", "org.mozilla.firefox"),
-        ("safari", "Safari", "com.apple.Safari"), ("vivaldi", "Vivaldi", "com.vivaldi.Vivaldi"),
-        ("opera", "Opera", "com.operasoftware.Opera"), ("chromium", "Chromium", "org.chromium.Chromium"),
-    ]
-
-    static func title(ofBrowser name: String) -> String { browsers.first { $0.name == name }?.title ?? name }
-
-    /// A browser the user picked wins (it has the full, current cookie store), then the extension's cookies.
-    static func choose(browser: String, jar: [BrowserCookie]?) -> MediaCookies {
-        if browsers.contains(where: { $0.name == browser }) { return .browser(browser) }
+    static func choose(jar: [BrowserCookie]?) -> MediaCookies {
         if let jar, !jar.isEmpty { return .jar(jar) }
         return .none
     }
@@ -434,8 +422,6 @@ enum MediaCookies: Equatable, Sendable {
         switch self {
         case .none:
             return []
-        case .browser(let name):
-            return ["--cookies-from-browser", name]
         case .jar(let cookies):
             let file = directory.appending(path: Self.fileName)
             do {
@@ -519,8 +505,8 @@ enum MediaErrors {
         switch kind(of: message) {
         case .botCheck:
             message.contains(rateLimitNote)
-                ? "The site is limiting requests from your network and wants to confirm you're not a bot. Using your browser's cookies fixes this, or try again later."
-                : "The site wants to confirm you're not a bot. Using your browser's cookies usually fixes this."
+                ? "The site is limiting requests from your network and wants to confirm you're not a bot. Downloading with the Anchor button in your browser usually works, or try again later."
+                : "The site wants to confirm you're not a bot. Downloading with the Anchor button in your browser usually works."
         case .signIn: "This video needs you to be signed in (it's private, for members, or age-restricted)."
         case .region: "This video isn't available in your country."
         case .unavailable: "This video is unavailable or was removed."
