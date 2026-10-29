@@ -196,6 +196,7 @@ final class DownloadStore {
             item.overwrite = canOverwrite ? true : nil
             if let probe { item.totalBytes = probe.totalBytes }
             self.items.insert(item, at: 0)
+            self.showAfterAdding()
             self.bumpCleanupRevision()
             self.markDirty()
             if startNow { self.startOrQueue(item.id, respectSchedule: true) } else { self.schedule() }
@@ -256,6 +257,7 @@ final class DownloadStore {
                                 category: FileCategory.detect(fileName: name), kind: .torrent)
         item.torrentFile = file
         items.insert(item, at: 0)
+        showAfterAdding()
         bumpCleanupRevision()
         markDirty()
         if startNow { startOrQueue(item.id, respectSchedule: true) } else { schedule() }
@@ -268,6 +270,7 @@ final class DownloadStore {
         let item = makeMedia(url, name: name, directory: directory, quality: quality, info: info, convertHeight: convertHeight,
                              playableOnly: playableOnly, subtitle: subtitle, cookieJar: cookieJar, openWhenDone: openWhenDone)
         items.insert(item, at: 0)
+        showAfterAdding()
         bumpCleanupRevision()
         markDirty()
         if startNow { startOrQueue(item.id, respectSchedule: true) } else { schedule() }
@@ -304,6 +307,7 @@ final class DownloadStore {
             added.append(item)
         }
         items.insert(contentsOf: added, at: 0)
+        showAfterAdding()
         bumpCleanupRevision()
         markDirty()
         if startNow {
@@ -330,6 +334,13 @@ final class DownloadStore {
         item.cookieJar = cookieJar.isEmpty ? nil : cookieJar
         item.openWhenDone = openWhenDone
         return item
+    }
+
+    /// "Show Anchor after adding a download" (Settings > General): brings the main window forward. Waits a moment so
+    /// a closing New Download window doesn't take the focus back.
+    private func showAfterAdding() {
+        guard settings.showAfterAdding else { return }
+        DispatchQueue.main.async { AppRouter.shared.activate() }
     }
 
     private func uniqueName(_ name: String, in folder: URL, ignoringFinished: Bool = false, alsoTaken: Set<String> = []) -> String {
@@ -424,6 +435,7 @@ final class DownloadStore {
         item.totalBytes = included.reduce(0) { $0 + $1.length }
         liveGIDs.insert(prepared.gid)
         items.insert(item, at: 0)
+        showAfterAdding()
         bumpCleanupRevision()
         markDirty()
         if torrentFile == nil { adoptSavedMetadata(for: item.id) }
@@ -445,6 +457,7 @@ final class DownloadStore {
         let id = item.id
         preparing[id] = task
         items.insert(item, at: 0)
+        showAfterAdding()
         bumpCleanupRevision()
         markDirty()
         if startNow { startOrQueue(id, respectSchedule: true) } else { queue([id]) }
