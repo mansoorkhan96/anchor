@@ -100,6 +100,8 @@ final class AppSettings {
         }
     }
     var keepAwake: Bool { didSet { defaults.set(keepAwake, forKey: "keepAwake") } }
+    /// Brings the main window forward whenever a download is added (from the browser, the clipboard or a shortcut).
+    var showAfterAdding: Bool { didSet { defaults.set(showAfterAdding, forKey: "showAfterAdding") } }
     var seedTorrents: Bool { didSet { defaults.set(seedTorrents, forKey: "seedTorrents") } }
     var seedRatio: Double { didSet { defaults.set(seedRatio, forKey: "seedRatio") } }
     /// KB/s, 0 = unlimited.
@@ -153,7 +155,7 @@ final class AppSettings {
             "clipboardMonitoring": true, "browserIntegration": true, "confirmBrowserDownloads": true,
             "notifications": true, "sortOrder": SortOrder.newest.rawValue,
             "menuBarOrder": MenuBarOrder.unfinishedFirst.rawValue, "menuBarCount": 5,
-            "showMenuBarIcon": true, "showSpeedStrip": true, "keepAwake": true, "seedTorrents": false, "seedRatio": 1.0, "uploadLimitKB": 0, "existingFileAction": ExistingFileAction.ask.rawValue,
+            "showMenuBarIcon": true, "showSpeedStrip": true, "keepAwake": true, "showAfterAdding": false, "seedTorrents": false, "seedRatio": 1.0, "uploadLimitKB": 0, "existingFileAction": ExistingFileAction.ask.rawValue,
             "archiveInstallers": true, "cleanupBannerDismissedBytes": 0,
             "scheduleEnabled": false, "scheduleStart": 60, "scheduleEnd": 7 * 60,
         ])
@@ -177,6 +179,7 @@ final class AppSettings {
         showSpeedStrip = defaults.bool(forKey: "showSpeedStrip")
         appearance = AppAppearance(rawValue: defaults.string(forKey: "appearance") ?? "") ?? .system
         keepAwake = defaults.bool(forKey: "keepAwake")
+        showAfterAdding = defaults.bool(forKey: "showAfterAdding")
         seedTorrents = defaults.bool(forKey: "seedTorrents")
         seedRatio = defaults.double(forKey: "seedRatio")
         uploadLimitKB = defaults.integer(forKey: "uploadLimitKB")

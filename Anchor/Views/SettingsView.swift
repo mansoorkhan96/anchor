@@ -224,6 +224,11 @@ private struct GeneralPage: View {
                 SettingsRow(title: "Open Anchor at login", detail: "Stays in the menu bar so browser downloads always work", divider: true) {
                     AnchorSwitch(isOn: $launchAtLogin, label: "Open Anchor at login")
                 }
+                SettingsRow(title: "Show Anchor after adding a download",
+                            detail: "Brings the main window forward when a download is added from your browser, the clipboard or a shortcut",
+                            divider: true) {
+                    AnchorSwitch(isOn: $settings.showAfterAdding, label: "Show Anchor after adding a download")
+                }
                 SettingsRow(title: "Keep Mac awake while downloading", detail: "Stops idle sleep until downloads finish; the screen can still turn off", divider: true) {
                     AnchorSwitch(isOn: $settings.keepAwake, label: "Keep Mac awake while downloading")
                 }
