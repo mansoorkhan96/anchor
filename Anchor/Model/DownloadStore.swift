@@ -289,7 +289,8 @@ final class DownloadStore {
         for (offset, entry) in videos.enumerated() {
             let title = numbered ? String(format: "%0\(digits)d ", entry.index) + entry.video.title : entry.video.title
             var item = makeMedia(entry.video.url, name: title, directory: folder, quality: quality,
-                                 info: MediaInfo(title: entry.video.title, extractor: extractor, thumbnail: entry.video.thumbnail,
+                                 info: MediaInfo(title: entry.video.title, extractor: entry.video.extractor ?? extractor,
+                                                 thumbnail: entry.video.thumbnail,
                                                  duration: entry.video.duration),
                                  playableOnly: true, cookieJar: cookieJar, openWhenDone: false, taken: added)
             // Named after the site's title once yt-dlp reports it, when the playlist didn't list one.
@@ -371,7 +372,7 @@ final class DownloadStore {
                 return markDirty()
             }
             let limit = MediaCommand.limit(global: settings.effectiveSpeedLimit, itemKB: item.speedLimitKB)
-            let cookies = MediaCookies.choose(browser: settings.mediaCookieBrowser, jar: item.cookieJar)
+            let cookies = MediaCookies.choose(jar: item.cookieJar)
             MediaJobs.shared.start(item, tools: tools, limit: limit, cookies: cookies) { id, event in
                 DownloadStore.shared.handleMedia(id, event)
             }
@@ -585,7 +586,7 @@ final class DownloadStore {
     /// `respectSchedule`: a new download waits for the download window; resuming one by hand doesn't.
     /// `keepQueuedAt`: its place in the line was already set (playlists keep their order).
     private func startOrQueue(_ id: UUID, respectSchedule: Bool = false, keepQueuedAt: Bool = false) {
-        if busySlots < settings.maxConcurrent, !respectSchedule || queueRuns {
+        if busySlots < settings.maxConcurrent, !respectSchedule || queueRuns, item(id).map({ mayStart($0) }) ?? true {
             start(id)
         } else {
             mutate(id) {
@@ -1002,8 +1003,21 @@ final class DownloadStore {
                 return ($0.queuedAt ?? $0.createdAt) < ($1.queuedAt ?? $1.createdAt)
             }
         for item in waiting where active < settings.maxConcurrent {
+            // A video waits while another from its site is downloading.
+            guard mayStart(item) else { continue }
             start(item.id)
             active += 1
+        }
+    }
+
+    private func mayStart(_ item: DownloadItem) -> Bool { Self.mayStart(item, among: items) }
+
+    /// One video at a time per site, as yt-dlp itself downloads a playlist: several at once is what makes YouTube
+    /// answer "too many requests" and ask to confirm you're not a bot. Other downloads and other sites aren't held.
+    nonisolated static func mayStart(_ item: DownloadItem, among items: [DownloadItem]) -> Bool {
+        guard item.kind == .media, let site = MediaLinkDetector.site(for: item.url) else { return true }
+        return !items.contains { other in
+            other.id != item.id && other.kind == .media && other.state.isActive && MediaLinkDetector.site(for: other.url) == site
         }
     }
 

@@ -16,6 +16,27 @@ enum MediaLinkDetector {
         return knownHosts.contains { host == $0 || host.hasSuffix("." + $0) }
     }
 
+    /// The site a video link belongs to, for downloading one video at a time per site: "youtube.com" for
+    /// youtu.be, m.youtube.com and music.youtube.com alike. nil for links that aren't http(s).
+    static func site(for url: URL) -> String? {
+        guard let scheme = url.scheme?.lowercased(), scheme == "http" || scheme == "https",
+              var host = url.host()?.lowercased(), !host.isEmpty else { return nil }
+        if host.hasSuffix(".") { host.removeLast() }
+        if let alias = siteAliases[host] { return alias }
+        if let known = knownHosts.filter({ host == $0 || host.hasSuffix("." + $0) }).max(by: { $0.count < $1.count }) {
+            return siteAliases[known] ?? known
+        }
+        for prefix in ["www.", "m."] where host.hasPrefix(prefix) { host.removeFirst(prefix.count) }
+        return host
+    }
+
+    /// Short links and second names that are the same site.
+    private static let siteAliases: [String: String] = [
+        "youtu.be": "youtube.com", "m.youtube.com": "youtube.com", "music.youtube.com": "youtube.com",
+        "vm.tiktok.com": "tiktok.com", "pin.it": "pinterest.com", "twitter.com": "x.com", "fb.watch": "facebook.com",
+        "v.redd.it": "reddit.com",
+    ]
+
     /// The link to probe: a YouTube channel's front page lists its Videos, Live and Shorts tabs, which yt-dlp reads in
     /// full (slow); its Videos tab is what people mean.
     static func probeURL(for url: URL) -> URL {
